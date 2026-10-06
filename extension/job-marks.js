@@ -6,8 +6,6 @@
   };
   const CARD_SELECTOR = 'li, [data-testid="slider_item"], .job_seen_beacon, .cardOutline, '
     + '[role="button"][componentkey^="job-card-component-ref-"]';
-  const TITLE_SELECTOR = '[data-testid="vj-job-title"], .jobsearch-JobInfoHeader-title, '
-    + '.job-details-jobs-unified-top-card__job-title, .jobs-unified-top-card__job-title';
   const ACTIONS_CLASS = "cv-fit-bridge-job-actions";
   const records = new Map();
   const pendingWrites = new Set();
@@ -87,7 +85,7 @@
       }
     }
 
-    const heading = [...document.querySelectorAll(TITLE_SELECTOR)]
+    const heading = [...document.querySelectorAll(cvFit.selectors.jobDetailTitle)]
       .find((element) => cvFit.dom.getRenderedRect(element));
     let jobUrl = null;
     if (heading) {

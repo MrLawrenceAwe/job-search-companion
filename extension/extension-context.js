@@ -13,6 +13,9 @@
       },
     },
     selectors: {
+      jobDetailTitle:
+        '[data-testid="vj-job-title"], .jobsearch-JobInfoHeader-title, '
+        + '.job-details-jobs-unified-top-card__job-title, .jobs-unified-top-card__job-title',
       jobUrlCarrier:
         'a[href*="jk="], a[href*="/viewjob"], [data-jk], [data-vjk], [data-jobkey], [id^="job_"], '
         + 'a[href*="/jobs/view/"], [componentkey^="job-card-component-ref-"]',

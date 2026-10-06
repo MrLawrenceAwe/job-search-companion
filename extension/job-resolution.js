@@ -251,7 +251,9 @@
   };
 
   const findDetailPaneJobTitle = () => {
-    const headings = [...document.querySelectorAll('h1, h2, [data-testid*="title" i]')];
+    // Title-row wrappers also contain our mark buttons. Reading their text
+    // makes the job identity change whenever controls are inserted or removed.
+    const headings = [...document.querySelectorAll(`h1, h2, ${cvFit.selectors.jobDetailTitle}`)];
     const rightPaneHeadings = headings
       .map((heading) => ({ heading, rect: cvFit.dom.getVisibleRect(heading) }))
       .filter(({ rect }) => rect && rect.left > window.innerWidth * 0.35)

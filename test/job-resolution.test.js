@@ -19,6 +19,37 @@ const visibleJobCarrier = (jobKey, title) => ({
   matches: (selector) => selector.includes("[href]"),
 });
 
+test("Indeed home-page job identity stays stable when mark controls change title-row text", async () => {
+  const { cvFit, document } = await createJobFixture({ href: "https://uk.indeed.com/" });
+  const title = "IT Infrastructure Engineer – AI";
+  const heading = createElement({ text: title });
+  const titleRow = createElement({ text: title });
+  const carrier = visibleJobCarrier("fixture123", title);
+  document.querySelectorAll = (selector) => {
+    if (selector === cvFit.selectors.jobUrlCarrier) return [carrier];
+    // Indeed renders company-info-title-row before its vj-job-title child.
+    if (selector.includes('[data-testid*="title" i]')) return [titleRow, heading];
+    if (selector.includes('[data-testid="vj-job-title"]')) return [heading];
+    return [];
+  };
+  cvFit.dom.getVisibleRect = (element) => ({
+    width: 500, height: 40, left: element === carrier ? 0 : 750, top: 100,
+  });
+
+  const expectedUrl = "https://uk.indeed.com/viewjob?jk=fixture123";
+  assert.equal(cvFit.jobs.resolveSelectedJobUrl(), expectedUrl);
+  for (const controls of ["Mark as appliedMark as unsuitable", "Unmark as appliedMark as unsuitable", ""]) {
+    titleRow.textContent = title + controls;
+    assert.equal(cvFit.jobs.resolveSelectedJobUrl(), expectedUrl);
+  }
+
+  // A real selection change must still update the controls' job identity.
+  heading.textContent = "Support Specialist";
+  carrier.textContent = heading.textContent;
+  carrier.getAttribute = (name) => name === "href" ? "/viewjob?jk=secondjob1" : null;
+  assert.equal(cvFit.jobs.resolveSelectedJobUrl(), "https://uk.indeed.com/viewjob?jk=secondjob1");
+});
+
 test("resolves an embedded job key using the captured share context", async () => {
   const { body, cvFit } = await createJobFixture({
     href: "https://uk.indeed.com/jobs?q=support",
