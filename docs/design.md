@@ -2,11 +2,9 @@
 
 ## Application records
 
-The product and checkout folder are named **Job Search Companion**. The local
-service and installation records point to the renamed checkout. A hidden link
-from the former path preserves Chrome's existing unpacked-extension identity
-and application records. The service identifier and Application Support
-directory remain stable to preserve submission history and macOS permissions.
+The installer records the chosen checkout location. Keep the unpacked extension
+in a stable directory so its identity and local application records remain
+available. See [setup and removal](setup.md) before installing the bridge.
 `applied-jobs.js` stores each manual application mark separately in
 `chrome.storage.local`, keyed by platform and job ID, with a normalized source
 URL and ISO recording date. Per-job writes cannot overwrite unrelated marks.

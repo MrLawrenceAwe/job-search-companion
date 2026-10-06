@@ -10,6 +10,6 @@
     "test:health": "node scripts/check-health.js"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   }
 }
