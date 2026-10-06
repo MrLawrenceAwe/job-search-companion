@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Job Search Companion — applied tracking preview</title>
+<link rel="canonical" href="https://uk.indeed.com/viewjob?jk=demojob111">
+<link rel="stylesheet" href="../extension/content.css">
+<style>
+  body { margin: 0; background: #f5f7fa; color: #253044; font: 16px/1.5 system-ui; }
+  header { padding: 28px 40px; background: #fff; border-bottom: 1px solid #d8dee8; }
+  h1 { margin: 0; font-size: 26px; } header p { margin: 8px 0 0; color: #596579; }
+  main { display: grid; grid-template-columns: 340px 1fr; gap: 24px; max-width: 1000px; margin: 28px auto; }
+  ul { list-style: none; padding: 0; margin: 0; }
+  li, article { border: 1px solid #d8dee8; border-radius: 12px; background: #fff; padding: 22px; margin-bottom: 16px; }
+  h2, h5 { margin: 0 0 8px; font-size: 21px; } a { color: #2557a7; text-decoration: none; }
+  button { font: inherit; cursor: pointer; } .tools { margin-top: 28px; }
+  .tools button, #open-menu { padding: 8px 12px; background: white; border: 1px solid #b5bece; border-radius: 6px; }
+  #demo-menu { border: 1px solid #d8dee8; border-radius: 8px; padding: 8px; max-width: 320px; margin-top: 12px; }
+  #demo-menu > button { display: block; width: 100%; text-align: left; border: 0; background: white; padding: 12px; }
+  .note { color: #596579; font-size: 14px; } .cv-fit-bridge-applied-badge { margin-left: 0; }
+</style>
+<header><h1>Job Search Companion</h1><p>Applied-job tracking preview · sample jobs and local demo storage</p></header>
+<main>
+  <section><ul id="cards">
+    <li><h2><a href="https://uk.indeed.com/viewjob?jk=demojob111">Accounts Apprentice</a></h2><p>Example Accountancy · Welwyn Garden City</p><button data-select="demojob111">Select Accounts Apprentice</button></li>
+    <li><h2><a href="https://uk.indeed.com/viewjob?jk=demojob222">Office Administrator</a></h2><p>Example Services · London</p><button data-select="demojob222">Select Office Administrator</button></li>
+  </ul><div class="tools"><button id="replace-cards">Re-render results</button></div></section>
+  <article><h5 data-testid="vj-job-title">Accounts Apprentice</h5><p id="company">Example Accountancy · Welwyn Garden City</p>
+    <p>You completed this application on the employer's website. Mark it here to remember it when browsing jobs.</p>
+    <button id="open-menu" aria-label="Share job">Open job menu</button>
+    <div role="menu" id="demo-menu" hidden><button>Copy link</button><button>Email</button><button>WhatsApp</button></div>
+    <p class="note">The green badge is your own saved record. It does not update the job board's account history.</p>
+  </article>
+</main>
+<script>
+  // Only the test page uses localStorage. Production uses chrome.storage.local.
+  const changeListeners = [];
+  const readRecords = () => JSON.parse(localStorage.getItem('companion-preview') || '{}');
+  const writeRecords = (records) => localStorage.setItem('companion-preview', JSON.stringify(records));
+  window.chrome = { storage: {
+    local: {
+      async get(key) { const records = readRecords(); return key === null ? records : { [key]: records[key] }; },
+      async set(values) {
+        const records = readRecords(); const changes = {};
+        for (const [key, value] of Object.entries(values)) { changes[key] = {oldValue: records[key], newValue: value}; records[key] = value; }
+        writeRecords(records); changeListeners.forEach(listener => listener(changes, 'local'));
+      },
+      async remove(key) { const records = readRecords(); const oldValue = records[key]; delete records[key]; writeRecords(records); changeListeners.forEach(listener => listener({[key]: {oldValue}}, 'local')); }
+    }, onChanged: { addListener(listener) { changeListeners.push(listener); } }
+  }, runtime: { sendMessage(_message, callback) { callback({ok:false, error:'CV analysis is disabled in the preview'}); } } };
+  window.addEventListener('storage', event => {
+    if (event.key !== 'companion-preview') return;
+    const before = JSON.parse(event.oldValue || '{}'); const after = JSON.parse(event.newValue || '{}'); const changes = {};
+    for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) changes[key] = {oldValue:before[key], newValue:after[key]};
+    changeListeners.forEach(listener => listener(changes, 'local'));
+  });
+  document.addEventListener('click', event => {
+    const selected = event.target.closest('[data-select]');
+    if (selected) {
+      document.querySelector('link[rel="canonical"]').href = 'https://uk.indeed.com/viewjob?jk=' + selected.dataset.select;
+      document.querySelector('[data-testid="vj-job-title"]').textContent = selected.dataset.select === 'demojob111' ? 'Accounts Apprentice' : 'Office Administrator';
+      document.querySelector('#company').textContent = selected.dataset.select === 'demojob111' ? 'Example Accountancy · Welwyn Garden City' : 'Example Services · London';
+      document.querySelector('#demo-menu').hidden = true;
+    }
+  });
+  document.querySelector('#replace-cards').onclick = () => {
+    const cards = document.querySelector('#cards'); cards.replaceWith(cards.cloneNode(true));
+  };
+  document.querySelector('#open-menu').onclick = () => { document.querySelector('#demo-menu').hidden = false; };
+</script>
+<script src="../extension/extension-context.js"></script>
+<script src="../extension/dom-visibility.js"></script>
+<script src="../extension/job-url.js"></script>
+<script src="../extension/job-resolution.js"></script>
+<script src="../extension/job-navigation.js"></script>
+<script src="../extension/submission.js"></script>
+<script src="../extension/applied-jobs.js"></script>
+<script src="../extension/share-menu.js"></script>
+<script src="../extension/share-menu-observer.js"></script>
+</html>

@@ -1,0 +1,9 @@
+extension/local-config.js
+.DS_Store
+node_modules/
+.env
+.env.*
+!.env.example
+bridge/codex/accessibility-helper/accessibility-helper
+server/codex/composer-automation
+server/codex/composer-automation.tmp-*

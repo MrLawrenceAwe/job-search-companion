@@ -1,0 +1,15 @@
+{
+  "name": "job-search-companion",
+  "version": "0.11.0",
+  "private": true,
+  "description": "Applied-job tracking and browsing on Indeed and LinkedIn, with CV Fit Advisor tasks in Codex.",
+  "type": "module",
+  "scripts": {
+    "start": "node bridge/server.js",
+    "test": "swiftc -typecheck bridge/codex/accessibility-helper/*.swift && node --test",
+    "test:health": "node scripts/check-health.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
