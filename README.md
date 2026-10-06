@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/MrLawrenceAwe/job-search-companion/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/MrLawrenceAwe/job-search-companion/actions/workflows/ci.yml)
 
-A Chrome extension for browsing Indeed and LinkedIn, remembering applications,
+A Chrome extension for browsing Indeed and LinkedIn, remembering applications, marking unsuitable jobs,
 and sending selected jobs to a local Codex workspace for CV fit checks.
 
 **Stack:** JavaScript, Node.js, Chrome Manifest V3, Swift and macOS Accessibility.
@@ -15,7 +15,10 @@ and sending selected jobs to a local Codex workspace for CV fit checks.
 
 - Adds **Mark as applied** and **Unmark as applied** to supported job menus and
   detail headers, with a green **✓ Applied** badge on result cards.
-- Keeps application marks across page refreshes and Chrome restarts, and updates
+- Adds **Mark as unsuitable** and **Unmark as unsuitable** to job menus and
+  detail headers, with an orange **✕ Unsuitable** badge. Jobs remain visible for
+  review, and existing applied records are kept.
+- Keeps applied and unsuitable marks across page refreshes and Chrome restarts, and updates
   open tabs together. Platform job IDs identify records across tracking URLs.
 - Provides **J/K** to navigate rendered results, **H** to hide a result on the
   current page, and **U** to undo navigation or hiding. Shortcuts ignore editable
@@ -37,7 +40,7 @@ python3 -m http.server 48974 --bind 127.0.0.1
 ```
 
 Open [the local preview](http://127.0.0.1:48974/test-support/applied-jobs-preview.html).
-Select a sample job, open its menu and mark it as applied. Refresh or use
+Select a sample job, open its menu and mark it as applied or unsuitable. Refresh or use
 **Re-render results** to see the saved badge restored. The preview uses the
 production content scripts with mock Chrome APIs; CV analysis stays disabled.
 Stop the server with **Ctrl+C** when finished.
@@ -46,7 +49,7 @@ Stop the server with **Ctrl+C** when finished.
 
 - **Dynamic page handling:** DOM observers restore controls after job-board
   rerenders. Job resolution omits actions when the selected listing is ambiguous.
-- **Local persistence:** separate per-job writes prevent unrelated application
+- **Local persistence:** separate per-job writes prevent unrelated job
   marks from overwriting each other; storage events synchronize open tabs.
 - **Bounded task automation:** an authenticated loopback service invokes a Swift
   helper that checks the visible composer and required settings before submitting.
@@ -59,10 +62,13 @@ See [architecture and design](docs/design.md) for module boundaries and task flo
 
 ## Install
 
-Load `extension/` through Chrome's **Load unpacked** control for application
+Load `extension/` through Chrome's **Load unpacked** control for job
 marking and browsing shortcuts. CV analysis additionally requires macOS, Node.js
 22+, Xcode Command Line Tools, Codex, Accessibility permission and a configured
 `cv-fit-advisor` skill. The skill and CV files are not included in this repository.
+
+Reload the existing unpacked extension in `chrome://extensions`, then refresh
+job pages to pick up version 0.12.0.
 
 Follow [setup, configuration and removal](docs/setup.md) for the bridge, extension
 identity, token, workspace and permissions. This is an independent personal
@@ -79,7 +85,7 @@ npm test
 
 This type-checks the Swift helper and runs Node's built-in test runner. Tests use
 synthetic jobs, mock browser APIs and temporary installation fixtures. They cover
-job resolution, application persistence, navigation, HTTP authentication,
+job resolution, applied and unsuitable mark persistence, navigation, HTTP authentication,
 submission recovery and installation transactions. CI runs the same command on
 macOS for pushes and pull requests using Node.js 22 and 24.
 
@@ -89,7 +95,7 @@ manual check on the target Mac; see [the setup guide](docs/setup.md#3-verify).
 
 ## Privacy and limitations
 
-Application marks stay in this Chrome profile's extension storage. Removing the
+Applied and unsuitable marks stay in this Chrome profile's extension storage. Removing the
 extension clears them. Job-board layout changes can break integrations; only
 rendered results are available to the navigation shortcuts.
 

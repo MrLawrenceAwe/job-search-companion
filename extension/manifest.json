@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Job Search Companion",
-  "version": "0.11.0",
-  "description": "Track applied jobs, browse Indeed and LinkedIn, and analyse CV fit with Codex.",
+  "version": "0.12.0",
+  "description": "Track applied and unsuitable jobs, browse Indeed and LinkedIn, and analyse CV fit with Codex.",
   "permissions": ["storage"],
   "host_permissions": [
     "http://127.0.0.1:48973/*",
@@ -33,7 +33,7 @@
         "job-resolution.js",
         "job-navigation.js",
         "submission.js",
-        "applied-jobs.js",
+        "job-marks.js",
         "shortcuts.js",
         "share-menu.js",
         "share-menu-observer.js"

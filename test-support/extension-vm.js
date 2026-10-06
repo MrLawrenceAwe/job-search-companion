@@ -50,7 +50,7 @@ export const runExtensionScripts = async (context, filenames) => {
 export const loadMenuScripts = (context) => runExtensionScripts(context, [
   "submission.js",
   "job-url.js",
-  "applied-jobs.js",
+  "job-marks.js",
   "share-menu.js",
 ]);
 
@@ -62,14 +62,16 @@ export const createMenuFixture = async ({
   const toasts = [];
   let insertedButton;
   let appliedButton;
+  let unsuitableButton;
   const storage = initialStorage;
   const storageChanges = [];
   const location = new URL(jobUrl);
   const insertionRow = new FakeElement("div");
   insertionRow.textContent = location.hostname.endsWith("linkedin.com") ? "Share" : "WhatsApp";
-  insertionRow.after = (element, applied) => {
+  insertionRow.after = (element, applied, unsuitable) => {
     insertedButton = element;
     appliedButton = applied;
+    unsuitableButton = unsuitable;
   };
   const document = {
     body: {
@@ -127,6 +129,7 @@ export const createMenuFixture = async ({
   return {
     button: insertedButton,
     appliedButton,
+    unsuitableButton,
     storage,
     storageChanges,
     context,

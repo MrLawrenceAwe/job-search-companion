@@ -54,30 +54,13 @@
   };
 
   const createMenuItems = (source) => {
-    // Resolve the captured share context once for both actions. This keeps
-    // an open card menu attached to that card even if the selected pane changes.
+    // Capture the menu's job once, even if the selected detail pane changes.
     const jobUrl = cvFit.jobs.resolveJobUrl(source);
-    const appliedButton = document.createElement("button");
-    appliedButton.type = "button";
-    appliedButton.className = `${cvFit.ui.menuItemClass} cv-fit-bridge-applied-action`;
-    appliedButton.setAttribute("role", "menuitem");
-    const icon = document.createElement("span");
-    icon.className = "cv-fit-bridge-menu-item-icon";
-    icon.textContent = "✓";
-    icon.setAttribute("aria-hidden", "true");
-    const label = document.createElement("span");
-    label.className = "cv-fit-bridge-menu-item-label";
-    appliedButton.append(icon);
-    appliedButton.append(label);
-    cvFit.appliedJobs.updateButton(appliedButton, jobUrl);
-    void cvFit.appliedJobs.ready.then(() => cvFit.appliedJobs.updateButton(appliedButton, jobUrl))
-      .catch(() => { appliedButton.disabled = true; });
-    appliedButton.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      void cvFit.appliedJobs.toggle(jobUrl, appliedButton);
-    });
-    return [createMenuItem(jobUrl), appliedButton];
+    return [
+      createMenuItem(jobUrl),
+      cvFit.jobMarks.createButton(jobUrl, "applied", true),
+      cvFit.jobMarks.createButton(jobUrl, "unsuitable", true),
+    ];
   };
 
   const MENU_ROW_SELECTOR = 'button, a, [role="menuitem"], li';

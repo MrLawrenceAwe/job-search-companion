@@ -17,8 +17,8 @@ test("applied menu action persists a mark, survives reload and can be unmarked",
   assert.equal(first.appliedButton.disabled, false);
 
   const reloaded = await createMenuFixture({ runtime, initialStorage: first.storage });
-  await reloaded.context.cvFitBridge.appliedJobs.ready;
-  assert.equal(reloaded.context.cvFitBridge.appliedJobs.isApplied(jobUrl), true);
+  await reloaded.context.cvFitBridge.jobMarks.ready;
+  assert.equal(reloaded.context.cvFitBridge.jobMarks.isMarked(jobUrl, "applied"), true);
   click(reloaded.appliedButton);
   await flushUntil(() => reloaded.toasts.length > 0);
   assert.equal(reloaded.toasts.at(-1).textContent, "Applied mark removed.");
@@ -31,10 +31,10 @@ test("tracking parameters and country hosts share the platform job identity", as
     runtime,
     initialStorage: { [key]: { appliedAt: "2026-10-06T09:00:00.000Z" } },
   });
-  const applied = fixture.context.cvFitBridge.appliedJobs;
+  const applied = fixture.context.cvFitBridge.jobMarks;
   await applied.ready;
-  assert.equal(applied.isApplied("https://www.indeed.com/jobs?vjk=fixture111&from=search"), true);
-  assert.equal(applied.isApplied("https://uk.indeed.com/viewjob?jk=otherjob111"), false);
+  assert.equal(applied.isMarked("https://www.indeed.com/jobs?vjk=fixture111&from=search", "applied"), true);
+  assert.equal(applied.isMarked("https://uk.indeed.com/viewjob?jk=otherjob111", "applied"), false);
 });
 
 test("LinkedIn marks persist independently from Indeed", async () => {
@@ -56,14 +56,14 @@ test("marking a second job never replaces an existing record", async () => {
 
 test("storage changes from other tabs update the local record cache", async () => {
   const fixture = await createMenuFixture({ runtime });
-  const applied = fixture.context.cvFitBridge.appliedJobs;
+  const applied = fixture.context.cvFitBridge.jobMarks;
   await applied.ready;
   fixture.storageChanges[0]({ [key]: { newValue: { appliedAt: "2026-10-06T09:00:00.000Z" } } }, "local");
-  await flushUntil(() => applied.isApplied(jobUrl));
-  assert.equal(applied.isApplied(jobUrl), true);
+  await flushUntil(() => applied.isMarked(jobUrl, "applied"));
+  assert.equal(applied.isMarked(jobUrl, "applied"), true);
   fixture.storageChanges[0]({ [key]: {} }, "local");
-  await flushUntil(() => !applied.isApplied(jobUrl));
-  assert.equal(applied.isApplied(jobUrl), false);
+  await flushUntil(() => !applied.isMarked(jobUrl, "applied"));
+  assert.equal(applied.isMarked(jobUrl, "applied"), false);
 });
 
 test("failed storage writes do not claim success or change the record", async () => {
@@ -73,7 +73,7 @@ test("failed storage writes do not claim success or change the record", async ()
   await flushUntil(() => fixture.toasts.length > 0);
   assert.equal(fixture.toasts.at(-1).role, "alert");
   assert.equal(fixture.storage[key], undefined);
-  assert.equal(fixture.context.cvFitBridge.appliedJobs.isApplied(jobUrl), false);
+  assert.equal(fixture.context.cvFitBridge.jobMarks.isMarked(jobUrl, "applied"), false);
   assert.equal(fixture.appliedButton.disabled, false);
 });
 

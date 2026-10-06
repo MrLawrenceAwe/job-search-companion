@@ -35,7 +35,7 @@ test("retries document-wide menu discovery throughout the bounded scan window", 
     cvFitBridge: {
       dom: { getVisibleRect: () => ({ width: 1, height: 1 }) },
       jobs: { captureShareContext: () => {}, resolveJobUrl: () => "https://uk.indeed.com/viewjob?jk=fixture111" },
-      appliedJobs: { ready: Promise.resolve(), updateButton() {}, toggle() {} },
+      jobMarks: { createButton() { return new Element(); } },
       shareMenu: {
         insertMenuItem: () => false,
         mightContainMenu: () => false,
@@ -142,7 +142,7 @@ test("discovers a menu that becomes visible without a child-list mutation", asyn
         queryIncludingRoot: (root) => [root],
       },
       jobs: { captureShareContext: () => {}, resolveJobUrl: () => "https://uk.indeed.com/viewjob?jk=fixture111" },
-      appliedJobs: { ready: Promise.resolve(), updateButton() {}, toggle() {} },
+      jobMarks: { createButton() { return new Element(); } },
       shareMenu: {},
       shareMenuDetection: {
         retryIntervalMs: 120,

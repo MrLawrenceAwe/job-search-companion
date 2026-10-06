@@ -2,7 +2,7 @@
 <html lang="en">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Job Search Companion — applied tracking preview</title>
+<title>Job Search Companion — job marking preview</title>
 <link rel="canonical" href="https://uk.indeed.com/viewjob?jk=demojob111">
 <link rel="stylesheet" href="../extension/content.css">
 <style>
@@ -19,17 +19,17 @@
   #demo-menu > button { display: block; width: 100%; text-align: left; border: 0; background: white; padding: 12px; }
   .note { color: #596579; font-size: 14px; } .cv-fit-bridge-applied-badge { margin-left: 0; }
 </style>
-<header><h1>Job Search Companion</h1><p>Applied-job tracking preview · sample jobs and local demo storage</p></header>
+<header><h1>Job Search Companion</h1><p>Job marking preview · sample jobs and local demo storage</p></header>
 <main>
   <section><ul id="cards">
     <li><h2><a href="https://uk.indeed.com/viewjob?jk=demojob111">Accounts Apprentice</a></h2><p>Example Accountancy · Welwyn Garden City</p><button data-select="demojob111">Select Accounts Apprentice</button></li>
     <li><h2><a href="https://uk.indeed.com/viewjob?jk=demojob222">Office Administrator</a></h2><p>Example Services · London</p><button data-select="demojob222">Select Office Administrator</button></li>
   </ul><div class="tools"><button id="replace-cards">Re-render results</button></div></section>
   <article><h5 data-testid="vj-job-title">Accounts Apprentice</h5><p id="company">Example Accountancy · Welwyn Garden City</p>
-    <p>You completed this application on the employer's website. Mark it here to remember it when browsing jobs.</p>
+    <p>Mark a completed application or a job you have decided is unsuitable.</p>
     <button id="open-menu" aria-label="Share job">Open job menu</button>
     <div role="menu" id="demo-menu" hidden><button>Copy link</button><button>Email</button><button>WhatsApp</button></div>
-    <p class="note">The green badge is your own saved record. It does not update the job board's account history.</p>
+    <p class="note">Green applied and orange unsuitable badges are your own saved records. It does not update the job board's account history.</p>
   </article>
 </main>
 <script>
@@ -74,7 +74,7 @@
 <script src="../extension/job-resolution.js"></script>
 <script src="../extension/job-navigation.js"></script>
 <script src="../extension/submission.js"></script>
-<script src="../extension/applied-jobs.js"></script>
+<script src="../extension/job-marks.js"></script>
 <script src="../extension/share-menu.js"></script>
 <script src="../extension/share-menu-observer.js"></script>
 </html>

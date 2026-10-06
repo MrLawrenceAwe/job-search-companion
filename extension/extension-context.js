@@ -37,7 +37,7 @@
       normalizeForMatch: (value) => (value || "").replace(/\s+/g, " ").trim().toLowerCase(),
     },
     jobs: {},
-    appliedJobs: {},
+    jobMarks: {},
     shareMenu: {},
     showToast: null,
     submissions: {},

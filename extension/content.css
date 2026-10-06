@@ -97,7 +97,7 @@
   background: #991b1b;
 }
 
-.cv-fit-bridge-applied-badge {
+.cv-fit-bridge-job-mark-badge {
   display: inline-block;
   color: #155b36;
   background: #e6f4ea;
@@ -108,7 +108,7 @@
   padding: 4px 8px;
 }
 
-.cv-fit-bridge-applied-action:not([role="menuitem"]) {
+.cv-fit-bridge-job-mark-action:not([role="menuitem"]) {
   appearance: none;
   display: inline-block;
   background: #fff;
@@ -127,12 +127,25 @@
   color: #155b36;
 }
 
-.cv-fit-bridge-applied-action:focus-visible {
+.cv-fit-bridge-job-mark-action:focus-visible {
   outline: 2px solid #2557a7;
   outline-offset: 3px;
 }
 
-.cv-fit-bridge-applied-action:disabled {
+.cv-fit-bridge-job-mark-action:disabled {
   opacity: 0.6;
   cursor: wait;
+}
+
+.cv-fit-bridge-job-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cv-fit-bridge-unsuitable-badge,
+.cv-fit-bridge-unsuitable-action:not([role="menuitem"])[aria-pressed="true"] {
+  background: #fff1e6;
+  border-color: #d8a77e;
+  color: #874517;
 }

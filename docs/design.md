@@ -1,11 +1,11 @@
 # Design
 
-## Application records
+## Job records
 
 The installer records the chosen checkout location. Keep the unpacked extension
-in a stable directory so its identity and local application records remain
+in a stable directory so its identity and local job records remain
 available. See [setup and removal](setup.md) before installing the bridge.
-`applied-jobs.js` stores each manual application mark separately in
+`job-marks.js` stores each manual applied or unsuitable mark separately in
 `chrome.storage.local`, keyed by platform and job ID, with a normalized source
 URL and ISO recording date. Per-job writes cannot overwrite unrelated marks.
 The `storage` permission is used only for extension-local state. It adds no new
@@ -15,7 +15,7 @@ platform API or submit an application.
 An initial storage read restores marks, and storage notifications update other
 tabs. A debounced DOM observer restores badges after result cards are replaced
 and updates the detail action as the selected job changes. The job menu captures
-one resolved URL for both actions, avoiding a different selected pane being
+one resolved URL for all actions, avoiding a different selected pane being
 marked while a card's menu is open. Uncertain job resolution omits the actions.
 Marks are manual and reversible; they are not proof of successful submission.
 
@@ -57,9 +57,9 @@ The content scripts are ordered by dependency in the manifest:
 - `job-resolution.js` resolves the selected job from URL, DOM, title, and page data;
 - `job-navigation.js` owns results-page navigation, hiding, and undo state;
 - `submission.js` owns bridge messaging, completion polling, and submission feedback;
-- `applied-jobs.js` persists manual application records and decorates cards, job headers and menu actions;
+- `job-marks.js` persists manual applied and unsuitable records and decorates cards, job headers and menu actions;
 - `shortcuts.js` dispatches the N/J/K/H/U keyboard actions and ignores editable targets, modifier keys, repeated key events and composition;
-- `share-menu.js` creates and inserts the CV fit and application-record actions; and
+- `share-menu.js` creates and inserts the CV fit and job-record actions; and
 - `share-menu-observer.js` detects newly opened share menus.
 
 Helpers that are used only inside one content script remain file-local. The
