@@ -30,6 +30,7 @@ private func contractSelfTestPasses() -> Bool {
         && SubmissionEvidence(preparedPromptGone: true, freshClearedComposerCount: 1).isConfirmed
         && !SubmissionEvidence(preparedPromptGone: false, freshClearedComposerCount: 1).isConfirmed
         && !SubmissionEvidence(preparedPromptGone: true, freshClearedComposerCount: 0).isConfirmed
+        && !SubmissionEvidence(preparedPromptGone: true, freshClearedComposerCount: 2).isConfirmed
 }
 
 if CommandLine.arguments.count == 2 && CommandLine.arguments[1] == "metadata" {

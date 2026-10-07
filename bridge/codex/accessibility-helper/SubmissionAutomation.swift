@@ -111,8 +111,14 @@ func autoSubmitIfConfigured(_ request: AutoSubmitCommand) -> AutoSubmitResult {
           sameElement(composer, preparedComposer) else {
         fail("Expected the original prepared CV Fit Advisor composer to remain unique")
     }
+    // Keep confirmation local to the composer. The window also contains the
+    // conversation, which can grow dramatically as soon as the task starts.
+    guard let composerRoot = elementAttribute(composer, kAXParentAttribute),
+          !sameElement(composerRoot, searchRoot) else {
+        fail("Could not isolate the prepared CV Fit Advisor composer for confirmation")
+    }
     let preexistingClearedComposers = findElements(
-        in: searchRoot,
+        in: composerRoot,
         deadline: preSubmissionScanDeadline,
         matching: {
         optionalStringAttribute($0, kAXRoleAttribute) == kAXTextAreaRole
@@ -126,12 +132,16 @@ func autoSubmitIfConfigured(_ request: AutoSubmitCommand) -> AutoSubmitResult {
     let submissionDeadline = deadline(milliseconds: request.timeouts.submissionMs)
     var consecutiveConfirmations = 0
     var sleepInterval = initialPollInterval
+    var submissionState = SubmissionEvidence(
+        preparedPromptGone: false,
+        freshClearedComposerCount: 0
+    )
     while Date() < submissionDeadline {
         if app.isTerminated {
             fail("Codex terminated before submission was confirmed")
         }
-        let submissionState = readSubmissionEvidence(
-            in: searchRoot,
+        submissionState = readSubmissionEvidence(
+            in: composerRoot,
             jobURL: request.jobUrl,
             preexistingClearedComposers: preexistingClearedComposers,
             deadline: submissionDeadline
@@ -147,12 +157,6 @@ func autoSubmitIfConfigured(_ request: AutoSubmitCommand) -> AutoSubmitResult {
         Thread.sleep(forTimeInterval: sleepInterval)
         sleepInterval = min(maximumPollInterval, sleepInterval * 1.5)
     }
-    let submissionState = readSubmissionEvidence(
-        in: searchRoot,
-        jobURL: request.jobUrl,
-        preexistingClearedComposers: preexistingClearedComposers,
-        deadline: Date().addingTimeInterval(1)
-    )
     fail(
         "Codex did not provide positive evidence that the CV Fit Advisor task was submitted "
             + "(preparedPromptGone=\(submissionState.preparedPromptGone), "

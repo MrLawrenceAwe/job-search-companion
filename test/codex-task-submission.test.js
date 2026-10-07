@@ -119,6 +119,18 @@ test("compiled Accessibility helper publishes and self-tests its compatibility c
   assert.equal((await execFileAsync(binary, ["contract-self-test"])).stdout.trim(), "ok");
 });
 
+test("post-send confirmation stays in the composer subtree and uses the last observation on timeout", async () => {
+  const source = await readFile(
+    new URL("../bridge/codex/accessibility-helper/SubmissionAutomation.swift", import.meta.url), "utf8",
+  );
+  assert.match(source, /composerRoot = elementAttribute\(composer, kAXParentAttribute\)/);
+  const afterSend = source.slice(source.indexOf("postKey(returnKey)"));
+  assert.match(afterSend, /readSubmissionEvidence\(\s*in: composerRoot,/);
+  assert.doesNotMatch(afterSend, /in: searchRoot|in: applicationRoot/);
+  assert.equal(afterSend.match(/readSubmissionEvidence\(/g)?.length, 1);
+  assert.match(afterSend, /consecutiveConfirmations >= 3/);
+});
+
 test("helper metadata does not require the automation lock", async () => {
   const source = await readFile(
     new URL("../bridge/codex/accessibility-helper/main.swift", import.meta.url),

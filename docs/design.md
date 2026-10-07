@@ -92,6 +92,12 @@ Before pressing Return, the helper:
    be read; and
 4. otherwise submits and confirms that the prepared prompt cleared.
 
+Submission confirmation inspects only the prepared composer's parent subtree,
+requiring the prompt to disappear and exactly one newly cleared composer on
+three consecutive checks. It does not traverse the conversation as responses
+stream in. A timeout reports the last observed evidence without starting an
+extra scan after the deadline.
+
 Accessibility searches have deadlines and tree-size limits and fail closed on
 ambiguous composers, menus, or settings. The helper does not use the clipboard
 or mouse. It also holds an operating-system lock on a stable private lock file
