@@ -1,8 +1,8 @@
 {
   "name": "job-search-companion",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "private": true,
-  "description": "Applied-job tracking and browsing on Indeed and LinkedIn, with CV Fit Advisor tasks in Codex.",
+  "description": "Job tracking and browsing on Indeed and LinkedIn, with Indeed blocker checks using ChatGPT plan usage and full CV fit analysis in Codex.",
   "type": "module",
   "scripts": {
     "start": "node bridge/server.js",
@@ -11,5 +11,11 @@
   },
   "engines": {
     "node": ">=22"
+  },
+  "dependencies": {
+    "jose": "^6.2.12"
+  },
+  "devDependencies": {
+    "jsdom": "^27.4.0"
   }
 }

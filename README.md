@@ -23,6 +23,7 @@ and sending selected jobs to a local Codex workspace for CV fit checks.
 - Provides **J/K** to navigate rendered results, **H** to hide a result on the
   current page, and **U** to undo navigation or hiding. Shortcuts ignore editable
   fields; hidden results return after reload.
+- Checks loaded Indeed descriptions for blockers against the verified profile using ChatGPT plan usage. Connect and enable it in extension settings; see [blocker checker](docs/blocker-checker.md).
 - Adds **Analyse with CV Fit Advisor** and the **N** shortcut to prepare a CV fit
   task through a local service and a Swift Accessibility helper.
 
@@ -63,12 +64,12 @@ See [architecture and design](docs/design.md) for module boundaries and task flo
 ## Install
 
 Load `extension/` through Chrome's **Load unpacked** control for job
-marking and browsing shortcuts. CV analysis additionally requires macOS, Node.js
+marking and browsing shortcuts. Blocker checking needs the local Node bridge and an eligible ChatGPT connection. CV analysis additionally requires macOS, Node.js
 22+, Xcode Command Line Tools, Codex, Accessibility permission and a configured
 `cv-fit-advisor` skill. The skill and CV files are not included in this repository.
 
 Reload the existing unpacked extension in `chrome://extensions`, then refresh
-job pages to pick up version 0.12.0.
+job pages to pick up version 0.13.0.
 
 Follow [setup, configuration and removal](docs/setup.md) for the bridge, extension
 identity, token, workspace and permissions. This is an independent personal
@@ -76,8 +77,7 @@ project, not affiliated with Indeed, LinkedIn or OpenAI.
 
 ## Tests and CI
 
-Requires macOS, Node.js 22+ and Xcode Command Line Tools. There are no npm package
-dependencies to install.
+Requires macOS, Node.js 22+ and Xcode Command Line Tools. Install dependencies with `npm ci` before running the bridge or tests. Installation records the current Node executable's absolute path so the background service uses the same runtime as the installer. Reinstall the bridge if that executable moves.
 
 ```sh
 npm test

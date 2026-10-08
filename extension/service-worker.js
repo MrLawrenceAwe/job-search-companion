@@ -46,7 +46,7 @@ const requestBridge = async (message) => {
   }
 };
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+const handleCvFitMessage = (message, _sender, sendResponse) => {
   if (![cvFit.protocol.submitTaskMessage, cvFit.protocol.getTaskStatusMessage].includes(message?.type)) {
     return false;
   }
@@ -58,4 +58,52 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     sendResponse({ ok: false, error: error.message });
   });
   return true;
+};
+
+// Restrict the new checking boundary independently of full CV analysis.
+const BLOCKER_ACTIONS = new Map([
+  ["status", ["GET", "/status"]], ["models", ["GET", "/models"]],
+  ["settings", ["POST", "/settings"]], ["sign-in", ["POST", "/sign-in"]],
+  ["cancel-sign-in", ["POST", "/cancel-sign-in"]], ["account", ["POST", "/account"]],
+  ["sign-out", ["POST", "/sign-out"]], ["clear-cache", ["POST", "/clear-cache"]],
+  ["check", ["POST", "/checks"]], ["poll", ["GET", "/checks/"]],
+]);
+const isIndeedSender = (sender) => {
+  try { const url = new URL(sender.url); return url.protocol === "https:" && /(^|\.)indeed\.(com|co\.uk)$/.test(url.hostname); } catch { return false; }
+};
+const handleBlockerMessage = (message, sender, sendResponse) => {
+  if (message?.type !== "BLOCKER_REQUEST") return false;
+  const action = BLOCKER_ACTIONS.get(message.action);
+  const isSettings = sender.url === chrome.runtime.getURL("options.html");
+  if (!action || (!isSettings && (!isIndeedSender(sender) || !["status", "check", "poll"].includes(message.action)))) {
+    sendResponse({ ok: false, error: "Blocker request is not allowed" }); return false;
+  }
+  if (!cvFit.protocol.bridgeToken || !cvFit.protocol.bridgeOrigin) {
+    sendResponse({ ok: false, error: "Install the local bridge to enable blocker checks." }); return false;
+  }
+  if (message.action === "poll" && !/^[a-f0-9-]{36}$/.test(message.id || "")) {
+    sendResponse({ ok: false, error: "Invalid check ID" }); return false;
+  }
+  const [method, path] = action;
+  fetch(`${cvFit.protocol.bridgeOrigin}/blockers${path}${message.action === "poll" ? message.id : ""}`, {
+    method, cache: "no-store", signal: AbortSignal.timeout(10_000),
+    headers: { "Content-Type": "application/json", "X-CV-Fit-Bridge-Token": cvFit.protocol.bridgeToken },
+    ...(method === "POST" ? { body: JSON.stringify(message.body || {}) } : {}),
+  }).then(async (r) => {
+    const body = await r.json();
+    // Only the extension settings page may receive sign-in URLs or account state.
+    if (!isSettings && body.session) {
+      body.session = { sharing: body.session.sharing };
+      if (body.profile) body.profile = { hash: body.profile.hash };
+    }
+    sendResponse(body);
+  }).catch((error) => sendResponse({ ok: false, error: error.name === "TimeoutError" ? "Local checker did not respond. Try again." : "Local checker unavailable. Check that the bridge is running." }));
+  return true;
+};
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type === "OPEN_BLOCKER_SETTINGS" && isIndeedSender(sender)) {
+    chrome.runtime.openOptionsPage(); sendResponse({ ok: true }); return false;
+  }
+  return handleCvFitMessage(message, sender, sendResponse) || handleBlockerMessage(message, sender, sendResponse);
 });
+chrome.action?.onClicked.addListener(() => chrome.runtime.openOptionsPage());

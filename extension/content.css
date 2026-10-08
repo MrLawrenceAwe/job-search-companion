@@ -149,3 +149,15 @@
   border-color: #d8a77e;
   color: #874517;
 }
+
+.jsc-blocker-panel { margin: 12px 0; padding: 12px; border: 1px solid #b8c4d4; border-radius: 8px; background: #f5f8fc; color: #202936; font-size: 14px; line-height: 1.45; }
+.jsc-blocker-panel p { margin: 8px 0; }
+.jsc-blocker-panel details { padding: 8px 0; border-top: 1px solid #dce3ed; }
+.jsc-blocker-panel summary { cursor: pointer; }
+.jsc-blocker-panel blockquote { margin: 8px 0; padding: 4px 10px; border-left: 3px solid #7e91ad; }
+.jsc-blocker-controls { display: flex; gap: 8px; margin-top: 10px; }
+.jsc-blocker-controls button { padding: 5px 10px; border: 1px solid #8292a9; border-radius: 5px; background: white; color: #202936; font: inherit; cursor: pointer; }
+.jsc-blocker-controls button:disabled { opacity: .5; cursor: default; }
+.jsc-blocker-badge { display: inline-block; margin: 7px 4px; padding: 3px 8px; border-radius: 5px; font-size: 12px; font-weight: 600; background: #e9eef5; color: #33465e; }
+.jsc-clear_blocker { background: #fde8e5; color: #84251e; }
+.jsc-uncertain_requirement { background: #fff0cf; color: #76530c; }

@@ -9,9 +9,12 @@ const loadWorker = async (fetch) => {
   let clearedTimer;
   const context = vm.createContext({
     AbortController,
+    AbortSignal,
+    URL,
     clearTimeout: (timer) => { clearedTimer = timer; },
     chrome: {
       runtime: {
+        getURL: (path) => `chrome-extension://test/${path}`,
         onMessage: {
           addListener: (handler) => { messageHandler = handler; },
         },
@@ -41,6 +44,7 @@ const loadWorker = async (fetch) => {
     get clearedTimer() { return clearedTimer; },
     get timeoutCallback() { return timeoutCallback; },
     request,
+    messageHandler,
   };
 };
 
@@ -138,4 +142,29 @@ test("service worker forwards bridge errors", async () => {
     ok: false,
     error: "A task is already being submitted",
   }));
+});
+
+
+test("blocker requests reject LinkedIn and keep account controls confined to settings", async () => {
+  let requests = 0;
+  const worker = await loadWorker(async () => { requests++; return { json: async () => ({ ok: true }) }; });
+  for (const [action, sender] of [["check", { url: "https://www.linkedin.com/jobs/view/123456789/" }], ["sign-in", { url: "https://uk.indeed.com/jobs" }], ["status", { url: "https://indeed.com.attacker.test/jobs" }]]) {
+    let result;
+    assert.equal(worker.messageHandler({ type: "BLOCKER_REQUEST", action }, sender, (value) => { result = value; }), false);
+    assert.equal(result.ok, false);
+  }
+  assert.equal(requests, 0);
+});
+
+test("Indeed status responses omit account identity and local profile paths", async () => {
+  const worker = await loadWorker(async () => ({ json: async () => ({ ok: true, session: { sharing: true, email: "private@example.test", activeId: "private" }, profile: { hash: "hash", sources: [{ path: "/private/profile.md" }] } }) }));
+  const result = await new Promise((resolve) => worker.messageHandler({ type: "BLOCKER_REQUEST", action: "status" }, { url: "https://uk.indeed.com/jobs" }, resolve));
+  assert.equal(JSON.stringify(result.session), JSON.stringify({ sharing: true }));
+  assert.equal(JSON.stringify(result.profile), JSON.stringify({ hash: "hash" }));
+});
+
+test("settings may initiate sign-in and receive its authorization URL", async () => {
+  const worker = await loadWorker(async () => ({ json: async () => ({ ok: true, authUrl: "https://auth.openai.com/authorize" }) }));
+  const result = await new Promise((resolve) => worker.messageHandler({ type: "BLOCKER_REQUEST", action: "sign-in", body: { newProfile: true } }, { url: "chrome-extension://test/options.html" }, resolve));
+  assert.equal(result.authUrl, "https://auth.openai.com/authorize");
 });

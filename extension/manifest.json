@@ -1,9 +1,11 @@
 {
   "manifest_version": 3,
   "name": "Job Search Companion",
-  "version": "0.12.0",
-  "description": "Track applied and unsuitable jobs, browse Indeed and LinkedIn, and analyse CV fit with Codex.",
-  "permissions": ["storage"],
+  "version": "0.13.0",
+  "description": "Track and browse jobs, check loaded Indeed descriptions for blockers using ChatGPT plan usage, and analyse CV fit with Codex.",
+  "permissions": [
+    "storage"
+  ],
   "host_permissions": [
     "http://127.0.0.1:48973/*",
     "https://indeed.com/*",
@@ -17,6 +19,19 @@
     "service_worker": "service-worker.js"
   },
   "content_scripts": [
+    {
+      "matches": [
+        "https://indeed.com/*",
+        "https://*.indeed.com/*",
+        "https://indeed.co.uk/*",
+        "https://*.indeed.co.uk/*"
+      ],
+      "js": [
+        "indeed-description-capture.js"
+      ],
+      "world": "MAIN",
+      "run_at": "document_start"
+    },
     {
       "matches": [
         "https://indeed.com/*",
@@ -36,10 +51,20 @@
         "job-marks.js",
         "shortcuts.js",
         "share-menu.js",
-        "share-menu-observer.js"
+        "share-menu-observer.js",
+        "blocker-checker.js"
       ],
-      "css": ["content.css"],
+      "css": [
+        "content.css"
+      ],
       "run_at": "document_start"
     }
-  ]
+  ],
+  "action": {
+    "default_title": "Job Search Companion settings"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  }
 }

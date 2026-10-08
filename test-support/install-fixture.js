@@ -26,7 +26,7 @@ export const makeInstallFixture = async (context) => {
     mkdir(join(directory, "LaunchAgents"), { recursive: true }),
   ]);
   await Promise.all([
-    writeFile(paths.plistSource, "root=__INDEED_CV_FIT_BRIDGE_ROOT__ workspace=__INDEED_CV_FIT_WORKSPACE__ log=__INDEED_CV_FIT_LOG_PATH__ token=__INDEED_CV_FIT_BRIDGE_TOKEN__ origin=__INDEED_CV_FIT_EXTENSION_ORIGIN__ instance=__INDEED_CV_FIT_BRIDGE_INSTANCE_ID__\n"),
+    writeFile(paths.plistSource, "node=__INDEED_CV_FIT_NODE_EXECUTABLE__ root=__INDEED_CV_FIT_BRIDGE_ROOT__ workspace=__INDEED_CV_FIT_WORKSPACE__ log=__INDEED_CV_FIT_LOG_PATH__ token=__INDEED_CV_FIT_BRIDGE_TOKEN__ origin=__INDEED_CV_FIT_EXTENSION_ORIGIN__ instance=__INDEED_CV_FIT_BRIDGE_INSTANCE_ID__\n"),
     writeFile(paths.accessibilityHelperSource, Buffer.from([0, 255, 1, 254, 2])),
   ]);
   return paths;

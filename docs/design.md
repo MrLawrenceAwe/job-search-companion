@@ -124,3 +124,7 @@ automation do not modify Codex workspace configuration.
 Version 11 install states that still contain the retired global or workspace
 configuration artifacts remain readable so reinstall or uninstall can restore
 the user's pre-install content before dropping those artifacts.
+
+## Indeed blocker checks
+
+The Indeed-only MAIN-world description observer and isolated `blocker-checker.js` bind complete loaded descriptions to job IDs, render findings, and send authenticated requests through the service worker. The local `bridge/blockers/` modules own verified-profile snapshots, SIWC authentication, single-pass Responses inference, scheduling, and versioned result caching. This flow has separate status and endpoints from CV Fit task submission. See [checker design and behaviour](blocker-checker.md).

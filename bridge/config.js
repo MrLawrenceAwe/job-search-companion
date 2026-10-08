@@ -33,6 +33,13 @@ export const config = Object.freeze({
     workspacePath,
     settings: cvFitSettings,
   }),
+  blockers: Object.freeze({
+    directory: join(homedir(), "Library/Application Support/Indeed CV Fit Bridge/blockers"),
+    profilePaths: [
+      join(homedir(), "Job Hunting/profile.md"),
+      join(homedir(), ".codex/skills/apply-to-jobs/references/profile.md"),
+    ],
+  }),
   codex: Object.freeze({
     bundleId: "com.openai.codex",
     accessibilityProtocolVersion: helperContract.protocolVersion,

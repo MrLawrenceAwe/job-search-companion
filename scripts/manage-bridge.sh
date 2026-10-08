@@ -107,6 +107,7 @@ stop_launch_agent() {
 }
 
 install_bridge() {
+  node -e 'if (Number(process.versions.node.split(".")[0]) < 22) { console.error("Job Search Companion requires Node.js 22 or newer. Update the node command before installing."); process.exit(1); }'
   : "${INDEED_CV_FIT_BRIDGE_TOKEN:?Set INDEED_CV_FIT_BRIDGE_TOKEN; the installer writes it to extension/local-config.js}"
   : "${INDEED_CV_FIT_EXTENSION_ORIGIN:?Set INDEED_CV_FIT_EXTENSION_ORIGIN to chrome-extension://<extension-id>}"
 

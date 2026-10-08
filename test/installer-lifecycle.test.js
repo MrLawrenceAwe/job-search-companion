@@ -15,7 +15,7 @@ test("install and uninstall manage only bridge-owned artifacts", async (context)
   assert.equal((await stat(paths.plistTarget)).mode & 0o777, 0o600);
   assert.equal(
     await readFile(paths.plistTarget, "utf8"),
-    `root=${paths.rootPath.replace("&", "&amp;")} workspace=${paths.workspacePath.replace("&", "&amp;")} log=${paths.logPath.replace("&", "&amp;")} token=test-token origin=chrome-extension://abcdefghijklmnopabcdefghijklmnop instance=test-instance-id\n`,
+    `node=${process.execPath.replaceAll("&", "&amp;")} root=${paths.rootPath.replace("&", "&amp;")} workspace=${paths.workspacePath.replace("&", "&amp;")} log=${paths.logPath.replace("&", "&amp;")} token=test-token origin=chrome-extension://abcdefghijklmnopabcdefghijklmnop instance=test-instance-id\n`,
   );
   assert.deepEqual(await readFile(paths.accessibilityHelperTarget), Buffer.from([0, 255, 1, 254, 2]));
   assert.equal((await stat(paths.accessibilityHelperTarget)).mode & 0o777, 0o700);

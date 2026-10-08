@@ -17,6 +17,7 @@ export const createRequestHandler = ({
   submitTask,
   submissionStore,
   createSubmissionId = randomUUID,
+  blockerRoutes = null,
 }) => {
   const { submissions } = submissionStore;
   let activeSubmissionId = null;
@@ -75,6 +76,8 @@ export const createRequestHandler = ({
       respond(403, { ok: false, error: "Bridge token is invalid" });
       return;
     }
+
+    if (blockerRoutes && await blockerRoutes(req, respond)) return;
 
     if (req.method === "GET" && req.url === "/health") {
       const accessibilityHelper = await readHelperHealth();

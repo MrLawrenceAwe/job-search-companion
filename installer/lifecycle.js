@@ -19,6 +19,7 @@ const escapeXml = (value) => String(value)
   .replaceAll("'", "&apos;");
 
 const renderLaunchAgent = async (options) => (await readFile(options.plistSource, "utf8"))
+  .replaceAll("__INDEED_CV_FIT_NODE_EXECUTABLE__", escapeXml(process.execPath))
   .replaceAll("__INDEED_CV_FIT_BRIDGE_ROOT__", escapeXml(options.rootPath))
   .replaceAll("__INDEED_CV_FIT_WORKSPACE__", escapeXml(options.workspacePath))
   .replaceAll("__INDEED_CV_FIT_LOG_PATH__", escapeXml(options.logPath))
@@ -91,6 +92,9 @@ const serializeArtifact = (artifact) => ({
 });
 
 export const install = async (options, dependencies = {}) => {
+  if (Number(process.versions.node.split(".")[0]) < 22) {
+    throw new Error("Job Search Companion requires Node.js 22 or newer. Run the installer with a supported Node.js version.");
+  }
   if (typeof options.instanceId !== "string" || !options.instanceId.trim()) {
     throw new Error("A bridge instance ID is required for installation");
   }

@@ -7,6 +7,12 @@ import { createRequestHandler } from "./request-handler.js";
 import { createFileLogger } from "./logger.js";
 import { openSubmissionStore } from "./submission-store.js";
 
+import { openChatGPT } from "./blockers/chatgpt.js";
+import { openBlockerChecker } from "./blockers/checker.js";
+import { createBlockerRoutes } from "./blockers/routes.js";
+import { join } from "node:path";
+
+let checker = null;
 const logger = createFileLogger(config.storage.logPath);
 let requestHandler = null;
 const server = createServer((req, res) => {
@@ -21,7 +27,10 @@ const server = createServer((req, res) => {
 server.listen(config.bridge.port, config.bridge.host, async () => {
   try {
     const submissionStore = await openSubmissionStore(config.storage.submissionsPath);
+    const chatgpt = await openChatGPT({ path: join(config.blockers.directory, "chatgpt.json") });
+    checker = await openBlockerChecker({ ...config.blockers, chatgpt });
     requestHandler = createRequestHandler({
+      blockerRoutes: createBlockerRoutes({ checker, chatgpt }),
       bridgeConfig: config.bridge,
       cvFitConfig: config.cvFit,
       logger,
@@ -41,3 +50,7 @@ server.listen(config.bridge.port, config.bridge.host, async () => {
 server.on("error", (error) => {
   logger.error("Job Search Companion service error:", error);
 });
+
+for (const signal of ["SIGTERM", "SIGINT"]) {
+  process.on(signal, () => { checker?.close(); server.close(() => process.exit(0)); });
+}

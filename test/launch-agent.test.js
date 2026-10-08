@@ -18,7 +18,7 @@ test("the LaunchAgent does not restart the bridge for source-file changes", asyn
     "utf8",
   );
 
-  assert.match(plist, /<string>node<\/string>\s*<string>__INDEED_CV_FIT_BRIDGE_ROOT__\/bridge\/server\.js<\/string>/);
+  assert.match(plist, /<string>__INDEED_CV_FIT_NODE_EXECUTABLE__<\/string>\s*<string>__INDEED_CV_FIT_BRIDGE_ROOT__\/bridge\/server\.js<\/string>/);
   assert.match(plist, /<key>WorkingDirectory<\/key>\s*<string>__INDEED_CV_FIT_BRIDGE_ROOT__<\/string>/);
   assert.match(plist, /<key>INDEED_CV_FIT_WORKSPACE<\/key>\s*<string>__INDEED_CV_FIT_WORKSPACE__<\/string>/);
   assert.match(plist, /<key>INDEED_CV_FIT_LOG_PATH<\/key>\s*<string>__INDEED_CV_FIT_LOG_PATH__<\/string>/);

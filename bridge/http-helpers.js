@@ -49,7 +49,7 @@ export const sendJson = (
   res.end(JSON.stringify(payload));
 };
 
-export const readJsonBody = (req) =>
+export const readJsonBody = (req, maximumChars = MAX_JSON_BODY_CHARS) =>
   new Promise((resolve, reject) => {
     let body = "";
     let rejected = false;
@@ -60,7 +60,7 @@ export const readJsonBody = (req) =>
       }
 
       body += chunk;
-      if (body.length > MAX_JSON_BODY_CHARS) {
+      if (body.length > maximumChars) {
         rejected = true;
         body = "";
         reject(new RequestBodyTooLargeError());

@@ -23,7 +23,7 @@ extension can affect its identity and saved records, so choose the folder before
 loading it in Chrome.
 
 Application marking and navigation only need the unpacked extension. Continue
-with bridge installation when you want CV analysis.
+with bridge installation when you want CV analysis or Indeed blocker checks.
 
 ### 1. Load the Chrome extension
 
@@ -34,6 +34,13 @@ with bridge installation when you want CV analysis.
 5. Copy the extension ID shown by Chrome.
 
 ### 2. Install and start the bridge
+
+Install the bridge dependencies first:
+
+```bash
+npm ci
+```
+
 
 Choose a non-empty local token containing only ASCII letters, numbers, dots,
 underscores and hyphens. Other characters are rejected by the installer. Replace
@@ -85,6 +92,10 @@ To check the bridge directly:
 ```bash
 INDEED_CV_FIT_BRIDGE_TOKEN="your-local-token" npm run test:health
 ```
+
+## Indeed blocker checks
+
+Open the extension toolbar action to connect ChatGPT, choose a model, and enable automatic checking. See [checker setup and behaviour](blocker-checker.md). The checker needs the Node bridge, but does not use the Accessibility helper or open Codex chats.
 
 ## Run manually
 

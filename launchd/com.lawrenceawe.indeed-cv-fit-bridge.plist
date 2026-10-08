@@ -8,8 +8,7 @@
 
   <key>ProgramArguments</key>
   <array>
-    <string>/usr/bin/env</string>
-    <string>node</string>
+    <string>__INDEED_CV_FIT_NODE_EXECUTABLE__</string>
     <string>__INDEED_CV_FIT_BRIDGE_ROOT__/bridge/server.js</string>
   </array>
 
