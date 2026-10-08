@@ -10,7 +10,32 @@ const messages = globalThis.jobSearchContracts.messages;
 const submissionsEndpoint = `${bridgeConfig.bridgeOrigin}/cv-fit-submissions`;
 const REQUEST_TIMEOUT_MS = 10_000;
 
-const requestBridge = async (message) => {
+const requestBridgeJson = async (endpoint, { method, body: requestBody }) => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(endpoint, {
+      cache: "no-store",
+      method,
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        "X-JSC-Token": bridgeConfig.bridgeToken,
+      },
+      ...(method === "POST" ? { body: JSON.stringify(requestBody) } : {}),
+    });
+    let parseError = null;
+    const body = await response.json().catch((error) => {
+      parseError = error;
+      return null;
+    });
+    return { response, body, parseError };
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
+const requestCvFitSubmission = async (message) => {
   const isStart = message.type === messages.submitCvFitTask;
   if (!isStart && !message.submissionId) {
     return { ok: false, error: "Submission ID is missing" };
@@ -18,39 +43,22 @@ const requestBridge = async (message) => {
   const endpoint = isStart
     ? submissionsEndpoint
     : `${submissionsEndpoint}/${encodeURIComponent(message.submissionId)}`;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
-    const response = await fetch(endpoint, {
-      cache: "no-store",
+    const { response, body: parsedBody } = await requestBridgeJson(endpoint, {
       method: isStart ? "POST" : "GET",
-      signal: controller.signal,
-      headers: {
-        "Content-Type": "application/json",
-        "X-JSC-Token": bridgeConfig.bridgeToken,
-      },
-      ...(isStart ? { body: JSON.stringify({ jobUrl: message.jobUrl }) } : {}),
+      body: { jobUrl: message.jobUrl },
     });
-    const body = await response.json().catch(() => ({}));
+    const body = parsedBody || {};
     return response.ok && body.ok
-      ? {
-          ok: true,
-          ...(body.submission ? { submission: body.submission } : {}),
-        }
-      : {
-          ok: false,
-          error: body.error || `Request failed with status ${response.status}`,
-        };
+      ? { ok: true, ...(body.submission ? { submission: body.submission } : {}) }
+      : { ok: false, error: body.error || `Request failed with status ${response.status}` };
   } catch (error) {
     return {
       ok: false,
-      error:
-        error.name === "AbortError"
-          ? "The local bridge did not respond within 10 seconds"
-          : error.message,
+      error: error.name === "AbortError"
+        ? "The local bridge did not respond within 10 seconds"
+        : error.message,
     };
-  } finally {
-    clearTimeout(timer);
   }
 };
 
@@ -69,7 +77,7 @@ const handleCvFitMessage = (message, _sender, sendResponse) => {
     });
     return false;
   }
-  requestBridge(message).then(sendResponse, (error) => {
+  requestCvFitSubmission(message).then(sendResponse, (error) => {
     sendResponse({ ok: false, error: error.message });
   });
   return true;
@@ -122,21 +130,12 @@ const handleBlockerMessage = (message, sender, sendResponse) => {
     return false;
   }
   const [method, path] = action;
-  fetch(
+  requestBridgeJson(
     `${bridgeConfig.bridgeOrigin}/blockers${path}${message.action === "poll" ? message.id : ""}`,
-    {
-      method,
-      cache: "no-store",
-      signal: AbortSignal.timeout(10_000),
-      headers: {
-        "Content-Type": "application/json",
-        "X-JSC-Token": bridgeConfig.bridgeToken,
-      },
-      ...(method === "POST" ? { body: JSON.stringify(message.body || {}) } : {}),
-    },
+    { method, body: message.body || {} },
   )
-    .then(async (r) => {
-      const body = await r.json();
+    .then(({ body, parseError }) => {
+      if (parseError) throw parseError;
       // Only the extension settings page may receive sign-in URLs or account state.
       if (!isSettings && body.connectionStatus) {
         body.connectionStatus = { planUsageEnabled: body.connectionStatus.planUsageEnabled };
@@ -148,7 +147,7 @@ const handleBlockerMessage = (message, sender, sendResponse) => {
       sendResponse({
         ok: false,
         error:
-          error.name === "TimeoutError"
+          error.name === "AbortError"
             ? "Local checker did not respond. Try again."
             : "Local checker unavailable. Check that the bridge is running.",
       }),

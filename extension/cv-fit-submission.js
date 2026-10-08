@@ -2,6 +2,7 @@
   const companion = globalThis.jobSearchCompanion;
   const { showToast } = companion;
   const messages = globalThis.jobSearchContracts.messages;
+  const { statuses, helperResults } = globalThis.jobSearchContracts.cvFitSubmissions;
 
   const setActionLabel = (button, label) => {
     const labelElement = button?.querySelector?.(".jsc-menu-item-label");
@@ -44,16 +45,13 @@
         type: messages.getCvFitTaskStatus,
         submissionId,
       });
-      if (submission?.status === "submitted") {
+      if (helperResults.includes(submission?.status)) {
         return submission.status;
       }
-      if (submission?.status === "ready_for_review") {
-        return submission.status;
-      }
-      if (submission?.status === "failed") {
+      if (submission?.status === statuses.failed) {
         throw new Error(submission.error || "Task submission failed");
       }
-      if (submission?.status === "interrupted") {
+      if (submission?.status === statuses.interrupted) {
         throw new Error(submission.error || "The bridge restarted. Check Codex before retrying.");
       }
     }
@@ -89,7 +87,7 @@
       }
       const status = await waitForCompletion(submission.id);
       showToast(
-        status === "submitted"
+        status === statuses.submitted
           ? "CV Fit Advisor task submitted."
           : "CV Fit Advisor draft is ready—check 6.1 Sol, Medium, and Fast in Codex, then send it.",
       );
@@ -108,5 +106,5 @@
     }
   };
 
-  companion.submissions.submit = submit;
+  companion.cvFitSubmissions.submit = submit;
 })();

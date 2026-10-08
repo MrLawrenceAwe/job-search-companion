@@ -2,12 +2,13 @@
   const companion = globalThis.jobSearchCompanion;
 
   const createCvFitAction = (jobUrl) => {
+    const shortcutLabel = globalThis.jobSearchContracts.shortcuts.submitCvFit.toUpperCase();
     const button = document.createElement("button");
     button.type = "button";
     button.className = companion.ui.menuItemClass;
     button.setAttribute("role", "menuitem");
-    button.setAttribute("aria-keyshortcuts", companion.ui.cvFitShortcut.aria);
-    button.title = `${companion.ui.cvFitActionLabel} (${companion.ui.cvFitShortcut.display})`;
+    button.setAttribute("aria-keyshortcuts", shortcutLabel);
+    button.title = `${companion.ui.cvFitActionLabel} (${shortcutLabel})`;
 
     const label = document.createElement("span");
     label.className = "jsc-menu-item-label";
@@ -24,13 +25,13 @@
     const shortcut = document.createElement("kbd");
     shortcut.className = "jsc-menu-item-shortcut";
     shortcut.setAttribute("aria-hidden", "true");
-    shortcut.textContent = companion.ui.cvFitShortcut.display;
+    shortcut.textContent = shortcutLabel;
     button.append(shortcut);
 
     button.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
-      void companion.submissions.submit(jobUrl, button);
+      void companion.cvFitSubmissions.submit(jobUrl, button);
     });
 
     const icon = document.createElement("span");

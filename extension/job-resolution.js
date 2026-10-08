@@ -210,7 +210,7 @@
     return null;
   };
 
-  const collectJobLinks = (isEligible = () => true) => {
+  const collectJobCarriers = (isEligible = () => true) => {
     const jobEntries = [];
     for (const element of document.querySelectorAll(companion.selectors.jobUrlCarrier)) {
       if (!isEligible(element)) {
@@ -224,7 +224,7 @@
     return jobEntries;
   };
 
-  const collectVisibleJobs = () => collectJobLinks(companion.dom.getViewportRect);
+  const collectVisibleJobs = () => collectJobCarriers(companion.dom.getViewportRect);
 
   const candidateTitles = (carrier) => {
     const titles = [carrier.textContent, carrier.getAttribute("aria-label"), carrier.title];
@@ -394,7 +394,7 @@
 
   Object.assign(companion.jobs, {
     captureMenuContext,
-    collectJobLinks,
+    collectJobCarriers,
     resolvePageJobUrl,
     consumeMenuJobUrl,
   });

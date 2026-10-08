@@ -2,7 +2,7 @@ import AppKit
 import ApplicationServices
 import Foundation
 
-enum AutoSubmitResult: String {
+enum AutoSubmitResult: String, CaseIterable {
     case submitted
     case readyForReview = "ready_for_review"
 }
@@ -18,7 +18,7 @@ func settingsMatch(
 
 func autoSubmitIfConfigured(_ request: AutoSubmitCommand) -> AutoSubmitResult {
     guard AXIsProcessTrusted() else {
-        fail("Accessibility permission is required to inspect and submit CV Fit Advisor tasks")
+        automation.fail("Accessibility permission is required to inspect and submit CV Fit Advisor tasks")
     }
 
     automation.bundleIdentifier = request.bundleIdentifier
@@ -26,7 +26,7 @@ func autoSubmitIfConfigured(_ request: AutoSubmitCommand) -> AutoSubmitResult {
         withBundleIdentifier: request.bundleIdentifier
     )
     guard existingApps.count <= 1 else {
-        fail("Multiple Codex application processes are running")
+        automation.fail("Multiple Codex application processes are running")
     }
     let existingApp = existingApps.first
     let preexistingComposers: [AXUIElement]
@@ -43,7 +43,7 @@ func autoSubmitIfConfigured(_ request: AutoSubmitCommand) -> AutoSubmitResult {
     }
 
     guard NSWorkspace.shared.open(request.newTaskUrl) else {
-        fail("Could not open the prepared CV Fit Advisor draft")
+        automation.fail("Could not open the prepared CV Fit Advisor draft")
     }
     let app = waitForRunningApplication(
         bundleIdentifier: request.bundleIdentifier,
@@ -61,7 +61,7 @@ func autoSubmitIfConfigured(_ request: AutoSubmitCommand) -> AutoSubmitResult {
         Thread.sleep(forTimeInterval: initialPollInterval)
     }
     guard app.isActive else {
-        fail("Codex did not become the active app")
+        automation.fail("Codex did not become the active app")
     }
 
     let applicationRoot = AXUIElementCreateApplication(app.processIdentifier)
@@ -77,11 +77,11 @@ func autoSubmitIfConfigured(_ request: AutoSubmitCommand) -> AutoSubmitResult {
                 !preexistingComposers.contains { sameElement(candidate, $0) }
             }
         if freshComposers.count > 1 {
-            fail("Codex exposed multiple new matching CV Fit Advisor composers")
+            automation.fail("Codex exposed multiple new matching CV Fit Advisor composers")
         }
         return freshComposers.count == 1
     }), let preparedComposer = freshComposers.first else {
-        fail("The prepared CV Fit Advisor composer did not become ready")
+        automation.fail("The prepared CV Fit Advisor composer did not become ready")
     }
     let searchRoot = elementAttribute(preparedComposer, kAXWindowAttribute) ?? applicationRoot
 
@@ -90,7 +90,7 @@ func autoSubmitIfConfigured(_ request: AutoSubmitCommand) -> AutoSubmitResult {
         composer: preparedComposer,
         timeoutMs: request.timeouts.settingsMs
     )
-    postKey(escapeKey)
+    automation.postKey(escapeKey)
     guard let settingsSnapshot else {
         return .readyForReview
     }
@@ -109,13 +109,13 @@ func autoSubmitIfConfigured(_ request: AutoSubmitCommand) -> AutoSubmitResult {
     )
     guard preparedComposers.count == 1, let composer = preparedComposers.first,
           sameElement(composer, preparedComposer) else {
-        fail("Expected the original prepared CV Fit Advisor composer to remain unique")
+        automation.fail("Expected the original prepared CV Fit Advisor composer to remain unique")
     }
     // Keep confirmation local to the composer. The window also contains the
     // conversation, which can grow dramatically as soon as the task starts.
     guard let composerRoot = elementAttribute(composer, kAXParentAttribute),
           !sameElement(composerRoot, searchRoot) else {
-        fail("Could not isolate the prepared CV Fit Advisor composer for confirmation")
+        automation.fail("Could not isolate the prepared CV Fit Advisor composer for confirmation")
     }
     let preexistingClearedComposers = findElements(
         in: composerRoot,
@@ -127,7 +127,7 @@ func autoSubmitIfConfigured(_ request: AutoSubmitCommand) -> AutoSubmitResult {
         }
     )
     focus(composer, failureMessage: "The prepared CV Fit Advisor composer could not be focused")
-    postKey(returnKey)
+    automation.postKey(returnKey)
 
     let submissionDeadline = deadline(milliseconds: request.timeouts.submissionMs)
     var consecutiveConfirmations = 0
@@ -138,7 +138,7 @@ func autoSubmitIfConfigured(_ request: AutoSubmitCommand) -> AutoSubmitResult {
     )
     while Date() < submissionDeadline {
         if app.isTerminated {
-            fail("Codex terminated before submission was confirmed")
+            automation.fail("Codex terminated before submission was confirmed")
         }
         submissionState = readSubmissionEvidence(
             in: composerRoot,
@@ -157,7 +157,7 @@ func autoSubmitIfConfigured(_ request: AutoSubmitCommand) -> AutoSubmitResult {
         Thread.sleep(forTimeInterval: sleepInterval)
         sleepInterval = min(maximumPollInterval, sleepInterval * 1.5)
     }
-    fail(
+    automation.fail(
         "Codex did not provide positive evidence that the CV Fit Advisor task was submitted "
             + "(preparedPromptGone=\(submissionState.preparedPromptGone), "
             + "freshClearedComposerCount=\(submissionState.freshClearedComposerCount))"

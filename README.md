@@ -46,20 +46,8 @@ Select a sample job, open its menu and mark it as applied or unsuitable. Refresh
 production content scripts with mock Chrome APIs; CV analysis stays disabled.
 Stop the server with **Ctrl+C** when finished.
 
-## Engineering highlights
-
-- **Dynamic page handling:** DOM observers restore controls after job-board
-  rerenders. Job resolution omits actions when the selected listing is ambiguous.
-- **Local persistence:** separate per-job writes prevent unrelated job
-  marks from overwriting each other; storage events synchronize open tabs.
-- **Bounded task automation:** an authenticated loopback service invokes a Swift
-  helper that checks the visible composer and required settings before submitting.
-  Ambiguous UI state leaves the prepared prompt unsent.
-- **Installation and recovery:** transactional file replacement, managed-file
-  hashes, bridge instance checks and persisted submission states support failed
-  installs, restarts and safe removal.
-
-See [architecture and design](docs/design.md) for module boundaries and task flow.
+See [architecture and design](docs/design.md) for module boundaries, persistence,
+task automation, and installation recovery.
 
 ## Install
 
@@ -85,8 +73,9 @@ npm test
 This type-checks the Swift helper and runs Node's built-in test runner. Tests use
 synthetic jobs, mock browser APIs and temporary installation fixtures. Tests mirror
 the source boundaries under `test/extension/`, `test/bridge/` (including blockers
-and Codex), and `test/installer/`. Shared fixtures, VM/JSDOM script loaders, and
-distinct event-loop draining and timed waiting helpers live in `test-support/`. They cover
+and Codex), `test/installer/`, and `test/shared/`. Shared fixtures, VM/JSDOM script
+loaders, and distinct event-loop draining and timed waiting helpers live in
+`test-support/`. They cover
 job resolution, applied and unsuitable mark persistence, navigation, HTTP authentication,
 submission recovery and installation transactions. CI runs the same command on
 macOS for pushes and pull requests using Node.js 22 and 24.

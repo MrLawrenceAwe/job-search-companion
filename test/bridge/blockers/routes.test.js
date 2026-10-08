@@ -7,11 +7,11 @@ import { once } from "node:events";
 import { createServer } from "node:http";
 import { createBlockerRoutes } from "../../../bridge/blockers/routes.js";
 import { createRequestHandler } from "../../../bridge/request-handler.js";
-import { openSubmissionStore } from "../../../bridge/submission-store.js";
+import { openCvFitSubmissionStore } from "../../../bridge/cv-fit-submission-store.js";
 
 test("checker routes require the existing bridge authentication boundary", async () => {
   const directory = await mkdtemp(join(await realpath(tmpdir()), "jsc-routes-"));
-  const handler = createRequestHandler({ bridgeConfig: { token: "token", allowedExtensionOrigin: "chrome-extension://test" }, submissionStore: await openSubmissionStore(join(await realpath(directory), "submissions.json")), blockerRoutes: createBlockerRoutes({ checker: { status: async () => ({ settings: { enabled: false } }) } }) });
+  const handler = createRequestHandler({ bridgeConfig: { token: "token", allowedExtensionOrigin: "chrome-extension://test" }, submissionStore: await openCvFitSubmissionStore(join(await realpath(directory), "submissions.json")), blockerRoutes: createBlockerRoutes({ checker: { status: async () => ({ settings: { enabled: false } }) } }) });
   const server = createServer((req, res) => void handler(req, res)); server.listen(0, "127.0.0.1"); await once(server, "listening");
   try {
     const url = `http://127.0.0.1:${server.address().port}/blockers/status`;

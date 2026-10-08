@@ -35,17 +35,21 @@ private func contractSelfTestPasses() -> Bool {
 
 if CommandLine.arguments.count == 2 && CommandLine.arguments[1] == "metadata" {
     guard contractSelfTestPasses() else {
-        fail("Accessibility contract self-test failed")
+        automation.fail("Accessibility contract self-test failed")
     }
+    let helperResults = String(
+        data: try JSONSerialization.data(withJSONObject: AutoSubmitResult.allCases.map(\.rawValue)),
+        encoding: .utf8
+    )!
     print(
-        #"{"protocolVersion":\#(CodexUIContract.protocolVersion),"contractVersion":"\#(CodexUIContract.contractVersion)"}"#
+        #"{"protocolVersion":\#(CodexUIContract.protocolVersion),"contractVersion":"\#(CodexUIContract.contractVersion)","helperResults":\#(helperResults)}"#
     )
     exit(0)
 }
 
 if CommandLine.arguments.count == 2 && CommandLine.arguments[1] == "contract-self-test" {
     guard contractSelfTestPasses() else {
-        fail("Accessibility contract self-test failed")
+        automation.fail("Accessibility contract self-test failed")
     }
     print("ok")
     exit(0)
@@ -54,14 +58,14 @@ if CommandLine.arguments.count == 2 && CommandLine.arguments[1] == "contract-sel
 guard CommandLine.arguments.count == 3,
       CommandLine.arguments[1] == "auto-submit-if-configured",
       let request = AutoSubmitCommand(json: CommandLine.arguments[2]) else {
-    fail("Expected auto-submit-if-configured followed by a valid JSON command")
+    automation.fail("Expected auto-submit-if-configured followed by a valid JSON command")
 }
 
 let automationLock: AutomationLock
 do {
     automationLock = try AutomationLock()
 } catch {
-    fail(error.localizedDescription)
+    automation.fail(error.localizedDescription)
 }
 print(autoSubmitIfConfigured(request).rawValue)
 withExtendedLifetime(automationLock) {}

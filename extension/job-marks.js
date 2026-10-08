@@ -2,34 +2,19 @@
   const companion = globalThis.jobSearchCompanion;
   const marks = {
     applied: {
-      prefix: "applied-job:",
-      timestamp: "appliedAt",
       badge: "✓ Applied",
       icon: "✓",
     },
     unsuitable: {
-      prefix: "unsuitable-job:",
-      timestamp: "unsuitableAt",
       badge: "✕ Unsuitable",
       icon: "✕",
     },
   };
   const ACTIONS_CLASS = "jsc-job-actions";
-  const records = new Map();
-  const pendingWrites = new Set();
+  const store = companion.jobMarks.createStore();
+  const { ready, isMarked } = store;
   let renderTimer = null;
 
-  // Keep existing application records under their saved keys. Both marks use
-  // platform IDs so country hosts and tracking parameters share one identity.
-  const keyFor = (jobUrl, kind) => {
-    const normalized = companion.jobs.jobUrlFromPageUrl(jobUrl);
-    if (!normalized) throw new Error("Couldn’t identify this job.");
-    const url = new URL(normalized);
-    const id = url.searchParams.get("jk") || url.pathname.match(/\/jobs\/view\/(\d+)/)?.[1];
-    return `${marks[kind].prefix}${url.hostname.includes("linkedin") ? "linkedin" : "indeed"}:${id}`;
-  };
-  const isMarked = (jobUrl, kind) =>
-    Boolean(records.get(keyFor(jobUrl, kind))?.[marks[kind].timestamp]);
   const updateButton = (button, jobUrl, kind) => {
     button.dataset.jobUrl = jobUrl;
     button.dataset.markKind = kind;
@@ -44,7 +29,7 @@
       button.setAttribute("aria-pressed", pressed);
     }
     button.title = "Your job record, saved in this Chrome profile";
-    button.disabled = pendingWrites.has(keyFor(jobUrl, kind));
+    button.disabled = store.isPending(jobUrl, kind);
   };
   const createButton = (jobUrl, kind, menu = false) => {
     const button = document.createElement("button");
@@ -78,7 +63,7 @@
 
   const render = () => {
     if (!document.body) return;
-    const jobs = companion.jobs.collectJobLinks(companion.dom.getRenderedRect);
+    const jobs = companion.jobs.collectJobCarriers(companion.dom.getRenderedRect);
     for (const kind of Object.keys(marks)) {
       const badgeClass = `jsc-${kind}-badge`;
       const targets = new Map();
@@ -137,51 +122,18 @@
       void ready.then(render).catch((error) => console.debug("Job records unavailable:", error));
     }, 100);
   };
-  const readRecord = (key, value) => {
-    const mark = Object.values(marks).find(({ prefix }) => key.startsWith(prefix));
-    if (!mark) return;
-    if (typeof value?.[mark.timestamp] === "string") records.set(key, value);
-    else records.delete(key);
-  };
-  const ready = chrome.storage.local.get(null).then((stored) => {
-    for (const [key, value] of Object.entries(stored)) readRecord(key, value);
-  });
-  // Apply notifications after the initial snapshot so newer changes win.
-  chrome.storage.onChanged.addListener((changes, area) => {
-    if (area !== "local") return;
-    void ready
-      .then(() => {
-        for (const [key, { newValue }] of Object.entries(changes)) readRecord(key, newValue);
-        scheduleRender();
-      })
-      .catch((error) => console.debug("Job record update failed:", error));
-  });
+  store.subscribe(scheduleRender);
   const toggle = async (jobUrl, kind, button = null) => {
-    let key;
     try {
-      key = keyFor(jobUrl, kind);
+      if (store.isPending(jobUrl, kind)) return false;
     } catch (error) {
       companion.showToast(error.message, "error");
       return false;
     }
-    if (pendingWrites.has(key)) return false;
-    pendingWrites.add(key);
     if (button) button.disabled = true;
     try {
-      await ready;
-      const stored = await chrome.storage.local.get(key);
-      const marked = !stored[key]?.[marks[kind].timestamp];
-      if (marked) {
-        const record = {
-          jobUrl: companion.jobs.jobUrlFromPageUrl(jobUrl),
-          [marks[kind].timestamp]: new Date().toISOString(),
-        };
-        await chrome.storage.local.set({ [key]: record });
-        records.set(key, record);
-      } else {
-        await chrome.storage.local.remove(key);
-        records.delete(key);
-      }
+      const marked = await store.toggle(jobUrl, kind);
+      if (marked === null) return false;
       render();
       companion.showToast(
         marked
@@ -198,7 +150,6 @@
       );
       return false;
     } finally {
-      pendingWrites.delete(key);
       if (button) updateButton(button, button.dataset.jobUrl, kind);
     }
   };

@@ -1,6 +1,17 @@
 (() => {
   const companion = globalThis.jobSearchCompanion;
-  const supportedShortcutKeys = new Set(["n", "j", "k", "h", "u"]);
+  const definitions = globalThis.jobSearchContracts.shortcuts;
+  const actions = {
+    submitCvFit: () => {
+      submitSelectedJob();
+      return true;
+    },
+    nextJob: () => companion.jobs.navigateJob(1),
+    previousJob: () => companion.jobs.navigateJob(-1),
+    hideJob: () => companion.jobs.hideCurrentJob(),
+    undoJobAction: () => companion.jobs.undoLastJobAction(),
+  };
+  const actionsByKey = new Map(Object.entries(definitions).map(([name, key]) => [key, actions[name]]));
 
   const isEditableTarget = (target) => {
     if (!(target instanceof Element)) {
@@ -17,7 +28,7 @@
   const submitSelectedJob = () => {
     try {
       const jobUrl = companion.jobs.resolveSelectedJobUrl();
-      void companion.submissions.submit(jobUrl);
+      void companion.cvFitSubmissions.submit(jobUrl);
     } catch (error) {
       console.debug("CV Fit keyboard shortcut job resolution failed:", error);
       companion.showToast("Couldn’t identify the current job.", "error");
@@ -30,32 +41,9 @@
     }
 
     const key = event.key?.toLowerCase();
-    if (supportedShortcutKeys.has(key)) {
-      return key;
-    }
-
-    const codeKey = event.code?.match(/^Key([NJKHU])$/)?.[1].toLowerCase();
-    return codeKey || null;
-  };
-
-  const shortcutActionFor = (event) => {
-    switch (shortcutKey(event)) {
-      case "n":
-        return () => {
-          submitSelectedJob();
-          return true;
-        };
-      case "j":
-        return () => companion.jobs.navigateJob(1);
-      case "k":
-        return () => companion.jobs.navigateJob(-1);
-      case "h":
-        return companion.jobs.hideCurrentJob;
-      case "u":
-        return companion.jobs.undoLastJobAction;
-      default:
-        return null;
-    }
+    if (actionsByKey.has(key)) return key;
+    const codeKey = event.code?.startsWith("Key") ? event.code.slice(3).toLowerCase() : null;
+    return actionsByKey.has(codeKey) ? codeKey : null;
   };
 
   document.addEventListener(
@@ -70,7 +58,7 @@
         return;
       }
 
-      const action = shortcutActionFor(event);
+      const action = actionsByKey.get(shortcutKey(event));
       if (action?.()) {
         event.preventDefault();
         event.stopPropagation();

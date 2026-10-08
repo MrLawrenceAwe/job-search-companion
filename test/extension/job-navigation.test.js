@@ -222,7 +222,7 @@ test("hiding a result excludes duplicate links for that job from navigation", as
   };
   const resultCard = makeJob("visiblejob1", "result-card");
   const detailLink = makeJob("visiblejob1", "detail-pane");
-  companion.jobs.collectJobLinks = () => [resultCard, detailLink];
+  companion.jobs.collectJobCarriers = () => [resultCard, detailLink];
 
   assert.equal(companion.jobs.navigateJob(1), true);
   assert.equal(companion.jobs.hideCurrentJob(), true);
@@ -254,7 +254,7 @@ test("undo resolves a replacement card after the results list rerenders", async 
     return { jobUrl: `https://uk.indeed.com/viewjob?jk=${jobKey}`, element };
   };
   let jobs = [makeJob("visiblejob1", "original")];
-  companion.jobs.collectJobLinks = () => jobs;
+  companion.jobs.collectJobCarriers = () => jobs;
 
   assert.equal(companion.jobs.navigateJob(1), true);
   assert.equal(companion.jobs.hideCurrentJob(), true);
@@ -287,7 +287,7 @@ test("a hidden job stays hidden when its card is replaced", async () => {
     return { jobUrl: `https://uk.indeed.com/viewjob?jk=${jobKey}`, element, container };
   };
   let jobs = [makeJob("visiblejob1")];
-  companion.jobs.collectJobLinks = (isEligible) => jobs.filter(({ container }) => (
+  companion.jobs.collectJobCarriers = (isEligible) => jobs.filter(({ container }) => (
     !container.classList.contains("jsc-hidden-job")
       || isEligible !== companion.dom.getRenderedRect
   ));

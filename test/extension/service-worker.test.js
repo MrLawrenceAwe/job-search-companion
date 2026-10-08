@@ -153,6 +153,39 @@ test("service worker forwards bridge errors", async () => {
   }));
 });
 
+test("blocker transport aborts a stalled request and keeps its checker error message", async () => {
+  const worker = await loadWorker((_url, { signal }) => new Promise((_resolve, reject) => {
+    signal.addEventListener("abort", () => reject(signal.reason));
+  }));
+  const response = new Promise((resolve) => worker.messageHandler(
+    { type: "BLOCKER_REQUEST", action: "status" },
+    { url: "https://uk.indeed.com/jobs" },
+    resolve,
+  ));
+  worker.timeoutCallback();
+  assert.equal((await response).error, "Local checker did not respond. Try again.");
+  assert.equal(worker.clearedTimer, 17);
+});
+
+test("malformed bridge JSON retains each feature's failure response", async () => {
+  const worker = await loadWorker(async () => ({
+    ok: false,
+    status: 502,
+    json: async () => { throw new SyntaxError("Invalid JSON"); },
+  }));
+  const submission = await worker.request({
+    type: "SUBMIT_CV_FIT_TASK",
+    jobUrl: "https://uk.indeed.com/viewjob?jk=fixture111",
+  });
+  assert.equal(submission.error, "Request failed with status 502");
+  const check = await new Promise((resolve) => worker.messageHandler(
+    { type: "BLOCKER_REQUEST", action: "status" },
+    { url: "https://uk.indeed.com/jobs" },
+    resolve,
+  ));
+  assert.equal(check.error, "Local checker unavailable. Check that the bridge is running.");
+});
+
 
 test("blocker requests reject LinkedIn and keep account controls confined to settings", async () => {
   let requests = 0;

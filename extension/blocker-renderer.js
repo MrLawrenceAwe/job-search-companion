@@ -31,7 +31,7 @@
       const { selection, checkerState } = getContext();
       for (const badge of document.querySelectorAll(".jsc-blocker-badge")) badge.remove();
       const decorated = new Set();
-      for (const { element: carrier, jobUrl } of companion.jobs.collectJobLinks(
+      for (const { element: carrier, jobUrl } of companion.jobs.collectJobCarriers(
         companion.dom.getRenderedRect,
       )) {
         const jobId = keyFromUrl(jobUrl);
@@ -107,7 +107,7 @@
           details.append(
             element(
               "summary",
-              `${finding.kind === "clear_blocker" ? "Clear blocker" : "Uncertain requirement"}: ${finding.explanation}`,
+              `${LABELS[finding.kind]}: ${finding.explanation}`,
             ),
           );
           details.append(element("blockquote", finding.requirementQuote));

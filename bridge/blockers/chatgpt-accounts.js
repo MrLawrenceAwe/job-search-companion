@@ -24,7 +24,7 @@ export class ChatGPTError extends Error {
   }
 }
 
-export const openChatGPTConnection = async ({ path, fetchImpl = fetch, verifyIdentity }) => {
+export const openChatGPTAccountManager = async ({ path, fetchImpl = fetch, verifyIdentity }) => {
   const store = await openPrivateStore(path, {
     hostId: `urn:uuid:${randomUUID()}`,
     activeId: null,
@@ -58,7 +58,7 @@ export const openChatGPTConnection = async ({ path, fetchImpl = fetch, verifyIde
   let refreshPromise = null;
   let lastError = null;
   const active = () => data.accounts.find((account) => account.id === data.activeId);
-  const fallbackAccounts = () => {
+  const fallbackAccountIds = () => {
     // Registrations for the same subscriber share usage; never rotate between them.
     const seen = new Set([active()?.subject]);
     return data.accounts
@@ -88,7 +88,7 @@ export const openChatGPTConnection = async ({ path, fetchImpl = fetch, verifyIde
         email,
         label: `${email || (subject ? "ChatGPT account" : "Incomplete sign-in")} · ${clientId.slice(-8)}`,
       })),
-      fallbackIds: fallbackAccounts(),
+      fallbackIds: fallbackAccountIds(),
       pending: Boolean(pendingSignIn),
       error: lastError,
     };
@@ -329,7 +329,7 @@ export const openChatGPTConnection = async ({ path, fetchImpl = fetch, verifyIde
     signIn,
     cancelSignIn,
     request,
-    fallbackAccounts,
+    fallbackAccountIds,
     async select(id) {
       if (refreshPromise || pendingSignIn)
         throw new ChatGPTError(

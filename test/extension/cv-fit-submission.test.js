@@ -167,7 +167,7 @@ test("a visible action in another menu does not suppress insertion into this men
 });
 
 test("menu status text describes submission rather than opening", async () => {
-  const source = await readFile(new URL("../../extension/submission.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../../extension/cv-fit-submission.js", import.meta.url), "utf8");
 
   assert.match(source, /Submitting to Codex/);
   assert.match(source, /CV Fit Advisor task submitted/);

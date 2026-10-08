@@ -20,12 +20,12 @@ func findComposerModelPicker(
             return ranked[closestIndex].0
         }
         if !ranked.isEmpty {
-            fail("Codex exposed multiple equally close model pickers")
+            automation.fail("Codex exposed multiple equally close model pickers")
         }
         Thread.sleep(forTimeInterval: sleepInterval)
         sleepInterval = min(maximumPollInterval, sleepInterval * 1.5)
     }
-    fail("Codex model picker did not become ready")
+    automation.fail("Codex model picker did not become ready")
 }
 
 struct SettingsMenuSnapshot {
@@ -91,12 +91,12 @@ func openSettingsMenu(
     let pickerDeadline = deadline(milliseconds: timeoutMs)
     let picker = findComposerModelPicker(in: searchRoot, composer: composer, deadline: pickerDeadline)
     focus(picker, failureMessage: "Codex model picker could not be focused")
-    postKey(escapeKey)
+    automation.postKey(escapeKey)
     let closeMenuDeadline = deadline(milliseconds: timeoutMs)
     guard waitUntil(deadline: closeMenuDeadline, condition: {
         settingsMenuSnapshots(in: searchRoot, deadline: closeMenuDeadline).isEmpty
     }) else {
-        fail("An existing Codex settings menu did not close")
+        automation.fail("An existing Codex settings menu did not close")
     }
     press(picker, failureMessage: "Codex model picker could not be pressed")
 
@@ -105,7 +105,7 @@ func openSettingsMenu(
     guard waitUntil(deadline: openMenuDeadline, condition: {
         let menus = settingsMenuSnapshots(in: searchRoot, deadline: openMenuDeadline)
         if menus.count > 1 {
-            fail("Codex exposed multiple settings menus for the prepared composer")
+            automation.fail("Codex exposed multiple settings menus for the prepared composer")
         }
         openedMenu = menus.first
         return openedMenu != nil

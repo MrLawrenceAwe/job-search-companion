@@ -479,13 +479,13 @@ test("fails closed when visible title evidence is ambiguous", async () => {
   assert.equal(scriptReads, 0);
 });
 
-test("job-link collection defaults to all carriers and accepts an eligibility predicate", async () => {
+test("job-carrier collection defaults to all carriers and accepts an eligibility predicate", async () => {
   const { companion, document } = await createJobFixture({ href: "https://uk.indeed.com/jobs" });
   const first = visibleJobCarrier("first1111", "First job");
   const second = visibleJobCarrier("second111", "Second job");
   document.querySelectorAll = () => [first, second];
-  assert.equal(companion.jobs.collectJobLinks().length, 2);
-  const filtered = companion.jobs.collectJobLinks((element) => element === second);
+  assert.equal(companion.jobs.collectJobCarriers().length, 2);
+  const filtered = companion.jobs.collectJobCarriers((element) => element === second);
   assert.equal(filtered.length, 1);
   assert.equal(filtered[0].element, second);
 });

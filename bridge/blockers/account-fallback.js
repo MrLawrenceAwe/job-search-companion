@@ -20,7 +20,7 @@ export const inferWithAccountFallback = async ({
     } catch (error) {
       if (!isCurrent() || !enabled() || error.code !== "subscription_sharing_usage_limit_exceeded")
         throw error;
-      candidates ??= chatgpt.fallbackAccounts();
+      candidates ??= chatgpt.fallbackAccountIds();
       let available = false;
       try {
         while (candidates.length && isCurrent()) {

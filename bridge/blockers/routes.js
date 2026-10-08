@@ -12,17 +12,17 @@ export const createBlockerRoutes =
       else if (route === "GET /blockers/models") result = { models: await chatgpt.models() };
       else if (route === "POST /blockers/settings") result = await checker.configure(body);
       else if (route === "POST /blockers/sign-in") {
-        await checker.accountChanged();
+        await checker.resetForAccountChange();
         result = await chatgpt.signIn(body);
       } else if (route === "POST /blockers/cancel-sign-in") {
         chatgpt.cancelSignIn();
         result = await checker.status();
       } else if (route === "POST /blockers/account") {
-        await checker.accountChanged();
+        await checker.resetForAccountChange();
         await chatgpt.select(body.id);
         result = await checker.status();
       } else if (route === "POST /blockers/sign-out") {
-        await checker.accountChanged();
+        await checker.resetForAccountChange();
         await chatgpt.logout();
         result = await checker.status();
       } else if (route === "POST /blockers/clear-cache") {

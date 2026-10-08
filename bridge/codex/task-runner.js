@@ -1,3 +1,4 @@
+import { cvFitSubmissionContract } from "../../shared/contracts.js";
 import { config } from "../config.js";
 import { runCommand } from "../run-command.js";
 import { readAccessibilityHelperHealth } from "./helper-health.js";
@@ -42,7 +43,7 @@ export const submitCvFitTask = async ({ jobUrl }) => {
     timeoutMs: accessibilityHelperTimeoutMs,
   });
   const status = result.trim();
-  if (status !== "submitted" && status !== "ready_for_review") {
+  if (!cvFitSubmissionContract.helperResults.includes(status)) {
     throw new Error(`Accessibility helper returned an invalid result: ${status || "empty output"}`);
   }
   return { status };

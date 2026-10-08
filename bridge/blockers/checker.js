@@ -153,7 +153,7 @@ export const openBlockerChecker = async ({
       void runNextCheck();
     }
   };
-  const cancelPending = () => {
+  const cancelAllChecks = () => {
     cancellationGeneration += 1;
     for (const checkJob of queue) {
       checkJob.publicState.status = "cancelled";
@@ -188,7 +188,7 @@ export const openBlockerChecker = async ({
         (patch.accountFallback !== undefined &&
           patch.accountFallback !== settings.value.accountFallback)
       )
-        cancelPending();
+        cancelAllChecks();
       Object.assign(settings.value, patch);
       pausedReason = null;
       await settings.save();
@@ -256,11 +256,11 @@ export const openBlockerChecker = async ({
       return checkJob.publicState;
     },
     async clearCache() {
-      cancelPending();
+      cancelAllChecks();
       await cache.clear();
     },
-    async accountChanged() {
-      cancelPending();
+    async resetForAccountChange() {
+      cancelAllChecks();
       settings.value.enabled = false;
       settings.value.model = null;
       pausedReason = null;
@@ -268,7 +268,7 @@ export const openBlockerChecker = async ({
     },
     close() {
       disposed = true;
-      cancelPending();
+      cancelAllChecks();
       chatgpt.close();
     },
   };

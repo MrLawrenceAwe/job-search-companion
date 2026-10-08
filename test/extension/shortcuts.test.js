@@ -54,7 +54,7 @@ const loadShortcuts = async () => {
       showToast(message, kind) {
         toasts.push({ message, kind });
       },
-      submissions: {
+      cvFitSubmissions: {
         submit(jobUrl) {
           submissions.push(jobUrl);
         },
@@ -62,7 +62,7 @@ const loadShortcuts = async () => {
     },
   });
 
-  await runScriptsInVm(context, ["shortcuts.js"]);
+  await runScriptsInVm(context, ["contracts/shortcuts.js", "shortcuts.js"]);
   return {
     Element,
     context,
@@ -106,6 +106,19 @@ test("N submits the current job", async () => {
     fixture.submissions,
     ["https://uk.indeed.com/viewjob?jk=shortcut111"],
   );
+});
+
+test("physical key fallback dispatches supported shortcuts and ignores unknown keys", async () => {
+  const fixture = await loadShortcuts();
+  for (const code of ["KeyN", "KeyJ", "KeyK", "KeyH", "KeyU", "KeyX"]) {
+    const event = shortcutEvent(new fixture.Element(), { key: "Unidentified", code });
+    fixture.keydownHandler(event);
+    assert.equal(event.calls.length, code === "KeyX" ? 0 : 2);
+  }
+  assert.equal(fixture.submissions.length, 1);
+  assert.deepEqual(fixture.navigations, [1, -1]);
+  assert.equal(fixture.hides.length, 1);
+  assert.equal(fixture.undos.length, 1);
 });
 
 test("N does not fire while typing, with modifiers, or for repeated keydown events", async () => {

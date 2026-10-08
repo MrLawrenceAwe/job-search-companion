@@ -5,7 +5,7 @@
 The installer records the chosen checkout location. Keep the unpacked extension
 in a stable directory so its identity and local job records remain
 available. See [setup and removal](setup.md) before installing the bridge.
-`job-marks.js` stores each manual applied or unsuitable mark separately in
+`job-mark-store.js` stores each manual applied or unsuitable mark separately in
 `chrome.storage.local`, keyed by platform and job ID, with a normalized source
 URL and ISO recording date. Per-job writes cannot overwrite unrelated marks.
 The `storage` permission is used only for extension-local state. It adds no new
@@ -51,7 +51,8 @@ task because submission may have happened before confirmation was saved.
 
 The content scripts are ordered by dependency in the manifest:
 
-- `contracts/job-urls.js` and `contracts/blockers.js` define shared URL and result contracts, also consumed by Node through `shared/contracts.js`;
+- `contracts/job-urls.js`, `contracts/blockers.js`, and `contracts/cv-fit-submissions.js` define shared URL, blocker-result, and CV task-status contracts, also consumed by Node through `shared/contracts.js`;
+- `contracts/shortcuts.js` defines keyboard bindings used by dispatch and menu hints;
 - `contracts/messages.js` owns extension message names, and `blocker-client.js` sends checker requests for content scripts and settings;
 - `extension-context.js` creates the content-page cross-script API, selectors, and UI configuration;
 - `dom-visibility.js` provides rendered-element and viewport visibility checks, plus queries that include the root element;
@@ -59,8 +60,9 @@ The content scripts are ordered by dependency in the manifest:
 - `job-resolution.js` resolves the selected job from URL, DOM, title, and page data;
 - `job-navigation.js` owns results-page navigation, hiding, and undo state;
 - `feedback.js` provides shared toast feedback independently of CV submission;
-- `submission.js` owns bridge messaging, completion polling, and submission feedback;
-- `job-marks.js` persists manual applied and unsuitable records and decorates cards, job headers and menu actions;
+- `cv-fit-submission.js` owns bridge messaging, completion polling, and submission feedback;
+- `job-mark-store.js` owns manual mark identity, persistence, pending writes, and storage synchronization;
+- `job-marks.js` decorates cards, job headers, and menu actions using that store;
 - `shortcuts.js` dispatches the N/J/K/H/U keyboard actions and ignores editable targets, modifier keys, repeated key events and composition;
 - `job-menu.js` creates and inserts the CV fit and job-record actions;
 - `job-menu-observer.js` detects newly opened job menus;
@@ -69,7 +71,12 @@ The content scripts are ordered by dependency in the manifest:
 - `blocker-renderer.js` presents badges, findings, and checker controls; and
 - `blocker-checker.js` coordinates selection verification, dwell timing, and request polling.
 
-The separate `indeed-description-capture.js` MAIN-world script observes descriptions before the isolated content scripts start. `service-worker.js` loads `bridge-config.js` and the installer-generated `local-config.js` for private bridge settings, authenticates bridge requests, and dispatches messages using the shared contract. `options.html`, `options.js`, and `options.css` implement settings.
+The separate `indeed-description-capture.js` MAIN-world script observes descriptions before the isolated content scripts start. `service-worker.js` loads `bridge-config.js` and the installer-generated `local-config.js` for private bridge settings. Its shared JSON transport owns request headers and timeouts; CV and blocker handlers own authorization, endpoint selection, and response filtering. `options.html`, `options.js`, and `options.css` implement settings.
+
+`cvFitSubmissions` is the content-page API for sending Codex tasks. The bridge's
+`cv-fit-submission-store.js` persists their statuses. The native helper publishes
+its result enum in metadata; automated tests compare it with the shared status
+contract.
 
 Helpers that are used only inside one content script remain file-local. The
 shared object contains only operations required by another script.
@@ -164,8 +171,7 @@ In `bridge/blockers/`, `checker.js` owns scheduling, `result-cache.js` owns
 persisted result retention, `account-fallback.js` owns account rotation,
 `profile.js` parses explicitly named application and verified profile sources,
 and `inference.js` validates streamed findings against supplied evidence.
-`chatgpt.js` exposes the persisted ChatGPT connection manager and its connection
-status. The checker has separate endpoints and status from CV Fit submissions.
+`chatgpt-accounts.js` exposes `openChatGPTAccountManager()` for persisted registrations, active-account selection, OAuth, and authenticated requests. `fallbackAccountIds()` returns eligible registration IDs. The checker has separate endpoints and status from CV Fit submissions.
 `extension/contracts/blockers.js` defines result labels, version, retention,
 record bounds, and retention eligibility for both runtimes.
 
@@ -175,17 +181,25 @@ are serialized in the bridge. Inference has no tools and treats job text as
 untrusted evidence. Results require a completed response, valid JSON and outcome
 fields, quoted description evidence, and known profile fact IDs.
 
-### Account eligibility and storage
+### Scheduling and storage contracts
 
-Only the confirmed `subscription_sharing_usage_limit_exceeded` error triggers fallback, including errors received during streaming. The failed check is retried using the same model on other connected accounts in account-list order; subsequent queued checks use the newly selected account. Each distinct subscriber is tried at most once per check. Signed-out accounts and duplicate registrations for the same subscriber are excluded. Accounts without the model or with rejected credentials/access are skipped during fallback catalog checks. Temporary rate limits, network errors, and errors on the original account other than confirmed usage exhaustion do not trigger account rotation.
+`checker.js` deduplicates work by cache key and prioritizes recent selections.
+`cancelAllChecks()` invalidates queued and running work; `resetForAccountChange()`
+also disables checking and clears model selection before account operations.
+For timing, queue bounds, cancellation triggers, and account eligibility, see
+[processing](blocker-checker.md#processing-and-findings) and
+[fallback accounts](blocker-checker.md#fallback-accounts).
 
-The bridge keeps at most 300 completed results for 30 days, keyed by Indeed job ID, description hash, profile hash, prompt/checker version, and model. Card records are also bounded in extension-local storage. **Clear saved findings** clears both stores without touching manual marks. Stale results may appear as previously checked, never as a current clean result.
-
-Checker settings, cache and ChatGPT registrations live in `~/Library/Application Support/Job Search Companion/blockers/`. Files are atomically written with mode 0600; new directories use 0700. OAuth tokens never go to Indeed content scripts or extension storage. Sign-out attempts remote refresh-token revocation, clears local credentials and preserves the issued registration and stable host ID. Settings reports unconfirmed remote revocation. Account selection/sign-in turns checking off and clears model selection. Multiple registrations remain distinct even with the same email.
+The bridge cache is keyed by Indeed job ID, description hash, profile hash,
+checker version, and model. Retention and record bounds come from
+`extension/contracts/blockers.js`. Private JSON files use atomic writes with
+mode 0600; new directories use 0700. OAuth tokens never go to content scripts
+or extension storage. See [cache and account data](blocker-checker.md#cache-and-account-data)
+for retention, clearing, and sign-out behavior.
 
 ### Validation and processing tier
 
-The local automated suite covers OAuth state/identity flow, protected storage, plan-compatible request shape, terminal SSE handling, evidence validation, cache invalidation, scheduling and the existing bridge authentication boundary. Live sign-in, account-specific model admission and structured-output support require verification with an eligible ChatGPT account; model catalog discovery alone does not prove inference works. Unsupported capability errors pause checking for model/settings review.
+The local automated suite covers OAuth state/identity flow, protected storage, plan-compatible request shape, terminal SSE handling, evidence validation, cache invalidation, scheduling, and the bridge authentication boundary. Account-specific model admission and structured-output support are outside this automated coverage; see [limitations and validation](blocker-checker.md#limitations-and-validation).
 
 Historical tier observation, documented 2026-10-08: an earlier plan-usage test
 reported `service_tier: "default"` despite a GPT-6-Luna `priority` request. Its
@@ -195,8 +209,11 @@ processing tier; Fast processing remains unconfirmed.
 See [checker setup, behaviour, account fallback, and limitations](blocker-checker.md)
 for user-facing controls and connection constraints.
 
-## Installation identity migration
+## Data migrations
 
-Current installations accept only `JSC_*` environment variables, `com.lawrenceawe.job-search-companion`, and `~/Library/Application Support/Job Search Companion/`. The installer stops the former `com.lawrenceawe.indeed-cv-fit-bridge` service and moves its data directory before reinstalling. Managed artifact paths are rewritten, while credentials, findings, logs, submission history, file modes, and pre-install snapshots are retained. A failed replacement startup restores managed files and the original data directory, then attempts to restart the previously loaded service. Rollback restores installation artifacts, not repository source; if that service uses the retired environment contract, restore the previous checkout revision before running it. If both data directories exist, migration stops without merging or overwriting either.
-
-ChatGPT storage converts the former `profiles` field to `accounts` once on opening. Conflicting old and new fields fail without changing credentials. The runtime uses only the current field. The retired global/workspace configuration restoration remains necessary to avoid losing the user's pre-install configuration.
+ChatGPT storage converts the former `profiles` field to `accounts` once on opening.
+Conflicting fields fail without changing credentials; runtime code uses only
+`accounts`. Retired global/workspace artifacts remain readable so reinstall or
+uninstall can restore pre-install configuration. See
+[installation identity migration](setup.md#installation-identity-migration)
+for migration and rollback instructions.

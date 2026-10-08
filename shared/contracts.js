@@ -1,5 +1,10 @@
 // Chrome loads these files as classic scripts; Node imports the same definitions.
 import "../extension/contracts/blockers.js";
 import "../extension/contracts/job-urls.js";
+import "../extension/contracts/cv-fit-submissions.js";
 
-export const { blockers: blockerContract, jobUrls: jobUrlContract } = globalThis.jobSearchContracts;
+export const {
+  blockers: blockerContract,
+  jobUrls: jobUrlContract,
+  cvFitSubmissions: cvFitSubmissionContract,
+} = globalThis.jobSearchContracts;

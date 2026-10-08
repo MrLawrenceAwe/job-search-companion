@@ -1,3 +1,4 @@
+import { cvFitSubmissionContract } from "../shared/contracts.js";
 import { randomUUID } from "node:crypto";
 
 import {
@@ -8,6 +9,8 @@ import {
   sendJson,
 } from "./http-helpers.js";
 import { normalizeJobUrl } from "./job-url.js";
+
+const { statuses } = cvFitSubmissionContract;
 
 export const createRequestHandler = ({
   bridgeConfig,
@@ -25,7 +28,7 @@ export const createRequestHandler = ({
 
   const pruneCompletedSubmissions = () => {
     const completedIds = [...submissions]
-      .filter(([, submission]) => submission.status !== "submitting")
+      .filter(([, submission]) => submission.status !== statuses.submitting)
       .map(([id]) => id);
     for (const id of completedIds.slice(0, -maximumCompletedSubmissions)) {
       submissions.delete(id);
@@ -41,7 +44,7 @@ export const createRequestHandler = ({
     } catch (error) {
       completedSubmission = {
         id: submissionId,
-        status: "failed",
+        status: statuses.failed,
         error: error instanceof Error ? error.message : String(error),
       };
       logger.warn(`CV Fit task submission failed: ${completedSubmission.error}`);
@@ -138,7 +141,7 @@ export const createRequestHandler = ({
     }
 
     const submissionId = createSubmissionId();
-    const submission = { id: submissionId, status: "submitting" };
+    const submission = { id: submissionId, status: statuses.submitting };
     submissions.set(submissionId, submission);
     activeSubmissionId = submissionId;
     try {

@@ -149,14 +149,10 @@ test("discovers a menu that becomes visible without a child-list mutation", asyn
       },
       showToast: () => {},
       selectors: { menuContext: '[role="menu"]' },
-      submissions: {},
+      cvFitSubmissions: {},
       ui: {
         cvFitActionLabel: "Analyse with CV Fit Advisor",
         menuItemClass: "jsc-menu-item",
-        cvFitShortcut: {
-          aria: "N",
-          display: "N",
-        },
       },
     },
     window: {
@@ -168,7 +164,7 @@ test("discovers a menu that becomes visible without a child-list mutation", asyn
     },
   });
 
-  await runScriptsInVm(context, ["job-menu.js", "job-menu-observer.js"]);
+  await runScriptsInVm(context, ["contracts/shortcuts.js", "job-menu.js", "job-menu-observer.js"]);
   clickHandler({
     target: {
       closest: () => ({ getAttribute: () => "Share", textContent: "" }),

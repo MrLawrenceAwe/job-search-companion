@@ -114,7 +114,7 @@ const createBlockerFixture = async (initialStorage = {}) => {
   });
   Object.assign(window.jobSearchCompanion.jobs, {
     resolveSelectedJobUrl: () => `https://uk.indeed.com/viewjob?jk=${currentJobId}`,
-    collectJobLinks: () => [{
+    collectJobCarriers: () => [{
       element: window.document.querySelector("a"),
       jobUrl: "https://uk.indeed.com/viewjob?jk=first1111",
     }],
@@ -197,7 +197,7 @@ test("cached profile mismatches never display a current clean result", async () 
   });
   try {
     await waitUntil(() => fixture.window.document.querySelector(".jsc-blocker-badge")?.textContent.includes("Previously checked"));
-    assert.ok(!fixture.window.document.querySelector(".jsc-blocker-panel")?.textContent.includes("Clear blocker"));
+    assert.ok(!fixture.window.document.querySelector(".jsc-blocker-panel")?.textContent.includes("Confirmed blocker"));
     await waitUntil(() => fixture.window.document.querySelector(".jsc-blocker-panel")?.textContent.includes("No blockers found"));
     assert.equal(fixture.calls.length, 1);
   } finally {

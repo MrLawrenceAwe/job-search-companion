@@ -4,7 +4,7 @@ import { mkdtemp, readFile, rm, realpath } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { generateKeyPair, exportJWK, SignJWT } from 'jose';
-import { openChatGPTConnection } from '../../../bridge/blockers/chatgpt.js';
+import { openChatGPTAccountManager } from '../../../bridge/blockers/chatgpt-accounts.js';
 
 for (const scenario of ['valid', 'wrong nonce', 'missing nonce', 'wrong audience', 'wrong issuer', 'expired', 'wrong signature']) {
   test(`real OAuth identity verification: ${scenario}`, async (t) => {
@@ -13,7 +13,7 @@ for (const scenario of ['valid', 'wrong nonce', 'missing nonce', 'wrong audience
     const { publicKey, privateKey } = await generateKeyPair('RS256');
     const jwk = { ...await exportJWK(publicKey), kid: 'test-key', alg: 'RS256', use: 'sig' };
     let nonce;
-    const auth = await openChatGPTConnection({ path: join(directory, 'chatgpt.json'), fetchImpl: async (url) => {
+    const auth = await openChatGPTAccountManager({ path: join(directory, 'chatgpt.json'), fetchImpl: async (url) => {
       if (String(url).endsWith('/jwks.json')) return Response.json({ keys: [jwk] });
       const signingKey = scenario === 'wrong signature' ? (await generateKeyPair('RS256')).privateKey : privateKey;
       const claims = scenario === 'missing nonce' ? {} : { nonce: scenario === 'wrong nonce' ? 'wrong' : nonce };
@@ -48,7 +48,7 @@ for (const scenario of ['valid', 'wrong nonce', 'missing nonce', 'wrong audience
 test("OAuth authorization keeps the standard profile scope", async (t) => {
   const directory = await mkdtemp(join(await realpath(tmpdir()), 'jsc-scopes-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
-  const auth = await openChatGPTConnection({ path: join(directory, 'chatgpt.json') });
+  const auth = await openChatGPTAccountManager({ path: join(directory, 'chatgpt.json') });
   t.after(() => auth.close());
   const url = new URL((await auth.signIn()).authUrl);
   assert.deepEqual(url.searchParams.get('scope').split(' '), ['openid', 'profile', 'email', 'offline_access', 'resource.invoke', 'chatgpt.tokens.use.direct']);

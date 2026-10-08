@@ -42,7 +42,14 @@ class FakeElement {
 }
 
 const loadMenuScripts = (context) =>
-  runScriptsInVm(context, ["submission.js", "job-url.js", "job-marks.js", "job-menu.js"]);
+  runScriptsInVm(context, [
+    "contracts/cv-fit-submissions.js",
+    "cv-fit-submission.js",
+    "job-url.js",
+    "job-mark-store.js",
+    "job-marks.js",
+    "job-menu.js",
+  ]);
 
 export const createMenuFixture = async ({
   runtime,
@@ -120,6 +127,7 @@ export const createMenuFixture = async ({
     "contracts/job-urls.js",
     "contracts/blockers.js",
     "contracts/messages.js",
+    "contracts/shortcuts.js",
     "extension-context.js",
     "feedback.js",
   ]);
@@ -128,7 +136,7 @@ export const createMenuFixture = async ({
     queryIncludingRoot: (root) => [root],
   });
   context.jobSearchCompanion.jobs.consumeMenuJobUrl = () => jobUrl;
-  context.jobSearchCompanion.jobs.collectJobLinks = () => [];
+  context.jobSearchCompanion.jobs.collectJobCarriers = () => [];
   await loadMenuScripts(context);
   context.jobSearchCompanion.jobMenu.insertJobMenuActions(insertionRow);
   await new Promise((resolve) => setImmediate(resolve));

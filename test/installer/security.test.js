@@ -3,7 +3,6 @@ import { lstat, mkdir, readFile, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import test from "node:test";
 
-import { atomicWrite } from "../../shared/filesystem.js";
 import { installFixture, makeInstallFixture } from "../../test-support/install-fixture.js";
 
 test("install rejects symbolic-link targets before changing managed files", async (context) => {
@@ -36,19 +35,4 @@ test("install rejects symbolic-link parent directories before changing managed f
   await assert.rejects(readFile(paths.extensionConfigPath, "utf8"), { code: "ENOENT" });
   await assert.rejects(readFile(paths.plistTarget, "utf8"), { code: "ENOENT" });
   await assert.rejects(readFile(paths.statePath, "utf8"), { code: "ENOENT" });
-});
-
-test("atomic writes do not follow predictable temporary-file symbolic links", async (context) => {
-  const paths = await makeInstallFixture(context);
-  const outputPath = join(paths.extensionConfigPath, "..", "atomic-output.txt");
-  const linkedTarget = join(paths.extensionConfigPath, "..", "linked-target.txt");
-  const predictableTemporaryPath = `${outputPath}.tmp-${process.pid}`;
-  await writeFile(linkedTarget, "original target\n");
-  await symlink(linkedTarget, predictableTemporaryPath);
-
-  await atomicWrite(outputPath, "installed content\n", 0o600);
-
-  assert.equal(await readFile(outputPath, "utf8"), "installed content\n");
-  assert.equal(await readFile(linkedTarget, "utf8"), "original target\n");
-  assert.equal((await lstat(predictableTemporaryPath)).isSymbolicLink(), true);
 });

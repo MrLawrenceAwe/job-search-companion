@@ -1,9 +1,12 @@
+import { cvFitSubmissionContract } from "../shared/contracts.js";
 import { readOptionalFile, atomicWrite, assertNoSymbolicLinkPaths } from "../shared/filesystem.js";
+
+const { statuses, persistedStatuses } = cvFitSubmissionContract;
 
 const STORE_VERSION = 1;
 const INTERRUPTED_ERROR = "The bridge restarted before this submission was confirmed";
 
-export const openSubmissionStore = async (path) => {
+export const openCvFitSubmissionStore = async (path) => {
   await assertNoSymbolicLinkPaths([path]);
   const contents = await readOptionalFile(path);
   let entries = [];
@@ -12,7 +15,7 @@ export const openSubmissionStore = async (path) => {
     if (state.version !== STORE_VERSION || !Array.isArray(state.submissions)
         || state.submissions.some((submission) => (
           typeof submission?.id !== "string"
-          || !["submitting", "submitted", "ready_for_review", "failed", "interrupted"].includes(submission.status)
+          || !persistedStatuses.includes(submission.status)
         ))) {
       throw new Error(`Invalid submission state: ${path}`);
     }
@@ -27,8 +30,8 @@ export const openSubmissionStore = async (path) => {
 
   let interrupted = false;
   for (const [id, submission] of submissions) {
-    if (submission.status === "submitting") {
-      submissions.set(id, { id, status: "interrupted", error: INTERRUPTED_ERROR });
+    if (submission.status === statuses.submitting) {
+      submissions.set(id, { id, status: statuses.interrupted, error: INTERRUPTED_ERROR });
       interrupted = true;
     }
   }

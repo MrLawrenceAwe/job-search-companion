@@ -4,7 +4,7 @@ import { mkdtemp, writeFile, rm, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { openBlockerChecker } from "../../../bridge/blockers/checker.js";
-import { openChatGPTConnection } from "../../../bridge/blockers/chatgpt.js";
+import { openChatGPTAccountManager } from "../../../bridge/blockers/chatgpt-accounts.js";
 import { drainEventLoopUntil } from "../../../test-support/async.js";
 
 const profile = { hash: "verified", facts: [{ id: "F1", text: "Provisional licence" }], sources: [] };
@@ -17,7 +17,7 @@ const fixture = async (t, infer, models = async () => [{ slug: "test" }]) => {
   const selected = [];
   const chatgpt = {
     connectionStatus: () => ({ activeId, planUsageEnabled: true }),
-    fallbackAccounts: () => ["b", "c"],
+    fallbackAccountIds: () => ["b", "c"],
     select: async (id) => { selected.push(id); activeId = id; },
     models: () => models(activeId), close() {},
   };
@@ -121,8 +121,8 @@ test("fallback candidates exclude incomplete, signed-out, unconsented and duplic
     registration("a", "user1"), registration("duplicate-a", "user1"), registration("b", "user2"), registration("duplicate-b", "user2"),
     registration("incomplete", undefined), registration("signed-out", "user3", { accessToken: null }), registration("unconsented", "user4", { scopes: [] }), registration("c", "user5"),
   ] }));
-  const auth = await openChatGPTConnection({ path }); t.after(() => auth.close());
-  assert.deepEqual(auth.fallbackAccounts(), ["b", "c"]);
+  const auth = await openChatGPTAccountManager({ path }); t.after(() => auth.close());
+  assert.deepEqual(auth.fallbackAccountIds(), ["b", "c"]);
   assert.deepEqual(auth.connectionStatus().fallbackIds, ["b", "c"]);
   assert.doesNotMatch(JSON.stringify(auth.connectionStatus()), /secret|user1|user2/);
 });

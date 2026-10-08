@@ -7,10 +7,6 @@
     ui: {
       cvFitActionLabel: "Analyse with CV Fit Advisor",
       menuItemClass: "jsc-menu-item",
-      cvFitShortcut: {
-        aria: "N",
-        display: "N",
-      },
     },
     selectors: {
       jobCard:
@@ -40,6 +36,6 @@
     blockers: {},
     jobMenu: {},
     showToast: null,
-    submissions: {},
+    cvFitSubmissions: {},
   };
 })();

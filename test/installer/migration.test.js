@@ -4,7 +4,6 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
 import { migrateInstallation } from "../../installer/legacy-installation.js";
-import { openChatGPTConnection } from "../../bridge/blockers/chatgpt.js";
 
 const fixture = async (t) => {
   const homePath = await mkdtemp(join(await realpath(tmpdir()), "jsc-migration-"));
@@ -65,70 +64,3 @@ test("identity migration refuses conflicting directories and symbolic links with
   await assert.rejects(migrateInstallation({ homePath }), /symbolic links/);
   assert.ok(await stat(source));
 });
-
-test("account field migration preserves registrations and credentials and persists the current contract", async (t) => {
-  const { source } = await fixture(t);
-  const path = join(source, "blockers/chatgpt.json");
-  const account = {
-    id: "a",
-    subject: "subscriber",
-    clientId: "client-a",
-    accessToken: "token",
-    refreshToken: "refresh",
-    scopes: ["chatgpt.tokens.use.direct"],
-    expiresAt: Date.now() + 3600_000,
-  };
-  await writeFile(path, JSON.stringify({ hostId: "host", activeId: "a", profiles: [account] }));
-  const auth = await openChatGPTConnection({ path });
-  t.after(() => auth.close());
-  assert.equal(auth.connectionStatus().planUsageEnabled, true);
-  assert.equal(auth.connectionStatus().accounts[0].id, "a");
-  const stored = JSON.parse(await readFile(path, "utf8"));
-  assert.deepEqual(stored.accounts, [account]);
-  assert.equal(stored.activeId, "a");
-  assert.equal(stored.hostId, "host");
-  assert.equal(Object.hasOwn(stored, "profiles"), false);
-});
-
-test("conflicting account schemas are rejected without overwriting credentials", async (t) => {
-  const { source } = await fixture(t);
-  const path = join(source, "blockers/chatgpt.json");
-  const content = JSON.stringify({ accounts: [], profiles: [{ accessToken: "preserve" }] });
-  await writeFile(path, content);
-  await assert.rejects(openChatGPTConnection({ path }), /Conflicting ChatGPT account stores/);
-  assert.equal(await readFile(path, "utf8"), content);
-});
-
-for (const code of ["rate_limit_exceeded", "subscription_sharing_usage_limit_exceeded"]) {
-  test(`ChatGPT error wording distinguishes ${code}`, async (t) => {
-    const { source } = await fixture(t);
-    const path = join(source, "blockers/chatgpt.json");
-    await writeFile(
-      path,
-      JSON.stringify({
-        activeId: "a",
-        accounts: [
-          {
-            id: "a",
-            accessToken: "token",
-            scopes: ["chatgpt.tokens.use.direct"],
-            expiresAt: Date.now() + 3600_000,
-          },
-        ],
-      }),
-    );
-    const auth = await openChatGPTConnection({
-      path,
-      fetchImpl: async () => Response.json({ error: { code } }, { status: 429 }),
-    });
-    t.after(() => auth.close());
-    await assert.rejects(auth.models(), (error) => {
-      assert.equal(error.code, code);
-      assert.match(
-        error.message,
-        code === "rate_limit_exceeded" ? /temporarily rate limited/ : /plan usage limit reached/,
-      );
-      return true;
-    });
-  });
-}

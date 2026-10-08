@@ -1,7 +1,7 @@
 // Shared by classic Chrome scripts and the Node bridge via shared/contracts.js.
 (() => {
   const labels = Object.freeze({
-    clear_blocker: "Clear blocker",
+    clear_blocker: "Confirmed blocker",
     uncertain_requirement: "Uncertain requirement",
     no_blockers_found: "No blockers found",
   });

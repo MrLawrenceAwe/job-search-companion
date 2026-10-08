@@ -25,11 +25,11 @@ final class AutomationContext {
 
     func postKey(_ virtualKey: CGKeyCode) {
         guard NSWorkspace.shared.frontmostApplication?.bundleIdentifier == bundleIdentifier else {
-            fail("Codex lost focus before automation completed")
+            self.fail("Codex lost focus before automation completed")
         }
         guard let keyDown = CGEvent(keyboardEventSource: nil, virtualKey: virtualKey, keyDown: true),
               let keyUp = CGEvent(keyboardEventSource: nil, virtualKey: virtualKey, keyDown: false) else {
-            fail("Could not create a keyboard event")
+            self.fail("Could not create a keyboard event")
         }
         keyDown.post(tap: .cghidEventTap)
         keyUp.post(tap: .cghidEventTap)
@@ -76,14 +76,6 @@ func sameElement(_ left: AXUIElement, _ right: AXUIElement) -> Bool {
     CFEqual(left, right)
 }
 
-func fail(_ message: String) -> Never {
-    automation.fail(message)
-}
-
-func postKey(_ virtualKey: CGKeyCode) {
-    automation.postKey(virtualKey)
-}
-
 func findElements(
     in element: AXUIElement,
     deadline: Date,
@@ -94,11 +86,11 @@ func findElements(
     var visitedElementCount = 0
     while let current = stack.popLast() {
         guard Date() < deadline else {
-            fail("Codex Accessibility tree scan exceeded its deadline")
+            automation.fail("Codex Accessibility tree scan exceeded its deadline")
         }
         visitedElementCount += 1
         guard visitedElementCount <= maxTreeNodeCount else {
-            fail("Codex Accessibility tree exceeded the \(maxTreeNodeCount)-element safety limit")
+            automation.fail("Codex Accessibility tree exceeded the \(maxTreeNodeCount)-element safety limit")
         }
         if predicate(current.element) {
             matches.append(current.element)
@@ -118,13 +110,13 @@ func focus(_ element: AXUIElement, failureMessage: String) {
         kAXFocusedAttribute as CFString,
         kCFBooleanTrue
     ) == .success else {
-        fail(failureMessage)
+        automation.fail(failureMessage)
     }
 }
 
 func press(_ element: AXUIElement, failureMessage: String) {
     guard AXUIElementPerformAction(element, kAXPressAction as CFString) == .success else {
-        fail(failureMessage)
+        automation.fail(failureMessage)
     }
 }
 
@@ -156,7 +148,7 @@ func waitForRunningApplication(
         }
         Thread.sleep(forTimeInterval: initialPollInterval)
     }
-    fail("Codex did not start")
+    automation.fail("Codex did not start")
 }
 
 func isMatchingComposer(_ element: AXUIElement, jobURL: String) -> Bool {

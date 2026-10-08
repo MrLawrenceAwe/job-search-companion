@@ -17,16 +17,16 @@
     return [...jobsByUrl.values()];
   };
 
-  const allJobs = () => uniqueJobs(companion.jobs.collectJobLinks());
+  const allJobs = () => uniqueJobs(companion.jobs.collectJobCarriers());
 
   const renderedJobs = () =>
-    uniqueJobs(companion.jobs.collectJobLinks(companion.dom.getRenderedRect)).filter(
+    uniqueJobs(companion.jobs.collectJobCarriers(companion.dom.getRenderedRect)).filter(
       ({ jobUrl }) => !hiddenJobUrls.has(jobUrl),
     );
 
   const hideRenderedJobCards = () => {
     for (const { element, jobUrl } of uniqueJobs(
-      companion.jobs.collectJobLinks(companion.dom.getRenderedRect),
+      companion.jobs.collectJobCarriers(companion.dom.getRenderedRect),
     )) {
       if (hiddenJobUrls.has(jobUrl)) {
         (element.closest?.(companion.selectors.jobCard) || element).classList?.add(
@@ -194,7 +194,7 @@
         hiddenJobObserver?.disconnect();
       }
       lastAction.container.classList.remove("jsc-hidden-job");
-      for (const { element, jobUrl } of companion.jobs.collectJobLinks()) {
+      for (const { element, jobUrl } of companion.jobs.collectJobCarriers()) {
         if (jobUrl === lastAction.jobUrl) {
           (element.closest?.(companion.selectors.jobCard) || element).classList?.remove(
             "jsc-hidden-job",
