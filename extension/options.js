@@ -5,7 +5,7 @@ const request = async (action, body) => {
   if (!result?.ok) throw new Error(result?.error || "Local checker unavailable");
   return result;
 };
-const feedback = (text) => { $("feedback").textContent = text; };
+const feedback = (text, state = "success") => { $("feedback").textContent = text; $("feedback").dataset.state = state; };
 const option = (value, label) => { const element = document.createElement("option"); element.value = value; element.textContent = label; return element; };
 const renderFallbacks = () => {
   const accounts = current.session.fallbackIds.map((id) => current.session.profiles.find((p) => p.id === id));
@@ -20,11 +20,18 @@ const renderFallbacks = () => {
 };
 const updateSave = () => {
   const button = $("save");
-  if (!current || !modelsLoaded) { button.textContent = "Loading settings…"; button.disabled = true; return; }
+  if (!current || !modelsLoaded) {
+    const failed = $("feedback").dataset.state === "error" && $("feedback").textContent;
+    button.textContent = failed ? "Settings unavailable" : "Loading settings…";
+    $("saveHint").textContent = failed ? "Check the local service, then reload this page to try again." : "Loading your preferences…";
+    button.disabled = true;
+    return;
+  }
   const changed = $("enabled").checked !== current.settings.enabled
     || $("accountFallback").checked !== current.settings.accountFallback
     || ($("model").value || null) !== current.settings.model;
   const resume = Boolean(current.pausedReason && $("enabled").checked);
+  $("saveHint").textContent = saving ? "Saving your preferences…" : changed ? "You have unsaved changes." : resume ? "Checks are paused. Resume when you’re ready." : "Your preferences are up to date.";
   button.textContent = saving ? "Saving…" : changed ? (resume ? "Save and resume checks" : "Save settings") : resume ? "Resume checks" : "Saved";
   button.disabled = busy || (!changed && !resume);
 };
@@ -33,6 +40,10 @@ const render = (state) => {
   $("connection").textContent = state.session.pending ? "Finish signing in in your browser."
     : state.session.sharing ? "Connected · Using ChatGPT plan"
     : state.session.connected ? "Plan usage is off. Continue with ChatGPT to enable it." : "Connect ChatGPT to start checking.";
+  $("connectionBadge").textContent = state.session.pending ? "Signing in" : state.session.sharing ? "Connected" : "Not connected";
+  $("connectionBadge").dataset.state = state.session.pending ? "attention" : state.session.sharing ? "active" : "inactive";
+  $("checkingBadge").textContent = state.pausedReason ? "Paused" : state.settings.enabled ? "Enabled" : "Off";
+  $("checkingBadge").dataset.state = state.pausedReason ? "attention" : state.settings.enabled ? "active" : "inactive";
   $("account").replaceChildren(...state.session.profiles.map((p) => option(p.id, p.label)));
   $("account").value = state.session.activeId || "";
   $("enabled").checked = state.settings.enabled;
@@ -40,10 +51,12 @@ const render = (state) => {
   renderFallbacks();
   if (modelsLoaded) $("model").value = state.settings.model || "";
   $("connect").disabled = state.session.pending;
+  $("connect").hidden = state.session.sharing && !state.session.pending;
   $("cancel").hidden = !state.session.pending;
   $("logout").disabled = !state.session.connected;
   $("profile").textContent = state.profile ? "Verified profile ready." : state.profileError;
-  if (state.pausedReason || state.session.error) feedback(state.pausedReason || state.session.error);
+  $("profile").dataset.state = state.profile ? "ready" : "error";
+  if (state.pausedReason || state.session.error) feedback(state.pausedReason || state.session.error, "error");
   updateSave();
 };
 const load = async () => render(await request("status"));
@@ -56,7 +69,7 @@ const loadModels = async () => {
 };
 const perform = async (work) => {
   if (busy) return; busy = true; updateSave();
-  try { feedback(""); await work(); } catch (error) { feedback(error.message); } finally { busy = false; updateSave(); }
+  try { feedback(""); await work(); } catch (error) { feedback(error.message, "error"); } finally { busy = false; updateSave(); }
 };
 for (const [id, work] of Object.entries({
   connect: async () => { const { authUrl } = await request("sign-in", { consent: Boolean(current?.session.connected && !current.session.sharing) }); await chrome.tabs.create({ url: authUrl }); await load(); },
@@ -75,7 +88,7 @@ for (const [id, work] of Object.entries({
   clear: async () => { await request("clear-cache"); const records = await chrome.storage.local.get(null); await chrome.storage.local.remove(Object.keys(records).filter((key) => key.startsWith("blocker-result:"))); await load(); feedback("Saved findings cleared."); },
 })) $(id).addEventListener("click", () => void perform(work));
 $("account").addEventListener("change", () => void perform(async () => { await request("account", { id: $("account").value }); await load(); await loadModels(); }));
-for (const id of ["enabled", "model", "accountFallback"]) $(id).addEventListener("change", () => { feedback(current?.pausedReason || ""); updateSave(); });
+for (const id of ["enabled", "model", "accountFallback"]) $(id).addEventListener("change", () => { feedback(current?.pausedReason || "", "error"); updateSave(); });
 $("accountFallback").addEventListener("change", renderFallbacks);
 void perform(async () => { await load(); await loadModels(); });
 setInterval(() => { if (!busy && current?.session.pending) void perform(async () => { await load(); if (!current.session.pending) await loadModels(); }); }, 2000);

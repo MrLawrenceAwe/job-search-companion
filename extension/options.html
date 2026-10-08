@@ -1,18 +1,65 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Job Search Companion settings</title><link rel="stylesheet" href="options.css"></head>
-<body><main>
-<h1>Indeed blocker checks</h1>
-<section><h2>ChatGPT connection</h2><p id="connection">Loading…</p>
-<label>Current account <select id="account" aria-label="Current ChatGPT account"></select></label>
-<div class="buttons"><button id="connect">Continue with ChatGPT</button><button id="add">Add account</button><button id="cancel">Cancel sign-in</button><button id="logout">Sign out</button><a href="https://chatgpt.com/settings/usage" target="_blank" rel="noopener noreferrer">Manage usage</a></div>
-<p><label><input id="accountFallback" type="checkbox" aria-describedby="fallbackStatus"> Use another account when usage runs out</label></p>
-<div id="fallbackStatus" class="note" role="status"></div></section>
-<section><h2>Checking</h2><label>Model <select id="model" aria-label="Checker model"></select></label><button id="refresh">Refresh models</button>
-<p><label><input id="enabled" type="checkbox"> Automatically check selected Indeed jobs</label></p>
-<p id="profile" class="note"></p></section>
-<button id="save" disabled>Loading settings…</button>
-<p id="feedback" role="status" aria-live="polite"></p>
-<section><h2>Saved findings</h2><p>Stored locally for up to 30 days.</p><button id="clear">Clear saved findings</button></section>
-<p class="note">Checks send job descriptions and relevant profile facts to OpenAI using your ChatGPT plan.</p>
-</main><script src="options.js"></script></body></html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Job Search Companion settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <main>
+    <header class="page-header">
+      <div class="brand"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><rect x="4" y="7" width="16" height="13" rx="3"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M4 12a19 19 0 0 0 16 0M12 11v4"/></svg></span>Job Search Companion</div>
+      <h1>Settings</h1>
+      <p>Set up Indeed blocker checks to spot requirements that don’t fit your profile.</p>
+    </header>
+
+    <div class="settings-grid">
+      <section class="card" aria-labelledby="accountHeading">
+        <div class="section-heading"><div><span class="eyebrow">Account</span><h2 id="accountHeading">ChatGPT connection</h2></div><span id="connectionBadge" class="badge">Loading</span></div>
+        <p id="connection" class="description" role="status">Loading connection…</p>
+        <label class="field-label" for="account">Current account</label>
+        <select id="account" aria-label="Current ChatGPT account"></select>
+        <div class="buttons account-actions">
+          <button id="connect" class="primary">Continue with ChatGPT</button>
+          <button id="add">Add account</button>
+          <button id="cancel" hidden>Cancel sign-in</button>
+          <button id="logout" class="quiet">Sign out</button>
+          <a href="https://chatgpt.com/settings/usage" target="_blank" rel="noopener noreferrer">Manage usage <span aria-hidden="true">↗</span></a>
+        </div>
+        <div class="divider"></div>
+        <label class="toggle-row" for="accountFallback">
+          <span><span class="setting-title">Account fallback</span><span class="description">Use another account when usage runs out.</span></span>
+          <input id="accountFallback" class="switch" type="checkbox" role="switch" aria-describedby="fallbackStatus">
+        </label>
+        <div id="fallbackStatus" class="inset note" role="status"></div>
+      </section>
+
+      <section class="card" aria-labelledby="checkingHeading">
+        <div class="section-heading"><div><span class="eyebrow">Preferences</span><h2 id="checkingHeading">Blocker checks</h2></div><span id="checkingBadge" class="badge">Loading</span></div>
+        <p class="description">Check selected Indeed job descriptions against your verified profile.</p>
+        <label class="field-label" for="model">Checker model</label>
+        <div class="model-row"><select id="model" aria-label="Checker model"></select><button id="refresh" class="icon-button" aria-label="Refresh models" title="Refresh models"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 7a7 7 0 0 1 11.5-1L20 9M4 15l2.4 3A7 7 0 0 0 17.9 17"/></svg></button></div>
+        <p id="profile" class="note profile-status" role="status">Loading verified profile…</p>
+        <div class="divider"></div>
+        <label class="toggle-row" for="enabled">
+          <span><span class="setting-title">Automatic checking</span><span class="description">Check each Indeed job when you select it.</span></span>
+          <input id="enabled" class="switch" type="checkbox" role="switch">
+        </label>
+      </section>
+
+      <section class="card storage-card" aria-labelledby="storageHeading">
+        <div><span class="eyebrow">Local data</span><h2 id="storageHeading">Saved findings</h2><p class="description">Findings stay on this device for up to 30 days. Clear them to start fresh.</p></div>
+        <button id="clear" class="danger">Clear saved findings</button>
+      </section>
+    </div>
+
+    <div class="save-bar">
+      <div class="save-message"><p id="saveHint">Loading your preferences…</p><p id="feedback" role="status" aria-live="polite"></p></div>
+      <button id="save" class="primary" disabled>Loading settings…</button>
+    </div>
+    <footer><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></svg><p>Checks send job descriptions and relevant profile facts to OpenAI using your ChatGPT plan.</p></footer>
+  </main>
+  <script src="options.js"></script>
+</body>
+</html>
