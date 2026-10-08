@@ -1,7 +1,6 @@
 (() => {
   const companion = globalThis.jobSearchCompanion;
   const { labels: LABELS, isRetainableResult } = globalThis.jobSearchContracts.blockers;
-  const { openBlockerSettings } = globalThis.jobSearchContracts.messages;
   companion.blockers.createRenderer = ({ recordStore, checks, getCurrentResult, startCheck, getContext }) => {
     const keyFromUrl = (url) => {
       try {
@@ -26,7 +25,6 @@
       });
       return node;
     };
-    const openSettings = () => chrome.runtime.sendMessage({ type: openBlockerSettings });
     return () => {
       const { selection, checkerState } = getContext();
       for (const badge of document.querySelectorAll(".jsc-blocker-badge")) badge.remove();
@@ -64,7 +62,6 @@
         panel.append(
           element("strong", "Not checked · waiting for a full description"),
           element("p", "The job and its complete description must match before checking."),
-          button("Checker settings", openSettings),
         );
         heading.after(panel);
         return;
@@ -76,6 +73,7 @@
       panel.dataset.signature = renderSignature;
       panel.setAttribute("aria-label", "Job Search Companion blocker check");
       const result = getCurrentResult();
+      if (result) panel.classList.add(`jsc-${result.outcome}`);
       const check = checks.get(selection.signature);
       let label = result
         ? LABELS[result.outcome]
@@ -126,7 +124,7 @@
         !checkerState?.settings.enabled ||
         !checkerState?.connectionStatus.planUsageEnabled ||
         ["checking", "queued"].includes(check?.status);
-      controls.append(checkButton, button("Checker settings", openSettings));
+      controls.append(checkButton);
       panel.append(controls);
       heading.after(panel);
     };
