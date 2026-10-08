@@ -7,7 +7,8 @@ import { validateJobUrl } from "../job-url.js";
 
 const RETENTION_MS = 30 * 86400_000;
 export const openBlockerChecker = async ({ directory, profilePaths, chatgpt, infer = runBlockerInference, readProfile = () => readVerifiedProfile(profilePaths) }) => {
-  const settings = await openPrivateStore(join(directory, "settings.json"), { enabled: false, model: null });
+  const settings = await openPrivateStore(join(directory, "settings.json"), { enabled: false, model: null, accountFallback: false });
+  settings.value.accountFallback ??= false;
   const cache = await openPrivateStore(join(directory, "cache.json"), { results: {} });
   const tasks = new Map(); const byKey = new Map(); let queue = []; let running = null; let epoch = 0; let pausedReason = null; let disposed = false;
   const prune = () => {
@@ -30,11 +31,45 @@ export const openBlockerChecker = async ({ directory, profilePaths, chatgpt, inf
   const pump = async () => {
     if (running || disposed || pausedReason || !settings.value.enabled || !queue.length) return;
     const item = queue.shift(); running = item; item.public.status = "checking";
+    item.accountId = chatgpt.session().activeId;
     const controller = new AbortController(); item.controller = controller;
     const timer = setTimeout(() => controller.abort(), 90_000);
     let pendingRecord = null; const previousRecord = cache.value.results[item.key];
+    let selectingFallback = false;
+    const isCurrent = () => item.epoch === epoch && item.accountId === chatgpt.session().activeId && !disposed && !controller.signal.aborted;
     try {
-      const result = await infer({ chatgpt, model: item.model, description: item.description, profile: item.profile, signal: controller.signal });
+      let result;
+      let candidates = null;
+      while (true) {
+        try {
+          result = await infer({ chatgpt, model: item.model, description: item.description, profile: item.profile, signal: controller.signal });
+          break;
+        } catch (error) {
+          if (!isCurrent() || !settings.value.accountFallback || error.code !== "subscription_sharing_usage_limit_exceeded") throw error;
+          selectingFallback = true;
+          candidates ??= chatgpt.fallbackAccounts();
+          let available = false;
+          while (candidates.length && isCurrent()) {
+            const id = candidates.shift();
+            await chatgpt.select(id);
+            item.accountId = id;
+            if (!isCurrent()) throw error;
+            let models;
+            try { models = await chatgpt.models(); }
+            catch (catalogError) {
+              if (isCurrent() && ([401, 403].includes(catalogError.status) || catalogError.code === "subscription_sharing_usage_limit_exceeded")) continue;
+              throw catalogError;
+            }
+            if (!isCurrent()) throw error;
+            if (models.some((m) => m.slug === item.model)) { available = true; break; }
+          }
+          if (!available) {
+            error.message = "ChatGPT usage limit reached. No connected fallback account can continue with this model. Manage usage or connect another account, then resume checks.";
+            throw error;
+          }
+          selectingFallback = false;
+        }
+      }
       if (item.epoch !== epoch || item.accountId !== chatgpt.session().activeId || disposed || controller.signal.aborted) { item.public.status = "cancelled"; return; }
       const record = { ...result, jobId: item.jobId, descriptionHash: item.descriptionHash, profileHash: item.profile.hash, checkerVersion: CHECKER_VERSION, model: item.model, checkedAt: new Date().toISOString() };
       pendingRecord = record; cache.value.results[item.key] = record; prune(); await cache.save();
@@ -44,10 +79,10 @@ export const openBlockerChecker = async ({ directory, profilePaths, chatgpt, inf
       if (pendingRecord && cache.value.results[item.key] === pendingRecord) {
         if (previousRecord) cache.value.results[item.key] = previousRecord; else delete cache.value.results[item.key];
       }
-      item.public.status = controller.signal.aborted ? "cancelled" : "failed";
+      item.public.status = !isCurrent() ? "cancelled" : "failed";
       item.public.error = controller.signal.aborted ? "Check interrupted or timed out. Try again." : error.message;
       item.public.code = error.code || "check_failed";
-      if ([401, 403, 429].includes(error.status) || error.code === "subscription_sharing_unsupported_capability") {
+      if (isCurrent() && (selectingFallback || [401, 403, 429].includes(error.status) || error.code === "subscription_sharing_unsupported_capability")) {
         pausedReason = error.message;
         for (const pending of queue) { pending.public.status = "cancelled"; pending.public.error = pausedReason; byKey.delete(pending.key); release(pending); }
         queue = [];
@@ -66,14 +101,14 @@ export const openBlockerChecker = async ({ directory, profilePaths, chatgpt, inf
   return {
     status,
     async configure(patch) {
-      if (Object.keys(patch).some((key) => !["enabled", "model"].includes(key)) || (patch.enabled !== undefined && typeof patch.enabled !== "boolean")) throw new Error("Invalid checker settings");
+      if (Object.keys(patch).some((key) => !["enabled", "model", "accountFallback"].includes(key)) || ["enabled", "accountFallback"].some((key) => patch[key] !== undefined && typeof patch[key] !== "boolean")) throw new Error("Invalid checker settings");
       if (patch.model !== undefined) {
         const models = await chatgpt.models();
         if (!models.some((m) => m.slug === patch.model)) throw new Error("Choose a model available to the connected ChatGPT account");
       }
       if (patch.enabled && (!chatgpt.session().sharing || !(patch.model || settings.value.model))) throw new Error("Connect ChatGPT plan usage and choose a model first");
       if (patch.enabled && !(await readProfile()).facts.length) throw new Error("Verified profile unavailable");
-      if (patch.enabled === false || (patch.model && patch.model !== settings.value.model)) cancelPending();
+      if (patch.enabled === false || (patch.model && patch.model !== settings.value.model) || (patch.accountFallback !== undefined && patch.accountFallback !== settings.value.accountFallback)) cancelPending();
       Object.assign(settings.value, patch); pausedReason = null; await settings.save(); void pump(); return status();
     },
     async start({ jobUrl: rawUrl, description, force = false }) {

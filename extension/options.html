@@ -3,15 +3,16 @@
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Job Search Companion settings</title><link rel="stylesheet" href="options.css"></head>
 <body><main>
 <h1>Indeed blocker checks</h1>
-<p>Check loaded job descriptions against your verified profile while browsing Indeed. Full analysis remains available through Analyse with CV Fit Advisor.</p>
 <section><h2>ChatGPT connection</h2><p id="connection">Loading…</p>
-<label>Account <select id="account" aria-label="ChatGPT account"></select></label>
-<div class="buttons"><button id="connect">Continue with ChatGPT</button><button id="add">Add account</button><button id="cancel">Cancel sign-in</button><button id="logout">Sign out</button><a href="https://chatgpt.com/settings/usage" target="_blank" rel="noopener noreferrer">Manage usage</a></div></section>
+<label>Current account <select id="account" aria-label="Current ChatGPT account"></select></label>
+<div class="buttons"><button id="connect">Continue with ChatGPT</button><button id="add">Add account</button><button id="cancel">Cancel sign-in</button><button id="logout">Sign out</button><a href="https://chatgpt.com/settings/usage" target="_blank" rel="noopener noreferrer">Manage usage</a></div>
+<p><label><input id="accountFallback" type="checkbox" aria-describedby="fallbackStatus"> Use another account when usage runs out</label></p>
+<div id="fallbackStatus" class="note" role="status"></div></section>
 <section><h2>Checking</h2><label>Model <select id="model" aria-label="Checker model"></select></label><button id="refresh">Refresh models</button>
 <p><label><input id="enabled" type="checkbox"> Automatically check selected Indeed jobs</label></p>
-<p>Checks begin after a description stays selected for 1.5 seconds. One job runs at a time; recent selections take priority. Checks already running finish when you move on. Up to ten waiting jobs are retained. Hidden tabs do not start automatic checks.</p>
-<button id="save" disabled>Loading settings…</button><p id="profile"></p></section>
-<section><h2>Saved findings</h2><p>Completed findings are saved locally for up to 30 days, with a maximum of 300 results. A changed description, profile, model or checker version requires a new check. Card badges from earlier visits say “Previously checked” until the description is verified again.</p><button id="clear">Clear saved findings</button></section>
+<p id="profile" class="note"></p></section>
+<button id="save" disabled>Loading settings…</button>
 <p id="feedback" role="status" aria-live="polite"></p>
-<p class="note">Job description text and relevant profile facts are sent to OpenAI using your ChatGPT plan. OAuth credentials stay in the local bridge. No unopened job descriptions are fetched. Findings do not automatically mark jobs unsuitable or recommend a CV.</p>
+<section><h2>Saved findings</h2><p>Stored locally for up to 30 days.</p><button id="clear">Clear saved findings</button></section>
+<p class="note">Checks send job descriptions and relevant profile facts to OpenAI using your ChatGPT plan.</p>
 </main><script src="options.js"></script></body></html>

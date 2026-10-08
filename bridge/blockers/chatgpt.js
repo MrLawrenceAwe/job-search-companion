@@ -29,12 +29,21 @@ export const openChatGPT = async ({ path, fetchImpl = fetch, verifyIdentity }) =
   let refresh = null;
   let lastError = null;
   const active = () => data.profiles.find((p) => p.id === data.activeId);
+  const fallbackAccounts = () => {
+    // Registrations for the same subscriber share usage; never rotate between them.
+    const seen = new Set([active()?.subject]);
+    return data.profiles.filter((p) => {
+      if (!p.subject || seen.has(p.subject) || !p.accessToken || !p.scopes.includes("chatgpt.tokens.use.direct")) return false;
+      seen.add(p.subject); return true;
+    }).map((p) => p.id);
+  };
   const session = () => {
     const p = active();
     return {
       connected: Boolean(p?.accessToken), sharing: Boolean(p?.accessToken && p.scopes.includes("chatgpt.tokens.use.direct")),
       activeId: data.activeId,
-      profiles: data.profiles.map(({ id, email, clientId }) => ({ id, email, label: `${email || "ChatGPT account"} · ${clientId.slice(-8)}` })),
+      profiles: data.profiles.map(({ id, email, subject, clientId }) => ({ id, email, label: `${email || (subject ? "ChatGPT account" : "Incomplete sign-in")} · ${clientId.slice(-8)}` })),
+      fallbackIds: fallbackAccounts(),
       pending: Boolean(login), error: lastError,
     };
   };
@@ -151,7 +160,7 @@ export const openChatGPT = async ({ path, fetchImpl = fetch, verifyIdentity }) =
     return response;
   };
   return {
-    session, signIn, cancelLogin, request,
+    session, signIn, cancelLogin, request, fallbackAccounts,
     async select(id) {
       if (refresh || login) throw new ChatGPTError("Wait for the current sign-in or refresh to finish.", "auth_busy", 409);
       if (!data.profiles.some((p) => p.id === id)) throw new ChatGPTError("Unknown ChatGPT account", "invalid_profile", 400);

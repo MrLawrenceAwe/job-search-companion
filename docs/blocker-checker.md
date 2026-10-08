@@ -20,6 +20,16 @@ Automatic checks begin after a 1.5-second dwell in a visible tab. One model requ
 
 The selected detail shows **Clear blocker**, **Uncertain requirement**, or **No blockers found**, with requirement excerpts and profile evidence. Clear blockers require an explicit mandatory requirement and contradictory verified evidence. Absence of evidence stays uncertain. Completed cards receive compact badges; unopened cards can show **Previously checked** but are never claimed current before their description is verified. Manual marks and job visibility are not changed.
 
+## Fallback accounts
+
+In **ChatGPT connection**, add your other accounts through **Add account**, completing sign-in with plan usage enabled for each. Enable **Use another account when usage runs out** and save. Fallback is off by default.
+
+**Current account** is used first. Fallback accounts are listed by email in the order they will be tried. After an automatic switch, the selected fallback becomes the current account.
+
+Only the confirmed `subscription_sharing_usage_limit_exceeded` error triggers fallback, including errors received during streaming. The failed check is retried using the same model on other connected accounts in account-list order; subsequent queued checks use the newly selected account. Each distinct subscriber is tried at most once per check. Signed-out accounts and duplicate registrations for the same subscriber are excluded. Accounts without the model or with rejected credentials/access are skipped during fallback catalog checks. Temporary rate limits, network errors, and errors on the original account other than confirmed usage exhaustion do not trigger account rotation.
+
+When no fallback can continue, the check fails and queued checks pause. Use **Manage usage**, reconnect an account, or select another model and resume. Limits may be app-specific; the error does not establish that an entire plan is empty or when it resets. No API-key billing is used. Pausing, changing accounts or fallback settings, clearing the cache, and shutdown cancel pending fallback work.
+
 ## Cache and account data
 
 The bridge keeps at most 300 completed results for 30 days, keyed by Indeed job ID, description hash, profile hash, prompt/checker version, and model. Card records are also bounded in extension-local storage. **Clear saved findings** clears both stores without touching manual marks. Stale results may appear as previously checked, never as a current clean result.
@@ -28,7 +38,7 @@ GPT-6-Luna checks request Fast processing (`service_tier: "priority"`), as adver
 
 Checker settings, cache and ChatGPT registrations live in `~/Library/Application Support/Indeed CV Fit Bridge/blockers/`. Files are atomically written with mode 0600; new directories use 0700. OAuth tokens never go to Indeed content scripts or extension storage. Sign-out attempts remote refresh-token revocation, clears local credentials and preserves the issued registration and stable host ID. Settings reports unconfirmed remote revocation. Account selection/sign-in pauses checking and clears model selection. Multiple registrations remain distinct even with the same email.
 
-A new OAuth attempt has fresh state, nonce and PKCE values, a loopback callback, and ID-token signature/issuer/audience/expiry/nonce validation. Refreshes are serialized in the single bridge process. Job text is untrusted input and the model has no tools. Findings are accepted only after `response.completed`, valid JSON, valid outcome fields, quoted description evidence and known profile fact IDs. Failed, incomplete or interrupted streams never produce “no blockers found.” Usage/auth/access errors pause requests; **Manage usage** opens ChatGPT usage settings. The app never falls back to API-key billing.
+A new OAuth attempt has fresh state, nonce and PKCE values, a loopback callback, and ID-token signature/issuer/audience/expiry/nonce validation. Refreshes are serialized in the single bridge process. Job text is untrusted input and the model has no tools. Findings are accepted only after `response.completed`, valid JSON, valid outcome fields, quoted description evidence and known profile fact IDs. Failed, incomplete or interrupted streams never produce “no blockers found.” Usage errors can trigger the optional account fallback below; auth/access errors pause requests; **Manage usage** opens ChatGPT usage settings. The app never falls back to API-key billing.
 
 ## Limitations and validation
 
