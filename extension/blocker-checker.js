@@ -1,7 +1,7 @@
 (() => {
   const companion = globalThis.jobSearchCompanion;
   if (companion.platform !== "indeed") return;
-  const { isRetainableResult } = globalThis.jobSearchContracts.blockers;
+  const { isRetainableResult, reasoningForModel } = globalThis.jobSearchContracts.blockers;
   const recordStore = globalThis.jobSearchBlockerRecords.createStore();
   const checks = new Map();
   let checkerState = null;
@@ -21,7 +21,8 @@
     return isRetainableResult(record) &&
       record.descriptionHash === selection.descriptionHash &&
       record.profileHash === profileHash &&
-      record.model === checkerState?.settings.model
+      record.model === checkerState?.settings.model &&
+      record.reasoningEffort === reasoningForModel(checkerState?.settings.model, checkerState?.settings.reasoningEffort)
       ? record
       : null;
   };
@@ -70,6 +71,7 @@
       if (
         updated.settings.enabled !== checkerState?.settings.enabled ||
         updated.settings.model !== checkerState?.settings.model ||
+        updated.settings.reasoningEffort !== checkerState?.settings.reasoningEffort ||
         updated.profile?.hash !== profileHash ||
         updated.pausedReason !== checkerState?.pausedReason
       ) {
@@ -127,7 +129,7 @@
     }
     const descriptionHash = await digest(text);
     if (generation !== scanGeneration) return;
-    const signature = `${jobId}:${descriptionHash}:${profileHash}:${checkerState?.settings.model}`;
+    const signature = `${jobId}:${descriptionHash}:${profileHash}:${checkerState?.settings.model}:${reasoningForModel(checkerState?.settings.model, checkerState?.settings.reasoningEffort)}`;
     if (selection?.signature === signature) {
       render();
       return;

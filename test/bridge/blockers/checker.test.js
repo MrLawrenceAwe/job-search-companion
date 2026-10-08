@@ -71,3 +71,32 @@ test("checker refuses LinkedIn, partial input, unavailable profiles and unadvert
   await assert.rejects(checker.start({ ...job(), description: "short" }), /full job description/);
   await assert.rejects(checker.configure({ model: "not-available" }), /available/); checker.close();
 });
+
+test("reasoning changes persist, cancel pending work, and invalidate Luna results", async () => {
+  const received = [];
+  let release;
+  const { checker, directory, chatgpt } = await setup(async ({ reasoningEffort }) => {
+    received.push(reasoningEffort);
+    if (received.length === 2) await new Promise((resolve) => { release = resolve; });
+    return noBlockers;
+  });
+  chatgpt.models = async () => [{ slug: "gpt-6-luna" }];
+  await checker.configure({ model: "gpt-6-luna", reasoningEffort: "medium" });
+  const first = await checker.start(job());
+  await waitUntil(() => checker.get(first.id).status === "completed");
+  assert.equal(checker.get(first.id).result.reasoningEffort, "medium");
+  assert.equal((await checker.start(job())).cached, true);
+  await checker.configure({ reasoningEffort: "low" });
+  const second = await checker.start(job());
+  assert.equal(second.cached, undefined);
+  const queued = await checker.start(job("second111"));
+  await checker.configure({ reasoningEffort: "medium" });
+  assert.equal(checker.get(queued.id).status, "cancelled");
+  release();
+  await waitUntil(() => checker.get(second.id).status === "cancelled");
+  assert.deepEqual(received, ["medium", "low"]);
+  assert.equal((await checker.start(job())).result.reasoningEffort, "medium");
+  assert.equal(JSON.parse(await readFile(join(directory, "settings.json"), "utf8")).reasoningEffort, "medium");
+  await assert.rejects(checker.configure({ reasoningEffort: "light" }), /Invalid checker settings/);
+  checker.close();
+});

@@ -13,6 +13,7 @@ export const inferWithAccountFallback = async ({
       return await infer({
         chatgpt,
         model: checkJob.model,
+        reasoningEffort: checkJob.reasoningEffort,
         description: checkJob.description,
         profile: checkJob.profile,
         signal,

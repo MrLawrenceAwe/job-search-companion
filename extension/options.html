@@ -40,6 +40,13 @@
         <p class="description">Check selected Indeed job descriptions against your verified profile.</p>
         <label class="field-label" for="checkerModel">Checker model</label>
         <div class="model-row"><select id="checkerModel" aria-label="Checker model"></select><button id="refreshModels" class="icon-button" aria-label="Refresh models" title="Refresh models"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 7a7 7 0 0 1 11.5-1L20 9M4 15l2.4 3A7 7 0 0 0 17.9 17"/></svg></button></div>
+        <label class="field-label" for="checkerReasoning">Reasoning level</label>
+        <select id="checkerReasoning" aria-describedby="reasoningHint">
+          <option value="low">Light (low)</option>
+          <option value="medium">Medium</option>
+        </select>
+        <p id="reasoningHint" class="note"></p>
+        <p id="checkerSpeed" class="note" role="status"></p>
         <p id="profile" class="note profile-status" role="status">Loading verified profile…</p>
         <div class="divider"></div>
         <label class="toggle-row" for="checksEnabled">

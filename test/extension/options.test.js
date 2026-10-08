@@ -13,7 +13,7 @@ test("settings use account registrations, save preferences, and clear only block
   t.after(() => dom.window.close());
   const { window } = dom;
   let state = {
-    settings: { enabled: false, model: "test", accountFallback: false },
+    settings: { enabled: false, model: "test", accountFallback: false, reasoningEffort: "medium" },
     pausedReason: null,
     connectionStatus: {
       planUsageEnabled: true,
@@ -35,7 +35,7 @@ test("settings use account registrations, save preferences, and clear only block
       async sendMessage(message) {
         requests.push(message);
         if (message.action === "models")
-          return { ok: true, models: [{ slug: "test", name: "Test model" }] };
+          return { ok: true, models: [{ slug: "test", name: "Test model" }, { slug: "gpt-6-luna", name: "GPT-6 Luna" }] };
         if (message.action === "settings")
           state = { ...state, settings: { ...state.settings, ...message.body } };
         return { ok: true, ...structuredClone(state) };
@@ -59,11 +59,21 @@ test("settings use account registrations, save preferences, and clear only block
   assert.equal(element("currentAccount").value, "a");
   assert.equal(element("currentAccount").options[1].textContent, "Second account");
   assert.match(element("fallbackStatus").textContent, /second@example.test/);
+  assert.equal(element("checkerReasoning").disabled, true);
+  assert.match(element("reasoningHint").textContent, /default reasoning/);
+  element("checkerModel").value = "gpt-6-luna";
+  element("checkerModel").dispatchEvent(new window.Event("change"));
+  assert.equal(element("checkerReasoning").disabled, false);
+  assert.match(element("checkerSpeed").textContent, /Fast requested.*unconfirmed/);
+  element("checkerReasoning").value = "low";
+  element("checkerReasoning").dispatchEvent(new window.Event("change"));
   element("checksEnabled").checked = true;
   element("checksEnabled").dispatchEvent(new window.Event("change"));
   element("saveSettings").click();
   await waitUntil(() => element("feedback").textContent === "Settings saved.");
   assert.equal(requests.find((request) => request.action === "settings").body.enabled, true);
+  assert.equal(requests.find((request) => request.action === "settings").body.reasoningEffort, "low");
+  assert.equal(element("checkerReasoning").value, "low");
   await waitUntil(() => !element("saveSettings").disabled || element("saveSettings").textContent === "Saved");
   element("clearFindings").click();
   await waitUntil(() => element("feedback").textContent === "Saved findings cleared.");

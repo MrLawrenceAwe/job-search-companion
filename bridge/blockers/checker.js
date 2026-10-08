@@ -23,8 +23,10 @@ export const openBlockerChecker = async ({
     enabled: false,
     model: null,
     accountFallback: false,
+    reasoningEffort: blockerContract.defaultReasoningEffort,
   });
   settings.value.accountFallback ??= false;
+  settings.value.reasoningEffort ??= blockerContract.defaultReasoningEffort;
   const cache = await openResultCache(directory);
   const checksById = new Map();
   const checksByCacheKey = new Map();
@@ -108,6 +110,7 @@ export const openBlockerChecker = async ({
         profileHash: checkJob.profile.hash,
         checkerVersion: CHECKER_VERSION,
         model: checkJob.model,
+        reasoningEffort: checkJob.reasoningEffort,
         checkedAt: new Date().toISOString(),
       };
       pendingRecord = record;
@@ -167,7 +170,8 @@ export const openBlockerChecker = async ({
     status,
     async configure(patch) {
       if (
-        Object.keys(patch).some((key) => !["enabled", "model", "accountFallback"].includes(key)) ||
+        Object.keys(patch).some((key) => !["enabled", "model", "accountFallback", "reasoningEffort"].includes(key)) ||
+        (patch.reasoningEffort !== undefined && !["low", "medium"].includes(patch.reasoningEffort)) ||
         ["enabled", "accountFallback"].some(
           (key) => patch[key] !== undefined && typeof patch[key] !== "boolean",
         )
@@ -185,6 +189,7 @@ export const openBlockerChecker = async ({
       if (
         patch.enabled === false ||
         (patch.model && patch.model !== settings.value.model) ||
+        (patch.reasoningEffort !== undefined && patch.reasoningEffort !== settings.value.reasoningEffort) ||
         (patch.accountFallback !== undefined &&
           patch.accountFallback !== settings.value.accountFallback)
       )
@@ -211,12 +216,14 @@ export const openBlockerChecker = async ({
       const jobId = parsed.searchParams.get("jk");
       const descriptionHash = sha256(description);
       const model = settings.value.model;
+      const reasoningEffort = blockerContract.reasoningForModel(model, settings.value.reasoningEffort);
       const key = hashJson({
         jobId,
         descriptionHash,
         profileHash: profile.hash,
         checkerVersion: CHECKER_VERSION,
         model,
+        reasoningEffort,
       });
       if (checksByCacheKey.has(key)) return checksByCacheKey.get(key).publicState;
       const cached = cache.get(key);
@@ -229,6 +236,7 @@ export const openBlockerChecker = async ({
         key,
         jobId,
         model,
+        reasoningEffort,
         description,
         descriptionHash,
         profile,

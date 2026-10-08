@@ -41,5 +41,7 @@ test("inference uses plan-compatible parameters and produces only blocker findin
   assert.equal(captured.service_tier, undefined);
   await runBlockerInference({ chatgpt, model: "gpt-6-luna", description: job().description, profile });
   assert.equal(captured.service_tier, "priority");
-  assert.equal(captured.reasoning, undefined);
+  assert.deepEqual(captured.reasoning, { effort: "medium" });
+  await runBlockerInference({ chatgpt, model: "gpt-6-luna", reasoningEffort: "low", description: job().description, profile });
+  assert.deepEqual(captured.reasoning, { effort: "low" });
 });

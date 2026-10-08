@@ -11,6 +11,10 @@
     maximumRecords: 300,
     storagePrefix: "blocker-result:",
     labels,
+    defaultReasoningEffort: "medium",
+    reasoningForModel(model, effort) {
+      return model === "gpt-6-luna" ? effort : null;
+    },
     isRetainableResult(record, now = Date.now()) {
       return Boolean(
         record &&

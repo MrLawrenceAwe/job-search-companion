@@ -5,6 +5,16 @@ let busy = false;
 let saving = false;
 let modelsLoaded = false;
 const { request } = globalThis.jobSearchBlockerClient;
+const renderInferenceSettings = () => {
+  const luna = $("checkerModel").value === "gpt-6-luna";
+  $("checkerReasoning").disabled = !luna;
+  $("reasoningHint").textContent = luna
+    ? "Light uses less reasoning; Medium allows more deliberation. This choice is saved for GPT-6 Luna."
+    : "Other models use their default reasoning level. Select GPT-6 Luna to choose Light or Medium.";
+  $("checkerSpeed").textContent = luna
+    ? "Processing speed: Fast requested (priority). The delivered speed tier is unconfirmed."
+    : "Processing speed: model default. Fast processing is requested only for GPT-6 Luna.";
+};
 const feedback = (text, state = "success") => {
   $("feedback").textContent = text;
   $("feedback").dataset.state = state;
@@ -44,6 +54,7 @@ const updateSave = () => {
   const changed =
     $("checksEnabled").checked !== settingsState.settings.enabled ||
     $("accountFallback").checked !== settingsState.settings.accountFallback ||
+    $("checkerReasoning").value !== settingsState.settings.reasoningEffort ||
     ($("checkerModel").value || null) !== settingsState.settings.model;
   const resume = Boolean(settingsState.pausedReason && $("checksEnabled").checked);
   $("saveHint").textContent = saving
@@ -97,8 +108,10 @@ const render = (state) => {
   $("currentAccount").value = state.connectionStatus.activeId || "";
   $("checksEnabled").checked = state.settings.enabled;
   $("accountFallback").checked = state.settings.accountFallback;
+  $("checkerReasoning").value = state.settings.reasoningEffort;
   renderFallbacks();
   if (modelsLoaded) $("checkerModel").value = state.settings.model || "";
+  renderInferenceSettings();
   $("connectChatGPT").disabled = state.connectionStatus.pending;
   $("connectChatGPT").hidden = state.connectionStatus.planUsageEnabled && !state.connectionStatus.pending;
   $("cancelSignIn").hidden = !state.connectionStatus.pending;
@@ -114,6 +127,7 @@ const loadModels = async () => {
   if (!settingsState?.connectionStatus.planUsageEnabled) {
     $("checkerModel").replaceChildren(option("", "Connect ChatGPT plan usage first"));
     modelsLoaded = true;
+    renderInferenceSettings();
     updateSave();
     return;
   }
@@ -123,6 +137,7 @@ const loadModels = async () => {
     ...models.map((model) => option(model.slug, model.name)),
   );
   $("checkerModel").value = settingsState.settings.model || "";
+  renderInferenceSettings();
   modelsLoaded = true;
   updateSave();
 };
@@ -169,6 +184,7 @@ for (const [id, work] of Object.entries({
     const body = {
       enabled: $("checksEnabled").checked,
       accountFallback: $("accountFallback").checked,
+      reasoningEffort: $("checkerReasoning").value,
     };
     if ($("checkerModel").value) body.model = $("checkerModel").value;
     const resuming = Boolean(settingsState.pausedReason && body.enabled);
@@ -196,11 +212,12 @@ $("currentAccount").addEventListener(
       await loadModels();
     }),
 );
-for (const id of ["checksEnabled", "checkerModel", "accountFallback"])
+for (const id of ["checksEnabled", "checkerModel", "checkerReasoning", "accountFallback"])
   $(id).addEventListener("change", () => {
     feedback(settingsState?.pausedReason || "", "error");
     updateSave();
   });
+$("checkerModel").addEventListener("change", renderInferenceSettings);
 $("accountFallback").addEventListener("change", renderFallbacks);
 void perform(async () => {
   await load();

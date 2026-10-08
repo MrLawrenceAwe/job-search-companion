@@ -67,6 +67,9 @@ a:hover { text-decoration: underline; }
 .inset strong { font-weight: 600; }
 .model-row { display: flex; gap: 8px; }
 .model-row select { min-width: 0; }
+.model-row + .field-label { margin-top: 18px; }
+#reasoningHint, #checkerSpeed { margin-top: 8px; }
+select:disabled { opacity: .65; }
 .icon-button { display: grid; place-items: center; padding: 9px; }
 .profile-status { margin-top: 12px; }
 .profile-status[data-state="ready"] { color: var(--success); }

@@ -127,14 +127,14 @@ export const readCompletedResponse = async (response) => {
   return JSON.parse(text);
 };
 
-export const runBlockerInference = async ({ chatgpt, model, description, profile, signal }) => {
+export const runBlockerInference = async ({ chatgpt, model, reasoningEffort = "medium", description, profile, signal }) => {
   const response = await chatgpt.request("responses", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     signal,
     body: JSON.stringify({
       model,
-      ...(model === "gpt-6-luna" ? { service_tier: "priority" } : {}),
+      ...(model === "gpt-6-luna" ? { service_tier: "priority", reasoning: { effort: reasoningEffort } } : {}),
       store: false,
       stream: true,
       instructions,

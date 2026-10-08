@@ -42,7 +42,13 @@ Checker data lives in `~/Library/Application Support/Job Search Companion/blocke
 
 Unsupported model capabilities pause checking for settings review. Finding a model in the catalog does not establish that it supports checking for your account. Live sign-in, account-specific model admission, and structured-output support require verification with an eligible ChatGPT account.
 
-GPT-6-Luna requests Fast processing, but the delivered tier remains unconfirmed. Other models use their default processing tier; reasoning uses each model's default.
+GPT-6 Luna requests Fast processing (`service_tier: "priority"`), but the delivered tier remains unconfirmed. Settings shows this as a processing request, not a verified latency guarantee. Other models use their default processing tier and reasoning level.
+
+For GPT-6 Luna, **Reasoning level** selects **Light (low)** or **Medium** and sends an explicit `reasoning.effort`. Medium remains the default. Saving a different level cancels pending checks and keeps results from the previous level from being reused as current findings. Account fallback retains the chosen level.
+
+On 9 October 2026, 12 live requests compared low and medium using the same verified profile, three sample descriptions and Fast processing. Two rounds alternated request order. Median completion time was **2.59 seconds for Light** and **2.44 seconds for Medium**: Light was 6.2% slower in this small sample, so no automatic switch was made. The switch threshold was a 20% reduction with all fixture outcomes passing. Low passed all six outcomes; medium passed five, missing the uncertain DBS requirement once in an advert containing an instruction injection. These synthetic cases are a limited check, not a comprehensive accuracy evaluation or a promise of future latency. Full inputs, timings and outcomes are in [the benchmark report](blocker-benchmark.json).
+
+Run `node scripts/benchmark-blockers.js` to repeat this comparison using the currently connected account and verified profile. It uses ChatGPT plan usage, requires a fresh access token, and does not change checker settings, saved findings, accounts or credentials.
 
 See [checker internals and validation notes](design.md#blocker-checking-internals) for description capture, storage contracts, and automated coverage.
 
