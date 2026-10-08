@@ -4,15 +4,7 @@ let settingsState = null;
 let busy = false;
 let saving = false;
 let modelsLoaded = false;
-const request = async (action, body) => {
-  const result = await chrome.runtime.sendMessage({
-    type: "BLOCKER_REQUEST",
-    action,
-    body,
-  });
-  if (!result?.ok) throw new Error(result?.error || "Local checker unavailable");
-  return result;
-};
+const { request } = globalThis.jobSearchBlockerClient;
 const feedback = (text, state = "success") => {
   $("feedback").textContent = text;
   $("feedback").dataset.state = state;
@@ -39,7 +31,7 @@ const renderFallbacks = () => {
   );
 };
 const updateSave = () => {
-  const button = $("save");
+  const button = $("saveSettings");
   if (!settingsState || !modelsLoaded) {
     const failed = $("feedback").dataset.state === "error" && $("feedback").textContent;
     button.textContent = failed ? "Settings unavailable" : "Loading settings…";
@@ -50,10 +42,10 @@ const updateSave = () => {
     return;
   }
   const changed =
-    $("enabled").checked !== settingsState.settings.enabled ||
+    $("checksEnabled").checked !== settingsState.settings.enabled ||
     $("accountFallback").checked !== settingsState.settings.accountFallback ||
-    ($("model").value || null) !== settingsState.settings.model;
-  const resume = Boolean(settingsState.pausedReason && $("enabled").checked);
+    ($("checkerModel").value || null) !== settingsState.settings.model;
+  const resume = Boolean(settingsState.pausedReason && $("checksEnabled").checked);
   $("saveHint").textContent = saving
     ? "Saving your preferences…"
     : changed
@@ -101,16 +93,16 @@ const render = (state) => {
     : state.settings.enabled
       ? "active"
       : "inactive";
-  $("account").replaceChildren(...state.connectionStatus.accounts.map((account) => option(account.id, account.label)));
-  $("account").value = state.connectionStatus.activeId || "";
-  $("enabled").checked = state.settings.enabled;
+  $("currentAccount").replaceChildren(...state.connectionStatus.accounts.map((account) => option(account.id, account.label)));
+  $("currentAccount").value = state.connectionStatus.activeId || "";
+  $("checksEnabled").checked = state.settings.enabled;
   $("accountFallback").checked = state.settings.accountFallback;
   renderFallbacks();
-  if (modelsLoaded) $("model").value = state.settings.model || "";
-  $("connect").disabled = state.connectionStatus.pending;
-  $("connect").hidden = state.connectionStatus.planUsageEnabled && !state.connectionStatus.pending;
-  $("cancel").hidden = !state.connectionStatus.pending;
-  $("logout").disabled = !state.connectionStatus.connected;
+  if (modelsLoaded) $("checkerModel").value = state.settings.model || "";
+  $("connectChatGPT").disabled = state.connectionStatus.pending;
+  $("connectChatGPT").hidden = state.connectionStatus.planUsageEnabled && !state.connectionStatus.pending;
+  $("cancelSignIn").hidden = !state.connectionStatus.pending;
+  $("signOut").disabled = !state.connectionStatus.connected;
   $("profile").textContent = state.profile ? "Verified profile ready." : state.profileError;
   $("profile").dataset.state = state.profile ? "ready" : "error";
   if (state.pausedReason || state.connectionStatus.error)
@@ -120,17 +112,17 @@ const render = (state) => {
 const load = async () => render(await request("status"));
 const loadModels = async () => {
   if (!settingsState?.connectionStatus.planUsageEnabled) {
-    $("model").replaceChildren(option("", "Connect ChatGPT plan usage first"));
+    $("checkerModel").replaceChildren(option("", "Connect ChatGPT plan usage first"));
     modelsLoaded = true;
     updateSave();
     return;
   }
   const { models } = await request("models");
-  $("model").replaceChildren(
+  $("checkerModel").replaceChildren(
     option("", "Choose a model"),
     ...models.map((model) => option(model.slug, model.name)),
   );
-  $("model").value = settingsState.settings.model || "";
+  $("checkerModel").value = settingsState.settings.model || "";
   modelsLoaded = true;
   updateSave();
 };
@@ -149,36 +141,36 @@ const perform = async (work) => {
   }
 };
 for (const [id, work] of Object.entries({
-  connect: async () => {
+  connectChatGPT: async () => {
     const { authUrl } = await request("sign-in", {
       consent: Boolean(settingsState?.connectionStatus.connected && !settingsState.connectionStatus.planUsageEnabled),
     });
     await chrome.tabs.create({ url: authUrl });
     await load();
   },
-  add: async () => {
+  addAccount: async () => {
     const { authUrl } = await request("sign-in", { newAccount: true });
     await chrome.tabs.create({ url: authUrl });
     await load();
   },
-  cancel: async () => {
+  cancelSignIn: async () => {
     await request("cancel-sign-in");
     await load();
   },
-  logout: async () => {
+  signOut: async () => {
     await request("sign-out");
     await load();
     await loadModels();
   },
-  refresh: loadModels,
-  save: async () => {
+  refreshModels: loadModels,
+  saveSettings: async () => {
     saving = true;
     updateSave();
     const body = {
-      enabled: $("enabled").checked,
+      enabled: $("checksEnabled").checked,
       accountFallback: $("accountFallback").checked,
     };
-    if ($("model").value) body.model = $("model").value;
+    if ($("checkerModel").value) body.model = $("checkerModel").value;
     const resuming = Boolean(settingsState.pausedReason && body.enabled);
     try {
       render(await request("settings", body));
@@ -187,7 +179,7 @@ for (const [id, work] of Object.entries({
       saving = false;
     }
   },
-  clear: async () => {
+  clearFindings: async () => {
     await request("clear-cache");
     await recordStore.clear();
     await load();
@@ -195,16 +187,16 @@ for (const [id, work] of Object.entries({
   },
 }))
   $(id).addEventListener("click", () => void perform(work));
-$("account").addEventListener(
+$("currentAccount").addEventListener(
   "change",
   () =>
     void perform(async () => {
-      await request("account", { id: $("account").value });
+      await request("account", { id: $("currentAccount").value });
       await load();
       await loadModels();
     }),
 );
-for (const id of ["enabled", "model", "accountFallback"])
+for (const id of ["checksEnabled", "checkerModel", "accountFallback"])
   $(id).addEventListener("change", () => {
     feedback(settingsState?.pausedReason || "", "error");
     updateSave();

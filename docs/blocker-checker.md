@@ -16,9 +16,9 @@ The bridge reads relevant facts from `~/Job Hunting/profile.md` and `~/.codex/sk
 
 Only complete descriptions verified against the selected job are checked. Unsupported layouts wait for a matching description.
 
-**Enable blocker checks** controls both automatic checks and the manual **Check now** and **Recheck** actions.
+**Enable blocker checks** controls both automatic checks and the manual **Check now** and **Recheck** actions. **Off** means checking is disabled. **Paused** means checking is enabled but needs attention before it can resume.
 
-Automatic checks begin after a 1.5-second dwell in a visible tab. One model request runs at a time. Recent eligible selections take precedence over waiting jobs, with at most ten waiting checks. Already-running checks finish when selection changes; pause, cache clearing, shutdown, and account changes cancel work. Identical checks share a task across tabs. Requests time out after 90 seconds. Failed checks require an explicit retry; transient failures do not retry automatically or switch billing.
+Automatic checks begin after a 1.5-second dwell in a visible tab. One model request runs at a time. Recent eligible selections take precedence over waiting jobs, with at most ten waiting checks. Already-running checks finish when selection changes; turning checks off, clearing findings, shutdown, and account changes cancel work. Identical checks share a task across tabs. Requests time out after 90 seconds. Failed checks require an explicit retry; transient failures do not retry automatically or switch billing.
 
 The selected detail shows **Clear blocker**, **Uncertain requirement**, or **No blockers found**, with requirement excerpts and profile evidence. Clear blockers require an explicit mandatory requirement and contradictory verified evidence. Absence of evidence stays uncertain. Completed cards receive compact badges; unopened cards can show **Previously checked** but are never claimed current before their description is verified. Manual marks and job visibility are not changed.
 
@@ -28,29 +28,22 @@ In **ChatGPT connection**, add your other accounts through **Add account**, comp
 
 **Current account** is used first. Fallback accounts are listed by email in the order they will be tried. After an automatic switch, the selected fallback becomes the current account.
 
-Only the confirmed `subscription_sharing_usage_limit_exceeded` error triggers fallback, including errors received during streaming. The failed check is retried using the same model on other connected accounts in account-list order; subsequent queued checks use the newly selected account. Each distinct subscriber is tried at most once per check. Signed-out accounts and duplicate registrations for the same subscriber are excluded. Accounts without the model or with rejected credentials/access are skipped during fallback catalog checks. Temporary rate limits, network errors, and errors on the original account other than confirmed usage exhaustion do not trigger account rotation.
+Fallback retries the same check and model only when ChatGPT confirms a plan usage limit. It tries eligible connected accounts in the listed order. Temporary rate limits, network errors, and unrelated failures do not switch accounts.
 
-When no fallback can continue, the check fails and queued checks pause. Use **Manage usage**, reconnect an account, or select another model and resume. Limits may be app-specific; the error does not establish that an entire plan is empty or when it resets. No API-key billing is used. Pausing, changing accounts or fallback settings, clearing the cache, and shutdown cancel pending fallback work.
+When no fallback can continue, the check fails and queued checks pause. Use **Manage usage**, reconnect an account, or select another model and resume. Limits may be app-specific; the error does not establish that an entire plan is empty or when it resets. No API-key billing is used. Turning checks off, changing accounts or fallback settings, clearing findings, and shutdown cancel pending fallback work.
 
 ## Cache and account data
 
-The bridge keeps at most 300 completed results for 30 days, keyed by Indeed job ID, description hash, profile hash, prompt/checker version, and model. Card records are also bounded in extension-local storage. **Clear saved findings** clears both stores without touching manual marks. Stale results may appear as previously checked, never as a current clean result.
+Saved findings stay on this device for up to 30 days. **Clear saved findings** clears both the bridge cache and extension records without changing manual marks. Older findings may appear as **Previously checked** until their description and profile are verified again.
 
-Checker settings, cache and ChatGPT registrations live in `~/Library/Application Support/Job Search Companion/blockers/`. Files are atomically written with mode 0600; new directories use 0700. OAuth tokens never go to Indeed content scripts or extension storage. Sign-out attempts remote refresh-token revocation, clears local credentials and preserves the issued registration and stable host ID. Settings reports unconfirmed remote revocation. Account selection/sign-in pauses checking and clears model selection. Multiple registrations remain distinct even with the same email.
+Checker data lives in `~/Library/Application Support/Job Search Companion/blockers/`. OAuth tokens remain in the bridge. Signing out clears local credentials and attempts remote revocation; settings reports if revocation is unconfirmed. Changing accounts or starting sign-in turns checks off and clears model selection.
 
 ## Limitations and validation
 
-The local automated suite covers OAuth state/identity flow, protected storage, plan-compatible request shape, terminal SSE handling, evidence validation, cache invalidation, scheduling and the existing bridge authentication boundary. Live sign-in, account-specific model admission and structured-output support require verification with an eligible ChatGPT account; model catalog discovery alone does not prove inference works. Unsupported capability errors pause checking for model/settings review.
+Unsupported model capabilities pause checking for settings review. Finding a model in the catalog does not establish that it supports checking for your account.
 
-### Processing speed
+GPT-6-Luna requests Fast processing, but the delivered tier remains unconfirmed. Other models use their default processing tier; reasoning uses each model's default.
 
-GPT-6-Luna requests Fast processing (`service_tier: "priority"`), as advertised
-by the connected account's model catalog. A previous live plan-usage test
-reported `service_tier: "default"` despite that request, so Fast processing is
-unconfirmed for that connection. Reasoning stays at the model default; other
-models use their default processing tier. Selection dwell and the single-job
-queue still apply.
-
-Implementation details are in [the blocker-checking design](design.md#blocker-checking-internals).
+See [checker internals and validation notes](design.md#blocker-checking-internals) for scheduling, account eligibility, storage contracts, and automated coverage.
 
 Official documentation: [Sign-in](https://developers.openai.com/siwc/token-sharing-open-source/sign-in), [models/inference](https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference), [preview limitations](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations), [recovery](https://developers.openai.com/siwc/token-sharing-open-source/errors-and-recovery).

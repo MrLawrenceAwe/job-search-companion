@@ -1,6 +1,6 @@
-import { mkdir, readFile, rename, writeFile, chmod } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import { randomUUID } from "node:crypto";
+import { atomicWrite } from "../../shared/filesystem.js";
 
 export const openPrivateStore = async (path, initial) => {
   await mkdir(dirname(path), { recursive: true, mode: 0o700 });
@@ -16,12 +16,7 @@ export const openPrivateStore = async (path, initial) => {
     value,
     save() {
       const snapshot = JSON.stringify(value);
-      const write = async () => {
-        const temporary = `${path}.${randomUUID()}.tmp`;
-        await writeFile(temporary, snapshot, { mode: 0o600 });
-        await rename(temporary, path);
-        await chmod(path, 0o600);
-      };
+      const write = () => atomicWrite(path, snapshot, 0o600);
       writes = writes.catch(() => {}).then(write);
       return writes;
     },

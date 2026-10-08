@@ -83,7 +83,10 @@ npm test
 ```
 
 This type-checks the Swift helper and runs Node's built-in test runner. Tests use
-synthetic jobs, mock browser APIs and temporary installation fixtures. They cover
+synthetic jobs, mock browser APIs and temporary installation fixtures. Tests mirror
+the source boundaries under `test/extension/`, `test/bridge/` (including blockers
+and Codex), and `test/installer/`. Shared fixtures, VM/JSDOM script loaders, and
+distinct event-loop draining and timed waiting helpers live in `test-support/`. They cover
 job resolution, applied and unsuitable mark persistence, navigation, HTTP authentication,
 submission recovery and installation transactions. CI runs the same command on
 macOS for pushes and pull requests using Node.js 22 and 24.

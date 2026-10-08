@@ -1,7 +1,8 @@
 (() => {
   const companion = globalThis.jobSearchCompanion;
   const { labels: LABELS, isRetainableResult } = globalThis.jobSearchContracts.blockers;
-  companion.blockers.createRenderer = ({ recordStore, checks, currentRecord, start, getContext }) => {
+  const { openBlockerSettings } = globalThis.jobSearchContracts.messages;
+  companion.blockers.createRenderer = ({ recordStore, checks, getCurrentResult, startCheck, getContext }) => {
     const keyFromUrl = (url) => {
       try {
         return new URL(url).searchParams.get("jk");
@@ -25,7 +26,7 @@
       });
       return node;
     };
-    const openSettings = () => chrome.runtime.sendMessage({ type: "OPEN_BLOCKER_SETTINGS" });
+    const openSettings = () => chrome.runtime.sendMessage({ type: openBlockerSettings });
     return () => {
       const { selection, checkerState } = getContext();
       for (const badge of document.querySelectorAll(".jsc-blocker-badge")) badge.remove();
@@ -38,7 +39,7 @@
         const card = carrier.closest(companion.selectors.jobCard);
         if (!card || decorated.has(card) || !isRetainableResult(record)) continue;
         decorated.add(card);
-        const verified = selection?.jobId === jobId && currentRecord() === record;
+        const verified = selection?.jobId === jobId && getCurrentResult() === record;
         const badge = element(
           "span",
           `${LABELS[record.outcome]}${verified ? "" : " · Previously checked"}`,
@@ -68,13 +69,13 @@
         heading.after(panel);
         return;
       }
-      const renderSignature = `${selection.jobId}:${selection.hash}:${JSON.stringify(checks.get(selection.signature))}:${currentRecord()?.checkedAt}:${checkerState?.settings.enabled}:${checkerState?.pausedReason}:${checkerState?.error}`;
+      const renderSignature = `${selection.jobId}:${selection.descriptionHash}:${JSON.stringify(checks.get(selection.signature))}:${getCurrentResult()?.checkedAt}:${checkerState?.settings.enabled}:${checkerState?.pausedReason}:${checkerState?.error}`;
       if (panel && panel.dataset.signature === renderSignature) return;
       panel?.remove();
       panel = element("section", null, "jsc-blocker-panel");
       panel.dataset.signature = renderSignature;
       panel.setAttribute("aria-label", "Job Search Companion blocker check");
-      const result = currentRecord();
+      const result = getCurrentResult();
       const check = checks.get(selection.signature);
       let label = result
         ? LABELS[result.outcome]
@@ -85,7 +86,7 @@
             : check?.error ||
               checkerState?.pausedReason ||
               checkerState?.error ||
-              (!checkerState?.settings.enabled ? "Blocker checks paused" : "Not checked yet");
+              (!checkerState?.settings.enabled ? "Blocker checks off" : "Not checked yet");
       panel.append(element("strong", label));
       if (result) {
         panel.append(
@@ -120,7 +121,7 @@
         }
       }
       const controls = element("div", null, "jsc-blocker-controls");
-      const checkButton = button(result ? "Recheck" : "Check now", () => void start(true));
+      const checkButton = button(result ? "Recheck" : "Check now", () => void startCheck(true));
       checkButton.disabled =
         !checkerState?.settings.enabled ||
         !checkerState?.connectionStatus.planUsageEnabled ||

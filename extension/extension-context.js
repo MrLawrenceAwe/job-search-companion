@@ -31,12 +31,6 @@
       retryIntervalMs: 120,
       scanWindowMs: 1800,
     },
-    protocol: {
-      submitTaskMessage: "SUBMIT_CV_FIT_TASK",
-      getTaskStatusMessage: "GET_CV_FIT_TASK_STATUS",
-      bridgeToken: null,
-      bridgeOrigin: null,
-    },
     dom: {},
     text: {
       normalizeForMatch: (value) => (value || "").replace(/\s+/g, " ").trim().toLowerCase(),

@@ -2,10 +2,12 @@ import { createRequire } from "node:module";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 
+import { dataDirectory } from "../shared/data-directory.js";
 import { cvFitSettings } from "../shared/cv-fit-settings.js";
 import { bridgeAddress } from "./address.js";
 import { helperContract } from "./codex/helper-contract.js";
 
+const supportDirectory = dataDirectory();
 const packageMetadata = createRequire(import.meta.url)("../package.json");
 const workspacePath = resolve(
   process.env.JSC_WORKSPACE || join(homedir(), "CV Fit Advisor"),
@@ -34,7 +36,7 @@ export const config = Object.freeze({
     settings: cvFitSettings,
   }),
   blockers: Object.freeze({
-    directory: join(homedir(), "Library/Application Support/Job Search Companion/blockers"),
+    directory: join(supportDirectory, "blockers"),
     profileSources: [
       { kind: "application", path: join(homedir(), "Job Hunting/profile.md") },
       { kind: "verified", path: join(homedir(), ".codex/skills/apply-to-jobs/references/profile.md") },
@@ -45,16 +47,16 @@ export const config = Object.freeze({
     accessibilityProtocolVersion: helperContract.protocolVersion,
     accessibilityContractVersion: helperContract.contractVersion,
     accessibilityHelperPath: process.env.JSC_ACCESSIBILITY_HELPER_PATH
-      || join(homedir(), "Library/Application Support/Job Search Companion/accessibility-helper"),
+      || join(supportDirectory, "accessibility-helper"),
     composerReadyTimeoutMs: 8000,
     settingsTimeoutMs: 8000,
     submissionTimeoutMs: 5000,
   }),
   storage: Object.freeze({
     installStatePath: process.env.JSC_INSTALL_STATE_PATH
-      || join(homedir(), "Library/Application Support/Job Search Companion/install-state.json"),
+      || join(supportDirectory, "install-state.json"),
     logPath: process.env.JSC_LOG_PATH
-      || join(homedir(), "Library/Application Support/Job Search Companion/bridge.log"),
-    submissionsPath: join(homedir(), "Library/Application Support/Job Search Companion/submissions.json"),
+      || join(supportDirectory, "bridge.log"),
+    submissionsPath: join(supportDirectory, "submissions.json"),
   }),
 });

@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node bridge/server.js",
     "test": "swiftc -typecheck bridge/codex/accessibility-helper/*.swift && node --test",
-    "test:health": "node scripts/check-health.js"
+    "check:health": "node scripts/check-health.js"
   },
   "engines": {
     "node": ">=22"

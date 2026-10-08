@@ -2,7 +2,7 @@
 export const inferWithAccountFallback = async ({
   chatgpt,
   infer,
-  item,
+  checkJob,
   signal,
   isCurrent,
   enabled,
@@ -12,9 +12,9 @@ export const inferWithAccountFallback = async ({
     try {
       return await infer({
         chatgpt,
-        model: item.model,
-        description: item.description,
-        profile: item.profile,
+        model: checkJob.model,
+        description: checkJob.description,
+        profile: checkJob.profile,
         signal,
       });
     } catch (error) {
@@ -26,7 +26,7 @@ export const inferWithAccountFallback = async ({
         while (candidates.length && isCurrent()) {
           const accountId = candidates.shift();
           await chatgpt.select(accountId);
-          item.accountId = accountId;
+          checkJob.accountId = accountId;
           if (!isCurrent()) throw error;
           let models;
           try {
@@ -41,7 +41,7 @@ export const inferWithAccountFallback = async ({
             throw catalogError;
           }
           if (!isCurrent()) throw error;
-          if (models.some((model) => model.slug === item.model)) {
+          if (models.some((model) => model.slug === checkJob.model)) {
             available = true;
             break;
           }

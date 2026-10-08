@@ -59,7 +59,7 @@ The installer:
 
 Reload the extension in Chrome after installation.
 
-When updating an older installation, the installer migrates its former Indeed CV Fit Bridge data and service identity. Use the `JSC_*` variables shown here; old environment-variable names are no longer accepted. Existing account credentials, findings, and submission history are preserved. If both old and new data directories exist, resolve that conflict before reinstalling. Because the helper moves, macOS may require its Accessibility permission to be granted again at the new path. See [migration details](design.md#installation-identity-migration).
+When updating an older installation, follow [installation identity migration](design.md#installation-identity-migration) for data preservation, directory conflicts, and rollback details. Reinstall after updates to regenerate worker configuration, then reload the extension. macOS may require the moved helper's Accessibility permission to be granted again.
 
 Before verifying task submission, open **System Settings → Privacy & Security →
 Accessibility** and enable the installed helper. Use **+**, then **Command+Shift+G**
@@ -91,7 +91,7 @@ top rendered job.
 To check the bridge directly:
 
 ```bash
-JSC_BRIDGE_TOKEN="your-local-token" npm run test:health
+JSC_BRIDGE_TOKEN="your-local-token" npm run check:health
 ```
 
 ## Indeed blocker checks

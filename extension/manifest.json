@@ -28,6 +28,7 @@
       ],
       "js": [
         "contracts/job-urls.js",
+        "contracts/messages.js",
         "indeed-description-capture.js"
       ],
       "world": "MAIN",
@@ -45,6 +46,8 @@
       "js": [
         "contracts/job-urls.js",
         "contracts/blockers.js",
+        "contracts/messages.js",
+        "blocker-client.js",
         "extension-context.js",
         "dom-visibility.js",
         "job-url.js",

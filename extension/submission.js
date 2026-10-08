@@ -1,6 +1,7 @@
 (() => {
   const companion = globalThis.jobSearchCompanion;
   const { showToast } = companion;
+  const messages = globalThis.jobSearchContracts.messages;
 
   const setActionLabel = (button, label) => {
     const labelElement = button?.querySelector?.(".jsc-menu-item-label");
@@ -40,7 +41,7 @@
     while (Date.now() < deadline) {
       await delay(1000);
       const { submission } = await sendBridgeRequest({
-        type: companion.protocol.getTaskStatusMessage,
+        type: messages.getCvFitTaskStatus,
         submissionId,
       });
       if (submission?.status === "submitted") {
@@ -80,7 +81,7 @@
 
     try {
       const { submission } = await sendBridgeRequest({
-        type: companion.protocol.submitTaskMessage,
+        type: messages.submitCvFitTask,
         jobUrl,
       });
       if (!submission?.id) {

@@ -52,7 +52,8 @@ task because submission may have happened before confirmation was saved.
 The content scripts are ordered by dependency in the manifest:
 
 - `contracts/job-urls.js` and `contracts/blockers.js` define shared URL and result contracts, also consumed by Node through `shared/contracts.js`;
-- `extension-context.js` creates the small shared cross-script API and configuration;
+- `contracts/messages.js` owns extension message names, and `blocker-client.js` sends checker requests for content scripts and settings;
+- `extension-context.js` creates the content-page cross-script API, selectors, and UI configuration;
 - `dom-visibility.js` provides rendered-element and viewport visibility checks, plus queries that include the root element;
 - `job-url.js` parses and normalizes Indeed and LinkedIn page and job URLs;
 - `job-resolution.js` resolves the selected job from URL, DOM, title, and page data;
@@ -68,7 +69,7 @@ The content scripts are ordered by dependency in the manifest:
 - `blocker-renderer.js` presents badges, findings, and checker controls; and
 - `blocker-checker.js` coordinates selection verification, dwell timing, and request polling.
 
-The separate `indeed-description-capture.js` MAIN-world script observes descriptions before the isolated content scripts start. `service-worker.js` authenticates bridge requests, and `options.html`, `options.js`, and `options.css` implement settings.
+The separate `indeed-description-capture.js` MAIN-world script observes descriptions before the isolated content scripts start. `service-worker.js` loads `bridge-config.js` and the installer-generated `local-config.js` for private bridge settings, authenticates bridge requests, and dispatches messages using the shared contract. `options.html`, `options.js`, and `options.css` implement settings.
 
 Helpers that are used only inside one content script remain file-local. The
 shared object contains only operations required by another script.
@@ -115,8 +116,10 @@ being replaced.
 
 ## Installation
 
+`shared/data-directory.js` defines the Node application-support root. Runtime and migration paths derive from it; the shell installer derives its managed paths from `DATA_DIRECTORY`.
 `shared/filesystem.js` provides file reads, atomic writes, and symbolic-link
-checks to both runtime storage and installation. `installer/file-transaction.js`
+checks to both runtime storage and installation. The blocker private store reuses
+its atomic writer while serializing captured JSON snapshots and creating private directories. `installer/file-transaction.js`
 adds snapshot and rollback orchestration.
 
 The installer stops the LaunchAgent before replacing managed artifacts, then
@@ -140,8 +143,8 @@ the user's pre-install content before dropping those artifacts.
 ## Blocker-checking internals
 
 The Indeed-only MAIN-world `indeed-description-capture.js` observes descriptions
-before the isolated scripts start. Both worlds load `contracts/job-urls.js` so
-job IDs use the same platform rules. The isolated `blocker-checker.js` verifies
+before the isolated scripts start. Both worlds load `contracts/job-urls.js` and `contracts/messages.js` so
+job IDs and description messages use the same contracts. The isolated `blocker-checker.js` verifies
 the selected description, waits for selection dwell, and polls check completion.
 `blocker-records.js` owns extension-local result access, pruning, storage-change
 notifications, and clearing through `jobSearchBlockerRecords.createStore()`;
@@ -172,11 +175,28 @@ are serialized in the bridge. Inference has no tools and treats job text as
 untrusted evidence. Results require a completed response, valid JSON and outcome
 fields, quoted description evidence, and known profile fact IDs.
 
+### Account eligibility and storage
+
+Only the confirmed `subscription_sharing_usage_limit_exceeded` error triggers fallback, including errors received during streaming. The failed check is retried using the same model on other connected accounts in account-list order; subsequent queued checks use the newly selected account. Each distinct subscriber is tried at most once per check. Signed-out accounts and duplicate registrations for the same subscriber are excluded. Accounts without the model or with rejected credentials/access are skipped during fallback catalog checks. Temporary rate limits, network errors, and errors on the original account other than confirmed usage exhaustion do not trigger account rotation.
+
+The bridge keeps at most 300 completed results for 30 days, keyed by Indeed job ID, description hash, profile hash, prompt/checker version, and model. Card records are also bounded in extension-local storage. **Clear saved findings** clears both stores without touching manual marks. Stale results may appear as previously checked, never as a current clean result.
+
+Checker settings, cache and ChatGPT registrations live in `~/Library/Application Support/Job Search Companion/blockers/`. Files are atomically written with mode 0600; new directories use 0700. OAuth tokens never go to Indeed content scripts or extension storage. Sign-out attempts remote refresh-token revocation, clears local credentials and preserves the issued registration and stable host ID. Settings reports unconfirmed remote revocation. Account selection/sign-in turns checking off and clears model selection. Multiple registrations remain distinct even with the same email.
+
+### Validation and processing tier
+
+The local automated suite covers OAuth state/identity flow, protected storage, plan-compatible request shape, terminal SSE handling, evidence validation, cache invalidation, scheduling and the existing bridge authentication boundary. Live sign-in, account-specific model admission and structured-output support require verification with an eligible ChatGPT account; model catalog discovery alone does not prove inference works. Unsupported capability errors pause checking for model/settings review.
+
+Historical tier observation, documented 2026-10-08: an earlier plan-usage test
+reported `service_tier: "default"` despite a GPT-6-Luna `priority` request. Its
+test date and account were not recorded. This does not establish the current
+processing tier; Fast processing remains unconfirmed.
+
 See [checker setup, behaviour, account fallback, and limitations](blocker-checker.md)
 for user-facing controls and connection constraints.
 
 ## Installation identity migration
 
-Current installations use `JSC_*` environment variables, `com.lawrenceawe.job-search-companion`, and `~/Library/Application Support/Job Search Companion/`. The installer stops the former `com.lawrenceawe.indeed-cv-fit-bridge` service and moves its data directory before reinstalling. Managed artifact paths are rewritten, while credentials, findings, logs, submission history, file modes, and pre-install snapshots are retained. A failed replacement startup restores managed files and the original data directory, then attempts to restart the previously loaded service. Rollback restores installation artifacts, not repository source; if that service uses the retired environment contract, restore the previous checkout revision before running it. If both data directories exist, migration stops without merging or overwriting either.
+Current installations accept only `JSC_*` environment variables, `com.lawrenceawe.job-search-companion`, and `~/Library/Application Support/Job Search Companion/`. The installer stops the former `com.lawrenceawe.indeed-cv-fit-bridge` service and moves its data directory before reinstalling. Managed artifact paths are rewritten, while credentials, findings, logs, submission history, file modes, and pre-install snapshots are retained. A failed replacement startup restores managed files and the original data directory, then attempts to restart the previously loaded service. Rollback restores installation artifacts, not repository source; if that service uses the retired environment contract, restore the previous checkout revision before running it. If both data directories exist, migration stops without merging or overwriting either.
 
 ChatGPT storage converts the former `profiles` field to `accounts` once on opening. Conflicting old and new fields fail without changing credentials. The runtime uses only the current field. The retired global/workspace configuration restoration remains necessary to avoid losing the user's pre-install configuration.

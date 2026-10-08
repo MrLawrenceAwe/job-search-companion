@@ -1,3 +1,4 @@
+import { dataDirectory } from "../shared/data-directory.js";
 import { access, rename } from "node:fs/promises";
 import { join, relative, isAbsolute } from "node:path";
 import { assertNoSymbolicLinkPaths, atomicWrite, readOptionalFile } from "../shared/filesystem.js";
@@ -15,7 +16,7 @@ const exists = (path) =>
 // available to rollback until the replacement service has passed its health check.
 export const migrateInstallation = async ({ homePath }) => {
   const source = join(homePath, "Library/Application Support/Indeed CV Fit Bridge");
-  const target = join(homePath, "Library/Application Support/Job Search Companion");
+  const target = dataDirectory(homePath);
   await assertNoSymbolicLinkPaths([source, target]);
   if (!(await exists(source))) return;
   if (await exists(target))

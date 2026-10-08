@@ -1,16 +1,17 @@
-import { sha256, hashJson } from "../../shared/sha256.js";
-import { join } from "node:path";
 import { randomUUID } from "node:crypto";
+import { join } from "node:path";
+
+import { blockerContract, jobUrlContract } from "../../shared/contracts.js";
+import { sha256, hashJson } from "../../shared/sha256.js";
+import { normalizeJobUrl } from "../job-url.js";
+import { inferWithAccountFallback } from "./account-fallback.js";
+import { runBlockerInference } from "./inference.js";
 import { openPrivateStore } from "./private-store.js";
 import { readVerifiedProfile } from "./profile.js";
-import { runBlockerInference } from "./inference.js";
-import { jobUrlContract } from "../../shared/contracts.js";
-import { normalizeJobUrl } from "../job-url.js";
-
-import { blockerContract } from "../../shared/contracts.js";
-const { version: CHECKER_VERSION } = blockerContract;
 import { openResultCache } from "./result-cache.js";
-import { inferWithAccountFallback } from "./account-fallback.js";
+
+const { version: CHECKER_VERSION } = blockerContract;
+
 export const openBlockerChecker = async ({
   directory,
   profileSources,
@@ -25,22 +26,22 @@ export const openBlockerChecker = async ({
   });
   settings.value.accountFallback ??= false;
   const cache = await openResultCache(directory);
-  const tasks = new Map();
-  const tasksByCacheKey = new Map();
+  const checksById = new Map();
+  const checksByCacheKey = new Map();
   let queue = [];
-  let running = null;
+  let runningCheck = null;
   let cancellationGeneration = 0;
   let pausedReason = null;
   let disposed = false;
-  const pruneTasks = () => {
-    for (const [id, task] of tasks) {
-      if (tasks.size <= 100) break;
-      if (!["checking", "queued"].includes(task.public.status)) tasks.delete(id);
+  const pruneChecks = () => {
+    for (const [id, checkJob] of checksById) {
+      if (checksById.size <= 100) break;
+      if (!["checking", "queued"].includes(checkJob.publicState.status)) checksById.delete(id);
     }
   };
-  const release = (item) => {
-    delete item.description;
-    delete item.profile;
+  const releaseCheckInputs = (checkJob) => {
+    delete checkJob.description;
+    delete checkJob.profile;
   };
   const status = async () => {
     let profile = null;
@@ -63,71 +64,71 @@ export const openBlockerChecker = async ({
         : null,
       profileError,
       queued: queue.length,
-      running: Boolean(running),
+      running: Boolean(runningCheck),
     };
   };
   const runNextCheck = async () => {
-    if (running || disposed || pausedReason || !settings.value.enabled || !queue.length) return;
-    const item = queue.shift();
-    running = item;
-    item.public.status = "checking";
-    item.accountId = chatgpt.connectionStatus().activeId;
+    if (runningCheck || disposed || pausedReason || !settings.value.enabled || !queue.length) return;
+    const checkJob = queue.shift();
+    runningCheck = checkJob;
+    checkJob.publicState.status = "checking";
+    checkJob.accountId = chatgpt.connectionStatus().activeId;
     const controller = new AbortController();
-    item.controller = controller;
+    checkJob.controller = controller;
     const timer = setTimeout(() => controller.abort(), 90_000);
     let pendingRecord = null;
-    const previousRecord = cache.get(item.key);
+    const previousRecord = cache.get(checkJob.key);
     const isCurrent = () =>
-      item.cancellationGeneration === cancellationGeneration &&
-      item.accountId === chatgpt.connectionStatus().activeId &&
+      checkJob.cancellationGeneration === cancellationGeneration &&
+      checkJob.accountId === chatgpt.connectionStatus().activeId &&
       !disposed &&
       !controller.signal.aborted;
     try {
       const result = await inferWithAccountFallback({
         chatgpt,
         infer,
-        item,
+        checkJob,
         signal: controller.signal,
         isCurrent,
         enabled: () => settings.value.accountFallback,
       });
       if (
-        item.cancellationGeneration !== cancellationGeneration ||
-        item.accountId !== chatgpt.connectionStatus().activeId ||
+        checkJob.cancellationGeneration !== cancellationGeneration ||
+        checkJob.accountId !== chatgpt.connectionStatus().activeId ||
         disposed ||
         controller.signal.aborted
       ) {
-        item.public.status = "cancelled";
+        checkJob.publicState.status = "cancelled";
         return;
       }
       const record = {
         ...result,
-        jobId: item.jobId,
-        descriptionHash: item.descriptionHash,
-        profileHash: item.profile.hash,
+        jobId: checkJob.jobId,
+        descriptionHash: checkJob.descriptionHash,
+        profileHash: checkJob.profile.hash,
         checkerVersion: CHECKER_VERSION,
-        model: item.model,
+        model: checkJob.model,
         checkedAt: new Date().toISOString(),
       };
       pendingRecord = record;
-      await cache.put(item.key, record);
+      await cache.put(checkJob.key, record);
       if (
-        item.cancellationGeneration !== cancellationGeneration ||
+        checkJob.cancellationGeneration !== cancellationGeneration ||
         controller.signal.aborted ||
         disposed
       ) {
-        item.public.status = "cancelled";
+        checkJob.publicState.status = "cancelled";
         return;
       }
-      item.public.status = "completed";
-      item.public.result = record;
+      checkJob.publicState.status = "completed";
+      checkJob.publicState.result = record;
     } catch (error) {
-      if (pendingRecord) cache.restore(item.key, pendingRecord, previousRecord);
-      item.public.status = !isCurrent() ? "cancelled" : "failed";
-      item.public.error = controller.signal.aborted
+      if (pendingRecord) cache.restore(checkJob.key, pendingRecord, previousRecord);
+      checkJob.publicState.status = !isCurrent() ? "cancelled" : "failed";
+      checkJob.publicState.error = controller.signal.aborted
         ? "Check interrupted or timed out. Try again."
         : error.message;
-      item.public.code = error.code || "check_failed";
+      checkJob.publicState.code = error.code || "check_failed";
       if (
         isCurrent() &&
         (error.pauseChecks ||
@@ -136,31 +137,31 @@ export const openBlockerChecker = async ({
       ) {
         pausedReason = error.message;
         for (const pending of queue) {
-          pending.public.status = "cancelled";
-          pending.public.error = pausedReason;
-          tasksByCacheKey.delete(pending.key);
-          release(pending);
+          pending.publicState.status = "cancelled";
+          pending.publicState.error = pausedReason;
+          checksByCacheKey.delete(pending.key);
+          releaseCheckInputs(pending);
         }
         queue = [];
       }
     } finally {
       clearTimeout(timer);
-      tasksByCacheKey.delete(item.key);
-      release(item);
-      running = null;
-      pruneTasks();
+      checksByCacheKey.delete(checkJob.key);
+      releaseCheckInputs(checkJob);
+      runningCheck = null;
+      pruneChecks();
       void runNextCheck();
     }
   };
   const cancelPending = () => {
     cancellationGeneration += 1;
-    for (const item of queue) {
-      item.public.status = "cancelled";
-      tasksByCacheKey.delete(item.key);
-      release(item);
+    for (const checkJob of queue) {
+      checkJob.publicState.status = "cancelled";
+      checksByCacheKey.delete(checkJob.key);
+      releaseCheckInputs(checkJob);
     }
     queue = [];
-    running?.controller.abort();
+    runningCheck?.controller.abort();
   };
   return {
     status,
@@ -198,7 +199,7 @@ export const openBlockerChecker = async ({
       const jobUrl = normalizeJobUrl(rawUrl);
       const parsed = new URL(jobUrl);
       if (!jobUrlContract.isIndeedHost(parsed.hostname) || parsed.protocol !== "https:")
-        throw new Error("Background checking supports Indeed HTTPS jobs only");
+        throw new Error("Blocker checking supports Indeed HTTPS jobs only");
       if (
         typeof description !== "string" ||
         description.trim().length < 40 ||
@@ -217,14 +218,14 @@ export const openBlockerChecker = async ({
         checkerVersion: CHECKER_VERSION,
         model,
       });
-      if (tasksByCacheKey.has(key)) return tasksByCacheKey.get(key).public;
+      if (checksByCacheKey.has(key)) return checksByCacheKey.get(key).publicState;
       const cached = cache.get(key);
       if (!force && cached) return { status: "completed", cached: true, result: cached };
       if (pausedReason || !settings.value.enabled)
-        throw new Error(pausedReason || "Background checks are paused. Enable them in settings.");
+        throw new Error(pausedReason || "Blocker checks are off. Enable them in settings.");
       if (!chatgpt.connectionStatus().planUsageEnabled || !model)
         throw new Error("Connect ChatGPT plan usage and choose a model in settings");
-      const item = {
+      const checkJob = {
         key,
         jobId,
         model,
@@ -233,26 +234,26 @@ export const openBlockerChecker = async ({
         profile,
         cancellationGeneration,
         accountId: chatgpt.connectionStatus().activeId,
-        public: { id: randomUUID(), status: "queued" },
+        publicState: { id: randomUUID(), status: "queued" },
       };
-      tasks.set(item.public.id, item);
-      tasksByCacheKey.set(key, item);
+      checksById.set(checkJob.publicState.id, checkJob);
+      checksByCacheKey.set(key, checkJob);
       // Current selections get ahead of older unstarted checks. Never interrupt a completed-input request just because selection changed.
-      queue.unshift(item);
+      queue.unshift(checkJob);
       if (queue.length > 10) {
         const dropped = queue.pop();
-        dropped.public.status = "cancelled";
-        tasksByCacheKey.delete(dropped.key);
-        release(dropped);
+        dropped.publicState.status = "cancelled";
+        checksByCacheKey.delete(dropped.key);
+        releaseCheckInputs(dropped);
       }
-      pruneTasks();
+      pruneChecks();
       void runNextCheck();
-      return item.public;
+      return checkJob.publicState;
     },
     get(id) {
-      const item = tasks.get(id);
-      if (!item) throw new Error("Check no longer available. Retry this job.");
-      return item.public;
+      const checkJob = checksById.get(id);
+      if (!checkJob) throw new Error("Check no longer available. Retry this job.");
+      return checkJob.publicState;
     },
     async clearCache() {
       cancelPending();

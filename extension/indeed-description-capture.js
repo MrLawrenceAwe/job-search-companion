@@ -2,7 +2,7 @@
 // requests; it never requests descriptions, reads cookies, or receives credentials.
 (() => {
   const { indeedJobKeyPattern } = globalThis.jobSearchContracts.jobUrls;
-  const MARKER = "jsc-indeed-description-v1";
+  const messages = globalThis.jobSearchContracts.messages;
   const emit = (model, fallbackKey) => {
     const html = model?.sanitizedJobDescription;
     const jobId = model?.jobKey || model?.jobkey || model?.jk || fallbackKey;
@@ -12,7 +12,7 @@
       !indeedJobKeyPattern.test(jobId || "")
     )
       return;
-    window.postMessage({ type: MARKER, jobId, html }, window.location.origin);
+    window.postMessage({ type: messages.indeedDescription, jobId, html }, window.location.origin);
   };
   const isDescriptionUrl = (raw) => {
     try {
@@ -50,7 +50,7 @@
         text.length <= 80_000 &&
         indeedJobKeyPattern.test(jobId || "")
       ) {
-        window.postMessage({ type: MARKER, jobId, text }, window.location.origin);
+        window.postMessage({ type: messages.indeedDescription, jobId, text }, window.location.origin);
       }
     }
   };
@@ -152,7 +152,7 @@
     if (
       event.source === window &&
       event.origin === location.origin &&
-      event.data?.type === "jsc-request-initial-description-v1"
+      event.data?.type === messages.requestInitialDescription
     )
       initial();
   });

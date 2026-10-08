@@ -110,7 +110,7 @@ export const install = async (options, dependencies = {}) => {
   ]);
   await ensureArtifactsUnchanged(priorState);
 
-  const extensionContent = `(() => {\n  Object.assign(globalThis.jobSearchCompanion.protocol, {\n    bridgeOrigin: ${JSON.stringify(bridgeAddress.origin)},\n    bridgeToken: ${JSON.stringify(options.token)},\n  });\n})();\n`;
+  const extensionContent = `(() => {\n  Object.assign(globalThis.jobSearchBridgeConfig, {\n    bridgeOrigin: ${JSON.stringify(bridgeAddress.origin)},\n    bridgeToken: ${JSON.stringify(options.token)},\n  });\n})();\n`;
   const accessibilityHelperContent = await readFile(options.accessibilityHelperSource);
 
   const artifactMoved = (artifact, targetPath) => artifact && artifact.path !== targetPath;

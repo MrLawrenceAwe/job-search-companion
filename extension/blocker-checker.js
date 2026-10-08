@@ -6,35 +6,26 @@
   const checks = new Map();
   let checkerState = null;
   let selection = null;
-  let dwell = null;
+  let dwellTimer = null;
   let scanTimer = null;
-  let stateBusy = false;
+  let statusRequestInProgress = false;
   let profileHash = null;
-  let lastStateAt = 0;
-  const request = async (action, body, id) => {
-    const response = await chrome.runtime.sendMessage({
-      type: "BLOCKER_REQUEST",
-      action,
-      body,
-      id,
-    });
-    if (!response?.ok) throw new Error(response?.error || "Local checker unavailable");
-    return response;
-  };
+  let lastStatusReceivedAt = 0;
+  const { request } = globalThis.jobSearchBlockerClient;
   const digest = async (text) =>
     [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)))]
       .map((byte) => byte.toString(16).padStart(2, "0"))
       .join("");
-  const currentRecord = () => {
+  const getCurrentResult = () => {
     const record = selection && recordStore.get(selection.jobId);
     return isRetainableResult(record) &&
-      record.descriptionHash === selection.hash &&
+      record.descriptionHash === selection.descriptionHash &&
       record.profileHash === profileHash &&
       record.model === checkerState?.settings.model
       ? record
       : null;
   };
-  const start = async (force = false) => {
+  const startCheck = async (force = false) => {
     const captured = selection;
     if (
       !captured ||
@@ -43,7 +34,7 @@
       (!force && document.hidden)
     )
       return;
-    if (!force && (currentRecord() || checks.has(captured.signature))) return;
+    if (!force && (getCurrentResult() || checks.has(captured.signature))) return;
     checks.set(captured.signature, { status: "queued" });
     render();
     try {
@@ -72,8 +63,8 @@
     }
   };
   const refreshState = async () => {
-    if (stateBusy) return;
-    stateBusy = true;
+    if (statusRequestInProgress) return;
+    statusRequestInProgress = true;
     try {
       const updated = await request("status");
       if (
@@ -88,11 +79,11 @@
       }
       checkerState = updated;
       profileHash = checkerState.profile?.hash;
-      lastStateAt = Date.now();
+      lastStatusReceivedAt = Date.now();
     } catch (error) {
       checkerState = { error: error.message, settings: { enabled: false } };
     } finally {
-      stateBusy = false;
+      statusRequestInProgress = false;
       render();
     }
   };
@@ -104,7 +95,7 @@
       jobUrl = companion.jobs.resolveSelectedJobUrl();
     } catch {
       selection = null;
-      clearTimeout(dwell);
+      clearTimeout(dwellTimer);
       render();
       return;
     }
@@ -121,31 +112,31 @@
     // Indeed currently has classic and React Native detail layouts. A complete
     // embedded/response description must match an entire rendered subtree.
     const candidates = container ? [container, ...container.querySelectorAll("div, section")] : [];
-    const description =
+    const descriptionElement =
       text &&
       candidates.find(
         (node) =>
           compact(node.innerText || node.textContent || "") === compact(text) &&
           companion.dom.getRenderedRect(node),
       );
-    if (!description || text.length < 40 || text.length > 80_000) {
+    if (!descriptionElement || text.length < 40 || text.length > 80_000) {
       selection = null;
-      clearTimeout(dwell);
+      clearTimeout(dwellTimer);
       render();
       return;
     }
-    const hash = await digest(text);
+    const descriptionHash = await digest(text);
     if (generation !== scanGeneration) return;
-    const signature = `${jobId}:${hash}:${profileHash}:${checkerState?.settings.model}`;
+    const signature = `${jobId}:${descriptionHash}:${profileHash}:${checkerState?.settings.model}`;
     if (selection?.signature === signature) {
       render();
       return;
     }
-    selection = { jobId, jobUrl, text, hash, signature };
-    clearTimeout(dwell);
+    selection = { jobId, jobUrl, text, descriptionHash, signature };
+    clearTimeout(dwellTimer);
     render();
-    if (checkerState?.settings.enabled && !document.hidden && !currentRecord())
-      dwell = setTimeout(() => void start(), 1500);
+    if (checkerState?.settings.enabled && !document.hidden && !getCurrentResult())
+      dwellTimer = setTimeout(() => void startCheck(), 1500);
   };
   const schedule = () => {
     if (scanTimer !== null) return;
@@ -158,14 +149,14 @@
   const render = companion.blockers.createRenderer({
     recordStore,
     checks,
-    currentRecord,
-    start,
+    getCurrentResult,
+    startCheck,
     getContext: () => ({ selection, checkerState }),
   });
   const initialize = async () => {
     await recordStore.loadRecords();
     await refreshState();
-    window.postMessage({ type: "jsc-request-initial-description-v1" }, location.origin);
+    window.postMessage({ type: globalThis.jobSearchContracts.messages.requestInitialDescription }, location.origin);
     schedule();
   };
   recordStore.subscribe((changes) => {
@@ -201,12 +192,12 @@
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) {
       void refreshState().then(schedule);
-    } else clearTimeout(dwell);
+    } else clearTimeout(dwellTimer);
   });
   window.addEventListener("popstate", schedule);
   document.addEventListener("click", schedule, true);
   setInterval(() => {
-    if (!document.hidden && Date.now() - lastStateAt > 15_000) void refreshState().then(schedule);
+    if (!document.hidden && Date.now() - lastStatusReceivedAt > 15_000) void refreshState().then(schedule);
   }, 5000);
   void initialize().catch((error) => {
     checkerState = { settings: { enabled: false }, error: error.message };

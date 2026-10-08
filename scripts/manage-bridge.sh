@@ -6,13 +6,13 @@ LABEL="com.lawrenceawe.job-search-companion"
 ROOT=$(CDPATH= cd "$(dirname "$0")/.." && pwd -P)
 PLIST_SOURCE="$ROOT/launchd/$LABEL.plist"
 PLIST_TARGET="$HOME/Library/LaunchAgents/$LABEL.plist"
-INSTALL_STATE="$HOME/Library/Application Support/Job Search Companion/install-state.json"
+DATA_DIRECTORY="$HOME/Library/Application Support/Job Search Companion"
+INSTALL_STATE="$DATA_DIRECTORY/install-state.json"
 EXTENSION_CONFIG="$ROOT/extension/local-config.js"
-ACCESSIBILITY_HELPER="$HOME/Library/Application Support/Job Search Companion/accessibility-helper"
+ACCESSIBILITY_HELPER="$DATA_DIRECTORY/accessibility-helper"
 DOMAIN="gui/$(id -u)"
 LEGACY_LABEL="com.lawrenceawe.indeed-cv-fit-bridge"
 LEGACY_DIRECTORY="$HOME/Library/Application Support/Indeed CV Fit Bridge"
-DATA_DIRECTORY="$HOME/Library/Application Support/Job Search Companion"
 migration_started=false
 legacy_was_loaded=false
 migration_backup=
@@ -173,7 +173,7 @@ install_bridge() {
   esac
 
   WORKSPACE_PATH="${JSC_WORKSPACE:-$HOME/CV Fit Advisor}"
-  LOG_PATH="${JSC_LOG_PATH:-$HOME/Library/Application Support/Job Search Companion/bridge.log}"
+  LOG_PATH="${JSC_LOG_PATH:-$DATA_DIRECTORY/bridge.log}"
   bridge_instance_id=$(node -e 'process.stdout.write(require("node:crypto").randomUUID())')
 
   helper_build_directory=$(mktemp -d "${TMPDIR:-/tmp}/jsc-helper.XXXXXX")
@@ -198,11 +198,11 @@ install_bridge() {
 
   if ! node "$ROOT/scripts/bridge-install-cli.js" install \
     --state-path "$INSTALL_STATE" \
-    --extension-config-path "$ROOT/extension/local-config.js" \
+    --extension-config-path "$EXTENSION_CONFIG" \
     --plist-source "$PLIST_SOURCE" \
     --plist-target "$PLIST_TARGET" \
     --accessibility-helper-source "$helper_binary" \
-    --accessibility-helper-target "$HOME/Library/Application Support/Job Search Companion/accessibility-helper" \
+    --accessibility-helper-target "$ACCESSIBILITY_HELPER" \
     --root-path "$ROOT" \
     --workspace-path "$WORKSPACE_PATH" \
     --log-path "$LOG_PATH" \

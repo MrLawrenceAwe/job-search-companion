@@ -200,7 +200,7 @@ export const openChatGPTConnection = async ({ path, fetchImpl = fetch, verifyIde
           "Cache-Control": "no-store",
         });
         res.end(
-          "Job Search Companion is connected. Return to extension settings to enable background checks.",
+          "Job Search Companion is connected. Return to extension settings to enable blocker checks.",
         );
       } catch (error) {
         // Report a bounded diagnostic code, never raw errors containing tokens or callback URLs.

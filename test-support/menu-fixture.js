@@ -1,6 +1,6 @@
 import vm from "node:vm";
 
-import { runExtensionScripts } from "./extension-vm.js";
+import { runScriptsInVm } from "./extension-scripts.js";
 
 class FakeElement {
   constructor(tagName) {
@@ -42,7 +42,7 @@ class FakeElement {
 }
 
 const loadMenuScripts = (context) =>
-  runExtensionScripts(context, ["submission.js", "job-url.js", "job-marks.js", "job-menu.js"]);
+  runScriptsInVm(context, ["submission.js", "job-url.js", "job-marks.js", "job-menu.js"]);
 
 export const createMenuFixture = async ({
   runtime,
@@ -116,9 +116,10 @@ export const createMenuFixture = async ({
       observe() {}
     },
   });
-  await runExtensionScripts(context, [
+  await runScriptsInVm(context, [
     "contracts/job-urls.js",
     "contracts/blockers.js",
+    "contracts/messages.js",
     "extension-context.js",
     "feedback.js",
   ]);

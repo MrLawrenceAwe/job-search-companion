@@ -7,7 +7,7 @@
       if (
         event.source !== window ||
         event.origin !== location.origin ||
-        event.data?.type !== "jsc-indeed-description-v1"
+        event.data?.type !== globalThis.jobSearchContracts.messages.indeedDescription
       )
         return;
       const { jobId, html, text } = event.data;

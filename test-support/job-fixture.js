@@ -1,6 +1,6 @@
 import vm from "node:vm";
 
-import { runExtensionScripts } from "./extension-vm.js";
+import { runScriptsInVm } from "./extension-scripts.js";
 
 export const createElement = ({
   text = "",
@@ -61,7 +61,7 @@ export const createJobFixture = async ({ href, scripts = [], canonicalUrl = null
     },
   });
 
-  await runExtensionScripts(context, [
+  await runScriptsInVm(context, [
     "contracts/job-urls.js",
     "contracts/blockers.js",
     "extension-context.js",
