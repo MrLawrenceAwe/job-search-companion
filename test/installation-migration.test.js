@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
 import { migrateInstallation } from "../installer/legacy-installation.js";
-import { openChatGPT } from "../bridge/blockers/chatgpt.js";
+import { openChatGPTConnection } from "../bridge/blockers/chatgpt.js";
 
 const fixture = async (t) => {
   const homePath = await mkdtemp(join(await realpath(tmpdir()), "jsc-migration-"));
@@ -79,10 +79,10 @@ test("account field migration preserves registrations and credentials and persis
     expiresAt: Date.now() + 3600_000,
   };
   await writeFile(path, JSON.stringify({ hostId: "host", activeId: "a", profiles: [account] }));
-  const auth = await openChatGPT({ path });
+  const auth = await openChatGPTConnection({ path });
   t.after(() => auth.close());
-  assert.equal(auth.session().sharing, true);
-  assert.equal(auth.session().accounts[0].id, "a");
+  assert.equal(auth.connectionStatus().planUsageEnabled, true);
+  assert.equal(auth.connectionStatus().accounts[0].id, "a");
   const stored = JSON.parse(await readFile(path, "utf8"));
   assert.deepEqual(stored.accounts, [account]);
   assert.equal(stored.activeId, "a");
@@ -95,7 +95,7 @@ test("conflicting account schemas are rejected without overwriting credentials",
   const path = join(source, "blockers/chatgpt.json");
   const content = JSON.stringify({ accounts: [], profiles: [{ accessToken: "preserve" }] });
   await writeFile(path, content);
-  await assert.rejects(openChatGPT({ path }), /Conflicting ChatGPT account stores/);
+  await assert.rejects(openChatGPTConnection({ path }), /Conflicting ChatGPT account stores/);
   assert.equal(await readFile(path, "utf8"), content);
 });
 
@@ -117,7 +117,7 @@ for (const code of ["rate_limit_exceeded", "subscription_sharing_usage_limit_exc
         ],
       }),
     );
-    const auth = await openChatGPT({
+    const auth = await openChatGPTConnection({
       path,
       fetchImpl: async () => Response.json({ error: { code } }, { status: 429 }),
     });

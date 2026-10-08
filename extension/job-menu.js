@@ -1,17 +1,17 @@
 (() => {
   const companion = globalThis.jobSearchCompanion;
 
-  const createMenuItem = (jobUrl) => {
+  const createCvFitAction = (jobUrl) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = companion.ui.menuItemClass;
     button.setAttribute("role", "menuitem");
-    button.setAttribute("aria-keyshortcuts", companion.ui.shortcut.aria);
-    button.title = `${companion.ui.actionLabel} (${companion.ui.shortcut.display})`;
+    button.setAttribute("aria-keyshortcuts", companion.ui.cvFitShortcut.aria);
+    button.title = `${companion.ui.cvFitActionLabel} (${companion.ui.cvFitShortcut.display})`;
 
     const label = document.createElement("span");
     label.className = "jsc-menu-item-label";
-    label.textContent = companion.ui.actionLabel;
+    label.textContent = companion.ui.cvFitActionLabel;
     button.append(label);
 
     const status = document.createElement("span");
@@ -24,7 +24,7 @@
     const shortcut = document.createElement("kbd");
     shortcut.className = "jsc-menu-item-shortcut";
     shortcut.setAttribute("aria-hidden", "true");
-    shortcut.textContent = companion.ui.shortcut.display;
+    shortcut.textContent = companion.ui.cvFitShortcut.display;
     button.append(shortcut);
 
     button.addEventListener("click", (event) => {
@@ -50,9 +50,9 @@
 
   const createMenuItems = (source) => {
     // Capture the menu's job once, even if the selected detail pane changes.
-    const jobUrl = companion.jobs.resolveJobUrl(source);
+    const jobUrl = companion.jobs.consumeMenuJobUrl(source);
     return [
-      createMenuItem(jobUrl),
+      createCvFitAction(jobUrl),
       companion.jobMarks.createButton(jobUrl, "applied", true),
       companion.jobMarks.createButton(jobUrl, "unsuitable", true),
     ];
@@ -147,10 +147,10 @@
     return text.length <= 1200 ? text : "";
   };
 
-  const toShareMenuCandidate = (element) => {
+  const toJobMenuCandidate = (element) => {
     const text = readCompactMenuText(element);
     if (
-      !companion.shareMenuDetection.textPattern.test(text) ||
+      !companion.jobMenuDetection.textPattern.test(text) ||
       element.querySelector(`.${companion.ui.menuItemClass}`)
     ) {
       return null;
@@ -164,14 +164,14 @@
     return { element, area: rect.width * rect.height };
   };
 
-  const findShareMenus = (root) => {
+  const findJobMenus = (root) => {
     const candidates = [];
 
     for (const element of companion.dom.queryIncludingRoot(
       root,
       '[role="menu"], [role="dialog"], div, ul',
     )) {
-      const candidate = toShareMenuCandidate(element);
+      const candidate = toJobMenuCandidate(element);
       if (candidate) {
         candidates.push(candidate);
       }
@@ -197,7 +197,7 @@
   };
 
   const mightContainMenu = (element) => {
-    return companion.shareMenuDetection.textPattern.test(readCompactMenuText(element));
+    return companion.jobMenuDetection.textPattern.test(readCompactMenuText(element));
   };
 
   const findMenuRoot = (element) => {
@@ -220,7 +220,7 @@
       return true;
     }
 
-    const menu = findShareMenus(root)[0];
+    const menu = findJobMenus(root)[0];
 
     if (!menu) {
       return false;
@@ -238,7 +238,7 @@
     return true;
   };
 
-  Object.assign(companion.shareMenu, {
+  Object.assign(companion.jobMenu, {
     insertJobMenuActions,
     mightContainMenu,
     findMenuRoot,

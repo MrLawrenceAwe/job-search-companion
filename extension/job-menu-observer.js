@@ -16,9 +16,9 @@
           continue;
         }
 
-        const menuRoot = companion.shareMenu.findMenuRoot(node);
-        if (menuRoot || companion.shareMenu.mightContainMenu(node)) {
-          scheduleJobMenuActionInsertion(menuRoot || node);
+        const menuRoot = companion.jobMenu.findMenuRoot(node);
+        if (menuRoot || companion.jobMenu.mightContainMenu(node)) {
+          scheduleMenuScan(menuRoot || node);
         }
       }
     }
@@ -30,9 +30,9 @@
     }
 
     try {
-      return companion.shareMenu.insertJobMenuActions(root);
+      return companion.jobMenu.insertJobMenuActions(root);
     } catch (error) {
-      console.debug("CV Fit menu insertion skipped:", error);
+      console.debug("Job menu insertion skipped:", error);
       return false;
     }
   };
@@ -69,7 +69,7 @@
     observer.disconnect();
   };
 
-  const scheduleJobMenuActionInsertion = (root = null, delay = 40) => {
+  const scheduleMenuScan = (root = null, delay = 40) => {
     addPendingRoot(root);
     window.clearTimeout(insertionTimer);
     insertionTimer = window.setTimeout(() => {
@@ -87,7 +87,7 @@
         }
       }
       if (isScanActive()) {
-        scheduleJobMenuActionInsertion(null, companion.shareMenuDetection.retryIntervalMs);
+        scheduleMenuScan(null, companion.jobMenuDetection.retryIntervalMs);
       } else {
         stopMenuScan();
       }
@@ -95,7 +95,7 @@
   };
 
   const startMenuScan = () => {
-    scanDeadline = Date.now() + companion.shareMenuDetection.scanWindowMs;
+    scanDeadline = Date.now() + companion.jobMenuDetection.scanWindowMs;
     observer.observe(document.documentElement || document, {
       childList: true,
       subtree: true,
@@ -108,9 +108,9 @@
       const button = event.target?.closest?.('button, [role="button"], [aria-label*="share" i]');
       const label = `${button?.getAttribute?.("aria-label") || ""} ${button?.textContent || ""}`;
       if (/\bshare\b|\bmore options\b/i.test(label)) {
-        companion.jobs.captureShareContext(button);
+        companion.jobs.captureMenuContext(button);
         startMenuScan();
-        scheduleJobMenuActionInsertion();
+        scheduleMenuScan();
       }
     },
     true,

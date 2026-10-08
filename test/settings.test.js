@@ -20,8 +20,8 @@ test("settings use account registrations, save preferences, and clear only block
   let state = {
     settings: { enabled: false, model: "test", accountFallback: false },
     pausedReason: null,
-    session: {
-      sharing: true,
+    connectionStatus: {
+      planUsageEnabled: true,
       connected: true,
       pending: false,
       activeId: "a",
@@ -47,6 +47,7 @@ test("settings use account registrations, save preferences, and clear only block
       },
     },
     storage: {
+      onChanged: { addListener() {} },
       local: {
         async get() {
           return { "blocker-result:first111": {}, "applied-job:indeed:first111": {} };
@@ -60,6 +61,7 @@ test("settings use account registrations, save preferences, and clear only block
   window.eval(
     await readFile(new URL("../extension/contracts/blockers.js", import.meta.url), "utf8"),
   );
+  window.eval(await readFile(new URL("../extension/blocker-records.js", import.meta.url), "utf8"));
   window.eval(await readFile(new URL("../extension/options.js", import.meta.url), "utf8"));
   const element = (id) => window.document.getElementById(id);
   await waitFor(() => element("save").textContent === "Saved");

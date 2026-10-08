@@ -8,19 +8,19 @@ import { createServer } from "node:http";
 import { readVerifiedProfile } from "../bridge/blockers/profile.js";
 import { validateFindings, readCompletedResponse, runBlockerInference } from "../bridge/blockers/inference.js";
 import { openBlockerChecker } from "../bridge/blockers/checker.js";
-import { openChatGPT } from "../bridge/blockers/chatgpt.js";
+import { openChatGPTConnection } from "../bridge/blockers/chatgpt.js";
 import { createBlockerRoutes } from "../bridge/blockers/routes.js";
 import { createRequestHandler } from "../bridge/request-handler.js";
 import { openSubmissionStore } from "../bridge/submission-store.js";
-import { flushUntil } from "../test-support/extension-vm.js";
+import { flushUntil } from "../test-support/async.js";
 
 const profile = { hash: "profile-v1", facts: [{ id: "F1", text: "Provisional UK driving licence only.", source: "Verified profile" }], sources: [] };
 const job = (id = "job111111") => ({ jobUrl: `https://uk.indeed.com/viewjob?jk=${id}`, description: "You must hold a full UK driving licence to visit customer sites in this role." });
 const noBlockers = { outcome: "no_blockers_found", findings: [] };
 const setup = async (infer, readProfile = async () => profile) => {
   const directory = await mkdtemp(join(tmpdir(), "jsc-blockers-"));
-  const chatgpt = { session: () => ({ sharing: true, activeId: "account1" }), models: async () => [{ slug: "test-model" }], close() {} };
-  const checker = await openBlockerChecker({ directory, profilePaths: [], chatgpt, infer, readProfile });
+  const chatgpt = { connectionStatus: () => ({ planUsageEnabled: true, activeId: "account1" }), models: async () => [{ slug: "test-model" }], close() {} };
+  const checker = await openBlockerChecker({ directory, profileSources: [], chatgpt, infer, readProfile });
   await checker.configure({ enabled: true, model: "test-model" });
   return { checker, directory, chatgpt };
 };
@@ -78,7 +78,7 @@ test("checker deduplicates across tabs, persists results, and invalidates profil
   await flushUntil(() => checker.get(changedText.id).status === "completed", 100);
   assert.equal(calls, 3);
   checker.close();
-  const restored = await openBlockerChecker({ directory, profilePaths: [], chatgpt, infer: async () => { throw new Error("Should be cached"); }, readProfile: async () => currentProfile });
+  const restored = await openBlockerChecker({ directory, profileSources: [], chatgpt, infer: async () => { throw new Error("Should be cached"); }, readProfile: async () => currentProfile });
   assert.equal((await restored.start(job())).cached, true);
   assert.equal((await stat(join(directory, "cache.json"))).mode & 0o777, 0o600); restored.close();
 });
@@ -127,23 +127,29 @@ test("profile snapshot selects relevant facts while excluding contact and sensit
   const p1 = join(directory, "application.md"); const p2 = join(directory, "verified.md");
   await writeFile(p1, "## Personal Constraints\n- Provisional licence only.\n## Education\n- BSc Computer Science.\n");
   await writeFile(p2, "## Facts\nContact:\n- Email: private@example.test.\nDriving:\n- Driving licence: provisional.\nIdentity and disclosure facts:\n- Religion: private.\n## Preferences\n- Relocation: ask per job.\n- Cover letters: short.\n");
-  const result = await readVerifiedProfile([p1, p2]);
+  const profileSources = [{ kind: "application", path: p1 }, { kind: "verified", path: p2 }];
+  const result = await readVerifiedProfile(profileSources);
+  const reversed = await readVerifiedProfile([...profileSources].reverse());
+  const sourceFacts = (profile) => profile.facts.map(({ text, source }) => ({ text, source }))
+    .sort((left, right) => left.text.localeCompare(right.text));
+  assert.deepEqual(sourceFacts(reversed), sourceFacts(result));
+  await assert.rejects(readVerifiedProfile([{ kind: "unknown", path: p1 }]), /Unknown profile source kind/);
   assert.equal(result.facts.length, 4); assert.doesNotMatch(JSON.stringify(result.facts), /private|Cover letters/);
 });
 
 test("OAuth validates state and identity before activating a registration, preserving host ID", async () => {
   const directory = await mkdtemp(join(tmpdir(), "jsc-auth-")); let nonce; let tokenParams;
   const path = join(directory, "chatgpt.json");
-  const auth = await openChatGPT({ path, verifyIdentity: async (_token, clientId, expectedNonce) => { assert.equal(clientId, "oaiapp_test"); assert.equal(expectedNonce, nonce); return { sub: "user1", email: "user@example.test" }; }, fetchImpl: async (_url, options) => {
+  const auth = await openChatGPTConnection({ path, verifyIdentity: async (_token, clientId, expectedNonce) => { assert.equal(clientId, "oaiapp_test"); assert.equal(expectedNonce, nonce); return { sub: "user1", email: "user@example.test" }; }, fetchImpl: async (_url, options) => {
     tokenParams = new URLSearchParams(options.body); return Response.json({ access_token: "test-access", refresh_token: "test-refresh", id_token: "test-id", token_type: "Bearer", expires_in: 3600, scope: "openid chatgpt.tokens.use.direct" });
   } });
   const { authUrl } = await auth.signIn({ newAccount: true }); const url = new URL(authUrl); nonce = url.searchParams.get("nonce");
   assert.equal(url.searchParams.get("client_id"), "dynamic_agent_client"); assert.equal(url.searchParams.get("code_challenge_method"), "S256");
   const callback = new URL(url.searchParams.get("redirect_uri")); callback.search = new URLSearchParams({ state: "wrong", code: "code", client_id: "oaiapp_test" });
-  assert.equal((await fetch(callback)).status, 400); assert.equal(auth.session().connected, false);
+  assert.equal((await fetch(callback)).status, 400); assert.equal(auth.connectionStatus().connected, false);
   callback.searchParams.set("state", url.searchParams.get("state")); assert.equal((await fetch(callback)).status, 200);
-  assert.equal(auth.session().sharing, true); assert.equal(tokenParams.get("client_id"), "oaiapp_test"); assert.equal(tokenParams.get("redirect_uri"), url.searchParams.get("redirect_uri"));
-  assert.doesNotMatch(JSON.stringify(auth.session()), /test-access|test-refresh|test-id/);
+  assert.equal(auth.connectionStatus().planUsageEnabled, true); assert.equal(tokenParams.get("client_id"), "oaiapp_test"); assert.equal(tokenParams.get("redirect_uri"), url.searchParams.get("redirect_uri"));
+  assert.doesNotMatch(JSON.stringify(auth.connectionStatus()), /test-access|test-refresh|test-id/);
   const hostId = JSON.parse(await readFile(path)).hostId;
   await auth.logout(); const second = new URL((await auth.signIn()).authUrl);
   assert.equal(second.searchParams.get("ext_agent_host_id"), hostId); assert.equal(second.searchParams.get("client_id"), "oaiapp_test");

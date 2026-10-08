@@ -7,7 +7,7 @@ const captureTitle = (companion, body, title) => {
   const heading = createElement({ text: title, isHeading: true });
   const card = createElement({ parent: body, heading });
   heading.parentElement = card;
-  companion.jobs.captureShareContext(createElement({ parent: card }));
+  companion.jobs.captureMenuContext(createElement({ parent: card }));
 };
 
 const visibleJobCarrier = (jobKey, title) => ({
@@ -50,7 +50,7 @@ test("Indeed home-page job identity stays stable when mark controls change title
   assert.equal(companion.jobs.resolveSelectedJobUrl(), "https://uk.indeed.com/viewjob?jk=secondjob1");
 });
 
-test("resolves an embedded job key using the captured share context", async () => {
+test("resolves an embedded job key using the captured menu context", async () => {
   const { body, companion } = await createJobFixture({
     href: "https://uk.indeed.com/jobs?q=support",
     scripts: ['{"jobKey":"fixture123","title":"Senior Support Specialist"}'],
@@ -58,17 +58,17 @@ test("resolves an embedded job key using the captured share context", async () =
   const heading = createElement({ text: "Senior Support Specialist", isHeading: true });
   const card = createElement({ parent: body, heading });
   heading.parentElement = card;
-  const shareButton = createElement({ parent: card });
+  const menuButton = createElement({ parent: card });
 
-  companion.jobs.captureShareContext(shareButton);
+  companion.jobs.captureMenuContext(menuButton);
 
   assert.equal(
-    companion.jobs.resolveJobUrl(createElement()),
+    companion.jobs.consumeMenuJobUrl(createElement()),
     "https://uk.indeed.com/viewjob?jk=fixture123",
   );
 });
 
-test("ignores Indeed's detail-heading suffix when resolving the shared job", async () => {
+test("ignores Indeed's detail-heading suffix when resolving the menu job", async () => {
   const { body, companion } = await createJobFixture({
     href: "https://uk.indeed.com/?vjk=03eef228667e3e0d",
     scripts: ['{"jobKey":"03eef228667e3e0d","displayTitle":"Project Administrator"}'],
@@ -77,10 +77,10 @@ test("ignores Indeed's detail-heading suffix when resolving the shared job", asy
   const detailHeader = createElement({ parent: body, heading });
   heading.parentElement = detailHeader;
 
-  companion.jobs.captureShareContext(createElement({ parent: detailHeader }));
+  companion.jobs.captureMenuContext(createElement({ parent: detailHeader }));
 
   assert.equal(
-    companion.jobs.resolveJobUrl(createElement()),
+    companion.jobs.consumeMenuJobUrl(createElement()),
     "https://uk.indeed.com/viewjob?jk=03eef228667e3e0d",
   );
 });
@@ -92,7 +92,7 @@ test("falls back to the canonical job URL", async () => {
   });
 
   assert.equal(
-    companion.jobs.resolveJobUrl(createElement()),
+    companion.jobs.consumeMenuJobUrl(createElement()),
     "https://uk.indeed.com/viewjob?jk=canonical1",
   );
 });
@@ -114,7 +114,7 @@ test("resolves a LinkedIn detail-page job URL", async () => {
   });
 
   assert.equal(
-    companion.jobs.resolveCurrentJobUrl(),
+    companion.jobs.resolvePageJobUrl(),
     "https://www.linkedin.com/jobs/view/4447780789/",
   );
 });
@@ -125,7 +125,7 @@ test("resolves the selected LinkedIn job from currentJobId", async () => {
   });
 
   assert.equal(
-    companion.jobs.resolveCurrentJobUrl(),
+    companion.jobs.resolvePageJobUrl(),
     "https://www.linkedin.com/jobs/view/4447780789/",
   );
 });
@@ -135,10 +135,10 @@ test("keeps the LinkedIn job selected when its More options menu opens", async (
     href: "https://www.linkedin.com/jobs/search-results/?currentJobId=4447780789",
   });
 
-  companion.jobs.captureShareContext(createElement({ parent: body }));
+  companion.jobs.captureMenuContext(createElement({ parent: body }));
 
   assert.equal(
-    companion.jobs.resolveJobUrl(createElement()),
+    companion.jobs.consumeMenuJobUrl(createElement()),
     "https://www.linkedin.com/jobs/view/4447780789/",
   );
 });
@@ -150,12 +150,12 @@ test("prefers the exact job key in the results-page URL", async () => {
   });
 
   assert.equal(
-    companion.jobs.resolveJobUrl(createElement()),
+    companion.jobs.consumeMenuJobUrl(createElement()),
     "https://uk.indeed.com/viewjob?jk=detailpane1",
   );
 });
 
-test("prefers captured share context over a different results-page job", async () => {
+test("prefers captured menu context over a different results-page job", async () => {
   const { body, companion } = await createJobFixture({
     href: "https://uk.indeed.com/jobs?q=support&vjk=otherjob1",
     scripts: ['{"jobKey":"sharedjob1","title":"Shared Support Job"}'],
@@ -164,15 +164,15 @@ test("prefers captured share context over a different results-page job", async (
   const card = createElement({ parent: body, heading });
   heading.parentElement = card;
 
-  companion.jobs.captureShareContext(createElement({ parent: card }));
+  companion.jobs.captureMenuContext(createElement({ parent: card }));
 
   assert.equal(
-    companion.jobs.resolveJobUrl(createElement()),
+    companion.jobs.consumeMenuJobUrl(createElement()),
     "https://uk.indeed.com/viewjob?jk=sharedjob1",
   );
 });
 
-test("resolves the current job independently of stale share-menu context", async () => {
+test("resolves the page job independently of stale job-menu context", async () => {
   const { body, companion } = await createJobFixture({
     href: "https://uk.indeed.com/jobs?q=support&vjk=currentjob1",
     scripts: ['{"jobKey":"sharedjob1","title":"Previously Shared Job"}'],
@@ -180,19 +180,19 @@ test("resolves the current job independently of stale share-menu context", async
   const heading = createElement({ text: "Previously Shared Job", isHeading: true });
   const card = createElement({ parent: body, heading });
   heading.parentElement = card;
-  companion.jobs.captureShareContext(createElement({ parent: card }));
+  companion.jobs.captureMenuContext(createElement({ parent: card }));
 
   assert.equal(
-    companion.jobs.resolveCurrentJobUrl(),
+    companion.jobs.resolvePageJobUrl(),
     "https://uk.indeed.com/viewjob?jk=currentjob1",
   );
   assert.equal(
-    companion.jobs.resolveJobUrl(createElement()),
+    companion.jobs.consumeMenuJobUrl(createElement()),
     "https://uk.indeed.com/viewjob?jk=sharedjob1",
   );
 });
 
-test("uses title evidence to disambiguate multiple job URLs near the share button", async () => {
+test("uses title evidence to disambiguate multiple job URLs near the menu button", async () => {
   const { body, companion } = await createJobFixture({
     href: "https://uk.indeed.com/jobs?q=support&vjk=otherjob1",
     scripts: ['{"jobKey":"sharedjob1","title":"Shared Support Job"}'],
@@ -218,10 +218,10 @@ test("uses title evidence to disambiguate multiple job URLs near the share butto
   card.children.push(...nearbyJobLinks);
   heading.parentElement = card;
 
-  companion.jobs.captureShareContext(createElement({ parent: card }));
+  companion.jobs.captureMenuContext(createElement({ parent: card }));
 
   assert.equal(
-    companion.jobs.resolveJobUrl(createElement()),
+    companion.jobs.consumeMenuJobUrl(createElement()),
     "https://uk.indeed.com/viewjob?jk=sharedjob1",
   );
 });
@@ -243,10 +243,10 @@ test("fails closed when a single nearby URL conflicts with captured title eviden
   card.children.push(nearbyJobLink);
   heading.parentElement = card;
 
-  companion.jobs.captureShareContext(createElement({ parent: card }));
+  companion.jobs.captureMenuContext(createElement({ parent: card }));
 
   assert.throws(
-    () => companion.jobs.resolveJobUrl(createElement()),
+    () => companion.jobs.consumeMenuJobUrl(createElement()),
     /could not be identified safely/,
   );
 });
@@ -278,12 +278,12 @@ test("stops nearby DOM discovery after the attribute-element budget", async () =
   const card = createElement({ parent: body });
   card.children = [descendants];
 
-  companion.jobs.captureShareContext(createElement({ parent: card }));
+  companion.jobs.captureMenuContext(createElement({ parent: card }));
 
   assert.equal(matchingElementsVisited, 201);
   assert.equal(hrefsRead, 200);
   assert.throws(
-    () => companion.jobs.resolveJobUrl(createElement()),
+    () => companion.jobs.consumeMenuJobUrl(createElement()),
     /could not be identified safely/,
   );
 });
@@ -296,15 +296,15 @@ test("fails closed when captured context cannot be resolved safely", async () =>
   const card = createElement({ parent: body, heading });
   heading.parentElement = card;
 
-  companion.jobs.captureShareContext(createElement({ parent: card }));
+  companion.jobs.captureMenuContext(createElement({ parent: card }));
 
   assert.throws(
-    () => companion.jobs.resolveJobUrl(createElement()),
+    () => companion.jobs.consumeMenuJobUrl(createElement()),
     /could not be identified safely/,
   );
 });
 
-test("keeps captured share context until the menu action consumes it", async () => {
+test("keeps captured menu context until the menu action consumes it", async () => {
   const { body, companion } = await createJobFixture({
     href: "https://uk.indeed.com/jobs?q=support&vjk=otherjob1",
     scripts: ['{"jobKey":"sharedjob1","title":"Shared Support Job"}'],
@@ -312,14 +312,14 @@ test("keeps captured share context until the menu action consumes it", async () 
   const heading = createElement({ text: "Shared Support Job", isHeading: true });
   const card = createElement({ parent: body, heading });
   heading.parentElement = card;
-  companion.jobs.captureShareContext(createElement({ parent: card }));
+  companion.jobs.captureMenuContext(createElement({ parent: card }));
 
   assert.equal(
-    companion.jobs.resolveJobUrl(createElement()),
+    companion.jobs.consumeMenuJobUrl(createElement()),
     "https://uk.indeed.com/viewjob?jk=sharedjob1",
   );
   assert.equal(
-    companion.jobs.resolveJobUrl(createElement()),
+    companion.jobs.consumeMenuJobUrl(createElement()),
     "https://uk.indeed.com/viewjob?jk=otherjob1",
   );
 });
@@ -328,10 +328,10 @@ test("does not fall back to a different page job when captured context has no ev
   const { body, companion } = await createJobFixture({
     href: "https://uk.indeed.com/jobs?q=support&vjk=otherjob1",
   });
-  companion.jobs.captureShareContext(createElement({ parent: createElement({ parent: body }) }));
+  companion.jobs.captureMenuContext(createElement({ parent: createElement({ parent: body }) }));
 
   assert.throws(
-    () => companion.jobs.resolveJobUrl(createElement()),
+    () => companion.jobs.consumeMenuJobUrl(createElement()),
     /could not be identified safely/,
   );
 });
@@ -347,10 +347,10 @@ test("fails closed when a captured title maps to multiple job keys", async () =>
   const heading = createElement({ text: "Client Manager", isHeading: true });
   const card = createElement({ parent: body, heading });
   heading.parentElement = card;
-  companion.jobs.captureShareContext(createElement({ parent: card }));
+  companion.jobs.captureMenuContext(createElement({ parent: card }));
 
   assert.throws(
-    () => companion.jobs.resolveJobUrl(createElement()),
+    () => companion.jobs.consumeMenuJobUrl(createElement()),
     /could not be identified safely/,
   );
 });
@@ -368,7 +368,7 @@ test("stops scanning embedded scripts as soon as the title mapping is ambiguous"
   captureTitle(companion, body, "Client Manager");
 
   assert.throws(
-    () => companion.jobs.resolveJobUrl(createElement()),
+    () => companion.jobs.consumeMenuJobUrl(createElement()),
     /could not be identified safely/,
   );
   assert.equal(laterScriptReads, 0);
@@ -387,7 +387,7 @@ test("fails closed when the embedded candidate budget prevents a complete scan",
   captureTitle(companion, body, "Client Manager");
 
   assert.throws(
-    () => companion.jobs.resolveJobUrl(createElement()),
+    () => companion.jobs.consumeMenuJobUrl(createElement()),
     /could not be identified safely/,
   );
   assert.equal(laterScriptReads, 0);
@@ -404,7 +404,7 @@ test("accepts a complete embedded scan that exactly consumes the candidate budge
   captureTitle(companion, body, "Client Manager");
 
   assert.equal(
-    companion.jobs.resolveJobUrl(createElement()),
+    companion.jobs.consumeMenuJobUrl(createElement()),
     "https://uk.indeed.com/viewjob?jk=repeated1",
   );
 });
@@ -423,7 +423,7 @@ test("fails closed when visible and embedded title evidence identifies different
   captureTitle(companion, body, "Support Specialist");
 
   assert.throws(
-    () => companion.jobs.resolveJobUrl(createElement()),
+    () => companion.jobs.consumeMenuJobUrl(createElement()),
     /could not be identified safely/,
   );
 });
@@ -445,7 +445,7 @@ test("uses a unique visible title match when embedded title evidence is ambiguou
   captureTitle(companion, body, "Support Specialist");
 
   assert.equal(
-    companion.jobs.resolveJobUrl(createElement()),
+    companion.jobs.consumeMenuJobUrl(createElement()),
     "https://uk.indeed.com/viewjob?jk=visible111",
   );
 });
@@ -473,8 +473,19 @@ test("fails closed when visible title evidence is ambiguous", async () => {
   captureTitle(companion, body, "Support Specialist");
 
   assert.throws(
-    () => companion.jobs.resolveJobUrl(createElement()),
+    () => companion.jobs.consumeMenuJobUrl(createElement()),
     /could not be identified safely/,
   );
   assert.equal(scriptReads, 0);
+});
+
+test("job-link collection defaults to all carriers and accepts an eligibility predicate", async () => {
+  const { companion, document } = await createJobFixture({ href: "https://uk.indeed.com/jobs" });
+  const first = visibleJobCarrier("first1111", "First job");
+  const second = visibleJobCarrier("second111", "Second job");
+  document.querySelectorAll = () => [first, second];
+  assert.equal(companion.jobs.collectJobLinks().length, 2);
+  const filtered = companion.jobs.collectJobLinks((element) => element === second);
+  assert.equal(filtered.length, 1);
+  assert.equal(filtered[0].element, second);
 });

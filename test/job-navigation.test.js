@@ -58,7 +58,7 @@ test("submission resolves the navigated job while the results URL is still stale
   assert.equal(companion.jobs.navigateJob(1), true);
   assert.deepEqual(clicked, ["visiblejob1"]);
   assert.equal(companion.jobs.resolveSelectedJobUrl(), "https://uk.indeed.com/viewjob?jk=visiblejob1");
-  assert.equal(companion.jobs.resolveCurrentJobUrl(), "https://uk.indeed.com/viewjob?jk=visiblejob2");
+  assert.equal(companion.jobs.resolvePageJobUrl(), "https://uk.indeed.com/viewjob?jk=visiblejob2");
 
   companion.jobs.jobUrlFromPageUrl = () => "https://uk.indeed.com/viewjob?jk=visiblejob3";
   assert.equal(companion.jobs.resolveSelectedJobUrl(), "https://uk.indeed.com/viewjob?jk=visiblejob3");
@@ -222,7 +222,7 @@ test("hiding a result excludes duplicate links for that job from navigation", as
   };
   const resultCard = makeJob("visiblejob1", "result-card");
   const detailLink = makeJob("visiblejob1", "detail-pane");
-  companion.jobs.collectJobs = () => [resultCard, detailLink];
+  companion.jobs.collectJobLinks = () => [resultCard, detailLink];
 
   assert.equal(companion.jobs.navigateJob(1), true);
   assert.equal(companion.jobs.hideCurrentJob(), true);
@@ -254,7 +254,7 @@ test("undo resolves a replacement card after the results list rerenders", async 
     return { jobUrl: `https://uk.indeed.com/viewjob?jk=${jobKey}`, element };
   };
   let jobs = [makeJob("visiblejob1", "original")];
-  companion.jobs.collectJobs = () => jobs;
+  companion.jobs.collectJobLinks = () => jobs;
 
   assert.equal(companion.jobs.navigateJob(1), true);
   assert.equal(companion.jobs.hideCurrentJob(), true);
@@ -287,9 +287,9 @@ test("a hidden job stays hidden when its card is replaced", async () => {
     return { jobUrl: `https://uk.indeed.com/viewjob?jk=${jobKey}`, element, container };
   };
   let jobs = [makeJob("visiblejob1")];
-  companion.jobs.collectJobs = (getRect) => jobs.filter(({ container }) => (
+  companion.jobs.collectJobLinks = (isEligible) => jobs.filter(({ container }) => (
     !container.classList.contains("jsc-hidden-job")
-      || getRect !== companion.dom.getRenderedRect
+      || isEligible !== companion.dom.getRenderedRect
   ));
 
   assert.equal(companion.jobs.navigateJob(1), true);

@@ -5,9 +5,9 @@
   globalThis.jobSearchCompanion = {
     platform: isLinkedIn ? "linkedin" : "indeed",
     ui: {
-      actionLabel: "Analyse with CV Fit Advisor",
+      cvFitActionLabel: "Analyse with CV Fit Advisor",
       menuItemClass: "jsc-menu-item",
-      shortcut: {
+      cvFitShortcut: {
         aria: "N",
         display: "N",
       },
@@ -24,7 +24,7 @@
       menuContext:
         '[role="menu"], [role="dialog"], [aria-modal="true"], ul:has(a[href*="whatsapp" i]), [role="list"]:has(a[href*="whatsapp" i])',
     },
-    shareMenuDetection: {
+    jobMenuDetection: {
       textPattern: isLinkedIn
         ? /\bSend in a message\b[\s\S]*\bShare in a post\b[\s\S]*\bReport this job\b/i
         : /\bCopy link\b[\s\S]*\bEmail\b[\s\S]*(\bText message\b|\bWhatsApp\b)/i,
@@ -44,7 +44,7 @@
     jobs: {},
     jobMarks: {},
     blockers: {},
-    shareMenu: {},
+    jobMenu: {},
     showToast: null,
     submissions: {},
   };

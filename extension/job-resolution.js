@@ -29,7 +29,7 @@
     for (const pattern of keyPatterns) {
       for (const match of text.matchAll(pattern)) {
         const jobKey = match[1];
-        if (!companion.jobs.jobKeyPattern.test(jobKey)) {
+        if (!companion.jobs.indeedJobKeyPattern.test(jobKey)) {
           continue;
         }
 
@@ -137,14 +137,14 @@
 
     if (
       /^(data-)?v?jk$|^data-jobkey$/i.test(attributeName) &&
-      companion.jobs.jobKeyPattern.test(value)
+      companion.jobs.indeedJobKeyPattern.test(value)
     ) {
       return companion.jobs.indeedJobUrlFromKey(value);
     }
 
     if (/^id$/i.test(attributeName)) {
       const jobKey = value.match(/^job_([A-Za-z0-9_-]+)$/)?.[1];
-      if (jobKey && companion.jobs.jobKeyPattern.test(jobKey)) {
+      if (jobKey && companion.jobs.indeedJobKeyPattern.test(jobKey)) {
         return companion.jobs.indeedJobUrlFromKey(jobKey);
       }
     }
@@ -210,10 +210,10 @@
     return null;
   };
 
-  const collectJobs = (getRect) => {
+  const collectJobLinks = (isEligible = () => true) => {
     const jobEntries = [];
     for (const element of document.querySelectorAll(companion.selectors.jobUrlCarrier)) {
-      if (!getRect(element)) {
+      if (!isEligible(element)) {
         continue;
       }
       const jobUrl = findUniqueJobUrlInSubtree(element);
@@ -224,7 +224,7 @@
     return jobEntries;
   };
 
-  const collectVisibleJobs = () => collectJobs(companion.dom.getViewportRect);
+  const collectVisibleJobs = () => collectJobLinks(companion.dom.getViewportRect);
 
   const candidateTitles = (carrier) => {
     const titles = [carrier.textContent, carrier.getAttribute("aria-label"), carrier.title];
@@ -304,12 +304,12 @@
     return { jobUrls: [], complete: true };
   };
 
-  let pendingShareContext = null;
+  let pendingMenuContext = null;
 
-  const captureShareContext = (shareButton) => {
-    pendingShareContext = {
-      nearbyUrlScan: scanJobUrlsNear(shareButton),
-      title: findJobTitleNear(shareButton) || findDetailPaneJobTitle(),
+  const captureMenuContext = (menuButton) => {
+    pendingMenuContext = {
+      nearbyUrlScan: scanJobUrlsNear(menuButton),
+      title: findJobTitleNear(menuButton) || findDetailPaneJobTitle(),
       currentJobUrl:
         companion.platform === "linkedin"
           ? companion.jobs.jobUrlFromLinkedInPageUrl(window.location.href)
@@ -332,7 +332,7 @@
     return scriptMatch.status === "resolved" ? scriptMatch.jobUrl : null;
   };
 
-  const resolveCurrentJobUrl = () => {
+  const resolvePageJobUrl = () => {
     const pageJobUrl = companion.jobs.jobUrlFromPageUrl(window.location.href);
     if (pageJobUrl) {
       return pageJobUrl;
@@ -353,30 +353,30 @@
     throw new Error("No supported job URL found");
   };
 
-  const resolveJobUrl = (sourceElement) => {
+  const consumeMenuJobUrl = (sourceElement) => {
     const menuJobUrl = findJobUrlInMenu(sourceElement);
     if (menuJobUrl) {
-      pendingShareContext = null;
+      pendingMenuContext = null;
       return menuJobUrl;
     }
 
-    const shareContext = pendingShareContext;
-    pendingShareContext = null;
-    if (!shareContext) {
-      return resolveCurrentJobUrl();
+    const menuContext = pendingMenuContext;
+    pendingMenuContext = null;
+    if (!menuContext) {
+      return resolvePageJobUrl();
     }
 
-    if (shareContext.currentJobUrl) {
-      return shareContext.currentJobUrl;
+    if (menuContext.currentJobUrl) {
+      return menuContext.currentJobUrl;
     }
 
-    const { jobUrls: nearbyJobUrls, complete: nearbyScanComplete } = shareContext.nearbyUrlScan;
-    const capturedTitleJobUrl = shareContext.title
-      ? resolveJobUrlByTitle(shareContext.title)
+    const { jobUrls: nearbyJobUrls, complete: nearbyScanComplete } = menuContext.nearbyUrlScan;
+    const capturedTitleJobUrl = menuContext.title
+      ? resolveJobUrlByTitle(menuContext.title)
       : null;
     if (nearbyScanComplete && nearbyJobUrls.length === 1) {
       if (capturedTitleJobUrl && capturedTitleJobUrl !== nearbyJobUrls[0]) {
-        throw new Error("The shared job could not be identified safely");
+        throw new Error("The menu job could not be identified safely");
       }
       return nearbyJobUrls[0];
     }
@@ -384,18 +384,18 @@
       return capturedTitleJobUrl;
     }
     if (!nearbyScanComplete || nearbyJobUrls.length > 1) {
-      throw new Error("The shared job could not be identified safely");
+      throw new Error("The menu job could not be identified safely");
     }
     if (capturedTitleJobUrl) {
       return capturedTitleJobUrl;
     }
-    throw new Error("The shared job could not be identified safely");
+    throw new Error("The menu job could not be identified safely");
   };
 
   Object.assign(companion.jobs, {
-    captureShareContext,
-    collectJobs,
-    resolveCurrentJobUrl,
-    resolveJobUrl,
+    captureMenuContext,
+    collectJobLinks,
+    resolvePageJobUrl,
+    consumeMenuJobUrl,
   });
 })();

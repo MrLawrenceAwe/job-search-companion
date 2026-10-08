@@ -13,10 +13,10 @@ import { openResultCache } from "./result-cache.js";
 import { inferWithAccountFallback } from "./account-fallback.js";
 export const openBlockerChecker = async ({
   directory,
-  profilePaths,
+  profileSources,
   chatgpt,
   infer = runBlockerInference,
-  readProfile = () => readVerifiedProfile(profilePaths),
+  readProfile = () => readVerifiedProfile(profileSources),
 }) => {
   const settings = await openPrivateStore(join(directory, "settings.json"), {
     enabled: false,
@@ -53,7 +53,7 @@ export const openBlockerChecker = async ({
     return {
       settings: settings.value,
       pausedReason,
-      session: chatgpt.session(),
+      connectionStatus: chatgpt.connectionStatus(),
       profile: profile
         ? {
             hash: profile.hash,
@@ -71,7 +71,7 @@ export const openBlockerChecker = async ({
     const item = queue.shift();
     running = item;
     item.public.status = "checking";
-    item.accountId = chatgpt.session().activeId;
+    item.accountId = chatgpt.connectionStatus().activeId;
     const controller = new AbortController();
     item.controller = controller;
     const timer = setTimeout(() => controller.abort(), 90_000);
@@ -79,7 +79,7 @@ export const openBlockerChecker = async ({
     const previousRecord = cache.get(item.key);
     const isCurrent = () =>
       item.cancellationGeneration === cancellationGeneration &&
-      item.accountId === chatgpt.session().activeId &&
+      item.accountId === chatgpt.connectionStatus().activeId &&
       !disposed &&
       !controller.signal.aborted;
     try {
@@ -93,7 +93,7 @@ export const openBlockerChecker = async ({
       });
       if (
         item.cancellationGeneration !== cancellationGeneration ||
-        item.accountId !== chatgpt.session().activeId ||
+        item.accountId !== chatgpt.connectionStatus().activeId ||
         disposed ||
         controller.signal.aborted
       ) {
@@ -177,7 +177,7 @@ export const openBlockerChecker = async ({
         if (!models.some((m) => m.slug === patch.model))
           throw new Error("Choose a model available to the connected ChatGPT account");
       }
-      if (patch.enabled && (!chatgpt.session().sharing || !(patch.model || settings.value.model)))
+      if (patch.enabled && (!chatgpt.connectionStatus().planUsageEnabled || !(patch.model || settings.value.model)))
         throw new Error("Connect ChatGPT plan usage and choose a model first");
       if (patch.enabled && !(await readProfile()).facts.length)
         throw new Error("Verified profile unavailable");
@@ -222,7 +222,7 @@ export const openBlockerChecker = async ({
       if (!force && cached) return { status: "completed", cached: true, result: cached };
       if (pausedReason || !settings.value.enabled)
         throw new Error(pausedReason || "Background checks are paused. Enable them in settings.");
-      if (!chatgpt.session().sharing || !model)
+      if (!chatgpt.connectionStatus().planUsageEnabled || !model)
         throw new Error("Connect ChatGPT plan usage and choose a model in settings");
       const item = {
         key,
@@ -232,7 +232,7 @@ export const openBlockerChecker = async ({
         descriptionHash,
         profile,
         cancellationGeneration,
-        accountId: chatgpt.session().activeId,
+        accountId: chatgpt.connectionStatus().activeId,
         public: { id: randomUUID(), status: "queued" },
       };
       tasks.set(item.public.id, item);

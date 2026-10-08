@@ -62,6 +62,8 @@ export const createJobFixture = async ({ href, scripts = [], canonicalUrl = null
   });
 
   await runExtensionScripts(context, [
+    "contracts/job-urls.js",
+    "contracts/blockers.js",
     "extension-context.js",
     "dom-visibility.js",
     "job-url.js",

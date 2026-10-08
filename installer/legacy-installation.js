@@ -1,6 +1,6 @@
 import { access, rename } from "node:fs/promises";
 import { join, relative, isAbsolute } from "node:path";
-import { assertNoSymbolicLinkPaths, atomicWrite, readOptionalFile } from "./file-transaction.js";
+import { assertNoSymbolicLinkPaths, atomicWrite, readOptionalFile } from "../shared/filesystem.js";
 
 const exists = (path) =>
   access(path).then(

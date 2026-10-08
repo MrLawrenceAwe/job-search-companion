@@ -1,11 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  click,
-  createMenuFixture,
-  flushUntil,
-} from "../test-support/extension-vm.js";
+import { flushUntil } from "../test-support/async.js";
+import { click, createMenuFixture } from "../test-support/menu-fixture.js";
 
 test("menu submits the resolved job and reports success", async () => {
   const messages = [];
@@ -163,7 +160,7 @@ test("a visible action in another menu does not suppress insertion into this men
   context.document.querySelectorAll = () => [existingButton];
   context.jobSearchCompanion.dom.queryIncludingRoot = (root) => [root];
 
-  assert.equal(context.jobSearchCompanion.shareMenu.insertJobMenuActions(newMenuRow), true);
+  assert.equal(context.jobSearchCompanion.jobMenu.insertJobMenuActions(newMenuRow), true);
   assert.ok(insertedButton);
   assert.notEqual(insertedButton, existingButton);
 });

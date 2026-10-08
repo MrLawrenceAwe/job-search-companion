@@ -11,7 +11,7 @@
     maximumRecords: 300,
     storagePrefix: "blocker-result:",
     labels,
-    isValidRecord(record, now = Date.now()) {
+    isRetainableResult(record, now = Date.now()) {
       return Boolean(
         record &&
           record.checkerVersion === contract.version &&

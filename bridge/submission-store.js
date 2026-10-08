@@ -1,4 +1,4 @@
-import { readOptionalFile, atomicWrite, assertNoSymbolicLinkPaths } from "../installer/file-transaction.js";
+import { readOptionalFile, atomicWrite, assertNoSymbolicLinkPaths } from "../shared/filesystem.js";
 
 const STORE_VERSION = 1;
 const INTERRUPTED_ERROR = "The bridge restarted before this submission was confirmed";

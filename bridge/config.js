@@ -35,16 +35,16 @@ export const config = Object.freeze({
   }),
   blockers: Object.freeze({
     directory: join(homedir(), "Library/Application Support/Job Search Companion/blockers"),
-    profilePaths: [
-      join(homedir(), "Job Hunting/profile.md"),
-      join(homedir(), ".codex/skills/apply-to-jobs/references/profile.md"),
+    profileSources: [
+      { kind: "application", path: join(homedir(), "Job Hunting/profile.md") },
+      { kind: "verified", path: join(homedir(), ".codex/skills/apply-to-jobs/references/profile.md") },
     ],
   }),
   codex: Object.freeze({
     bundleId: "com.openai.codex",
     accessibilityProtocolVersion: helperContract.protocolVersion,
     accessibilityContractVersion: helperContract.contractVersion,
-    accessibilityHelperPath: process.env.CODEX_ACCESSIBILITY_HELPER_PATH
+    accessibilityHelperPath: process.env.JSC_ACCESSIBILITY_HELPER_PATH
       || join(homedir(), "Library/Application Support/Job Search Companion/accessibility-helper"),
     composerReadyTimeoutMs: 8000,
     settingsTimeoutMs: 8000,

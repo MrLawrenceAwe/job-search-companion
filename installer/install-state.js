@@ -1,4 +1,4 @@
-import { readOptionalFile } from "./file-transaction.js";
+import { readOptionalFile } from "../shared/filesystem.js";
 import { sha256 } from "../shared/sha256.js";
 
 export const STATE_VERSION = 11;

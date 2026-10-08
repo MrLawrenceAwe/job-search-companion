@@ -41,7 +41,6 @@ Install the bridge dependencies first:
 npm ci
 ```
 
-
 Choose a non-empty local token containing only ASCII letters, numbers, dots,
 underscores and hyphens. Other characters are rejected by the installer. Replace
 the example token and extension ID below, then run:
@@ -61,7 +60,6 @@ The installer:
 Reload the extension in Chrome after installation.
 
 When updating an older installation, the installer migrates its former Indeed CV Fit Bridge data and service identity. Use the `JSC_*` variables shown here; old environment-variable names are no longer accepted. Existing account credentials, findings, and submission history are preserved. If both old and new data directories exist, resolve that conflict before reinstalling. Because the helper moves, macOS may require its Accessibility permission to be granted again at the new path. See [migration details](design.md#installation-identity-migration).
-
 
 Before verifying task submission, open **System Settings → Privacy & Security →
 Accessibility** and enable the installed helper. Use **+**, then **Command+Shift+G**
@@ -175,3 +173,9 @@ Set that workspace's `model` to `gpt-6.1-sol`, `model_reasoning_effort` to
 `medium`, and `service_tier` to `priority` so new drafts open with the settings
 the bridge requires. Workspace defaults can override the global Codex default.
 
+### Diagnostic path overrides
+
+For isolated automated checks or manual diagnostics, `JSC_INSTALL_STATE_PATH`
+selects the install-state file and `JSC_ACCESSIBILITY_HELPER_PATH` selects the
+compiled helper. These overrides are read by the bridge process; the installer
+continues to manage the standard paths. Supply them explicitly when needed.

@@ -8,13 +8,15 @@ The checker uses Sign in with ChatGPT plan usage through the public Responses AP
 2. Reload the unpacked extension and refresh Indeed pages.
 3. Click the extension toolbar action to open settings.
 4. Choose **Continue with ChatGPT**, finish browser sign-in, and grant ChatGPT plan usage. Sign-in without this grant leaves checking disabled.
-5. Choose a model from your account's catalog, enable **Automatic checking**, and save.
+5. Choose a model from your account's catalog, turn on **Enable blocker checks**, and save.
 
 The bridge reads relevant facts from `~/Job Hunting/profile.md` and `~/.codex/skills/apply-to-jobs/references/profile.md`. Contact and unrelated sensitive disclosure fields are omitted. Missing/unreadable profile files prevent checking. Edit the verified source files to update facts; changes invalidate prior checks. Semantically conflicting evidence stays uncertain.
 
 ## Processing and findings
 
 Only complete descriptions verified against the selected job are checked. Unsupported layouts wait for a matching description.
+
+**Enable blocker checks** controls both automatic checks and the manual **Check now** and **Recheck** actions.
 
 Automatic checks begin after a 1.5-second dwell in a visible tab. One model request runs at a time. Recent eligible selections take precedence over waiting jobs, with at most ten waiting checks. Already-running checks finish when selection changes; pause, cache clearing, shutdown, and account changes cancel work. Identical checks share a task across tabs. Requests time out after 90 seconds. Failed checks require an explicit retry; transient failures do not retry automatically or switch billing.
 
@@ -39,6 +41,15 @@ Checker settings, cache and ChatGPT registrations live in `~/Library/Application
 ## Limitations and validation
 
 The local automated suite covers OAuth state/identity flow, protected storage, plan-compatible request shape, terminal SSE handling, evidence validation, cache invalidation, scheduling and the existing bridge authentication boundary. Live sign-in, account-specific model admission and structured-output support require verification with an eligible ChatGPT account; model catalog discovery alone does not prove inference works. Unsupported capability errors pause checking for model/settings review.
+
+### Processing speed
+
+GPT-6-Luna requests Fast processing (`service_tier: "priority"`), as advertised
+by the connected account's model catalog. A previous live plan-usage test
+reported `service_tier: "default"` despite that request, so Fast processing is
+unconfirmed for that connection. Reasoning stays at the model default; other
+models use their default processing tier. Selection dwell and the single-job
+queue still apply.
 
 Implementation details are in [the blocker-checking design](design.md#blocker-checking-internals).
 

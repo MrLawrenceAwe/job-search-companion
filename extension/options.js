@@ -1,3 +1,4 @@
+const recordStore = globalThis.jobSearchBlockerRecords.createStore();
 const $ = (id) => document.getElementById(id);
 let settingsState = null;
 let busy = false;
@@ -23,8 +24,8 @@ const option = (value, label) => {
   return element;
 };
 const renderFallbacks = () => {
-  const accounts = settingsState.session.fallbackIds.map((id) =>
-    settingsState.session.accounts.find((p) => p.id === id),
+  const accounts = settingsState.connectionStatus.fallbackIds.map((id) =>
+    settingsState.connectionStatus.accounts.find((account) => account.id === id),
   );
   const lines = accounts.map((account, index) => {
     const row = document.createElement("p");
@@ -73,21 +74,21 @@ const updateSave = () => {
 };
 const render = (state) => {
   settingsState = state;
-  $("connection").textContent = state.session.pending
+  $("connection").textContent = state.connectionStatus.pending
     ? "Finish signing in in your browser."
-    : state.session.sharing
+    : state.connectionStatus.planUsageEnabled
       ? "Connected · Using ChatGPT plan"
-      : state.session.connected
+      : state.connectionStatus.connected
         ? "Plan usage is off. Continue with ChatGPT to enable it."
         : "Connect ChatGPT to start checking.";
-  $("connectionBadge").textContent = state.session.pending
+  $("connectionBadge").textContent = state.connectionStatus.pending
     ? "Signing in"
-    : state.session.sharing
+    : state.connectionStatus.planUsageEnabled
       ? "Connected"
       : "Not connected";
-  $("connectionBadge").dataset.state = state.session.pending
+  $("connectionBadge").dataset.state = state.connectionStatus.pending
     ? "attention"
-    : state.session.sharing
+    : state.connectionStatus.planUsageEnabled
       ? "active"
       : "inactive";
   $("checkingBadge").textContent = state.pausedReason
@@ -100,25 +101,25 @@ const render = (state) => {
     : state.settings.enabled
       ? "active"
       : "inactive";
-  $("account").replaceChildren(...state.session.accounts.map((p) => option(p.id, p.label)));
-  $("account").value = state.session.activeId || "";
+  $("account").replaceChildren(...state.connectionStatus.accounts.map((account) => option(account.id, account.label)));
+  $("account").value = state.connectionStatus.activeId || "";
   $("enabled").checked = state.settings.enabled;
   $("accountFallback").checked = state.settings.accountFallback;
   renderFallbacks();
   if (modelsLoaded) $("model").value = state.settings.model || "";
-  $("connect").disabled = state.session.pending;
-  $("connect").hidden = state.session.sharing && !state.session.pending;
-  $("cancel").hidden = !state.session.pending;
-  $("logout").disabled = !state.session.connected;
+  $("connect").disabled = state.connectionStatus.pending;
+  $("connect").hidden = state.connectionStatus.planUsageEnabled && !state.connectionStatus.pending;
+  $("cancel").hidden = !state.connectionStatus.pending;
+  $("logout").disabled = !state.connectionStatus.connected;
   $("profile").textContent = state.profile ? "Verified profile ready." : state.profileError;
   $("profile").dataset.state = state.profile ? "ready" : "error";
-  if (state.pausedReason || state.session.error)
-    feedback(state.pausedReason || state.session.error, "error");
+  if (state.pausedReason || state.connectionStatus.error)
+    feedback(state.pausedReason || state.connectionStatus.error, "error");
   updateSave();
 };
 const load = async () => render(await request("status"));
 const loadModels = async () => {
-  if (!settingsState?.session.sharing) {
+  if (!settingsState?.connectionStatus.planUsageEnabled) {
     $("model").replaceChildren(option("", "Connect ChatGPT plan usage first"));
     modelsLoaded = true;
     updateSave();
@@ -127,7 +128,7 @@ const loadModels = async () => {
   const { models } = await request("models");
   $("model").replaceChildren(
     option("", "Choose a model"),
-    ...models.map((m) => option(m.slug, m.name)),
+    ...models.map((model) => option(model.slug, model.name)),
   );
   $("model").value = settingsState.settings.model || "";
   modelsLoaded = true;
@@ -150,7 +151,7 @@ const perform = async (work) => {
 for (const [id, work] of Object.entries({
   connect: async () => {
     const { authUrl } = await request("sign-in", {
-      consent: Boolean(settingsState?.session.connected && !settingsState.session.sharing),
+      consent: Boolean(settingsState?.connectionStatus.connected && !settingsState.connectionStatus.planUsageEnabled),
     });
     await chrome.tabs.create({ url: authUrl });
     await load();
@@ -188,12 +189,7 @@ for (const [id, work] of Object.entries({
   },
   clear: async () => {
     await request("clear-cache");
-    const records = await chrome.storage.local.get(null);
-    await chrome.storage.local.remove(
-      Object.keys(records).filter((key) =>
-        key.startsWith(globalThis.jobSearchContracts.blockers.storagePrefix),
-      ),
-    );
+    await recordStore.clear();
     await load();
     feedback("Saved findings cleared.");
   },
@@ -219,9 +215,9 @@ void perform(async () => {
   await loadModels();
 });
 setInterval(() => {
-  if (!busy && settingsState?.session.pending)
+  if (!busy && settingsState?.connectionStatus.pending)
     void perform(async () => {
       await load();
-      if (!settingsState.session.pending) await loadModels();
+      if (!settingsState.connectionStatus.pending) await loadModels();
     });
 }, 2000);

@@ -3,7 +3,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import test from "node:test";
 
-import { atomicWrite } from "../installer/file-transaction.js";
+import { atomicWrite } from "../shared/filesystem.js";
 import { uninstall } from "../installer/lifecycle.js";
 import { installFixture, makeInstallFixture } from "../test-support/install-fixture.js";
 

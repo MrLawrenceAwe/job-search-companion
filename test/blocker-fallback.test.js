@@ -4,8 +4,8 @@ import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { openBlockerChecker } from "../bridge/blockers/checker.js";
-import { openChatGPT } from "../bridge/blockers/chatgpt.js";
-import { flushUntil } from "../test-support/extension-vm.js";
+import { openChatGPTConnection } from "../bridge/blockers/chatgpt.js";
+import { flushUntil } from "../test-support/async.js";
 
 const profile = { hash: "verified", facts: [{ id: "F1", text: "Provisional licence" }], sources: [] };
 const job = (id = "first1111") => ({ jobUrl: `https://uk.indeed.com/viewjob?jk=${id}`, description: "You must hold a full UK driving licence to visit customer sites in this role." });
@@ -16,7 +16,7 @@ const fixture = async (t, infer, models = async () => [{ slug: "test" }]) => {
   let activeId = "a";
   const selected = [];
   const chatgpt = {
-    session: () => ({ activeId, sharing: true }),
+    connectionStatus: () => ({ activeId, planUsageEnabled: true }),
     fallbackAccounts: () => ["b", "c"],
     select: async (id) => { selected.push(id); activeId = id; },
     models: () => models(activeId), close() {},
@@ -34,7 +34,7 @@ const settle = async (checker, task) => {
 test("confirmed usage exhaustion retries the same check and queued jobs continue on the fallback", async (t) => {
   const calls = []; let release;
   const { checker, chatgpt, selected } = await fixture(t, async ({ chatgpt, model, description }) => {
-    calls.push({ account: chatgpt.session().activeId, model, description });
+    calls.push({ account: chatgpt.connectionStatus().activeId, model, description });
     if (calls.length === 1) { await new Promise((resolve) => { release = resolve; }); throw quota(); }
     return result;
   });
@@ -46,13 +46,13 @@ test("confirmed usage exhaustion retries the same check and queued jobs continue
   assert.deepEqual(calls.map((c) => c.account), ["a", "b", "b"]);
   assert.ok(calls.every((c) => c.model === "test" && c.description === job().description));
   assert.deepEqual(selected, ["b"]);
-  assert.equal(chatgpt.session().activeId, "b");
+  assert.equal(chatgpt.connectionStatus().activeId, "b");
   assert.equal((await checker.status()).pausedReason, null);
 });
 
 test("all exhausted accounts are tried once then checks pause without caching an outcome", async (t) => {
   const calls = [];
-  const { checker } = await fixture(t, async ({ chatgpt }) => { calls.push(chatgpt.session().activeId); throw quota(); });
+  const { checker } = await fixture(t, async ({ chatgpt }) => { calls.push(chatgpt.connectionStatus().activeId); throw quota(); });
   const task = await checker.start(job());
   assert.equal((await settle(checker, task)).status, "failed");
   assert.deepEqual(calls, ["a", "b", "c"]);
@@ -81,8 +81,8 @@ for (const reason of ["missing model", "disconnected", "exhausted catalog"]) {
   test(`skips fallback with ${reason}`, async (t) => {
     const calls = [];
     const { checker, selected } = await fixture(t, async ({ chatgpt }) => {
-      calls.push(chatgpt.session().activeId);
-      if (chatgpt.session().activeId === "a") throw quota();
+      calls.push(chatgpt.connectionStatus().activeId);
+      if (chatgpt.connectionStatus().activeId === "a") throw quota();
       return result;
     }, async (id) => {
       if (id === "b") {
@@ -100,7 +100,7 @@ for (const reason of ["missing model", "disconnected", "exhausted catalog"]) {
 
 test("pausing during fallback model lookup prevents inference and further switches", async (t) => {
   let release; const calls = [];
-  const { checker, selected } = await fixture(t, async ({ chatgpt }) => { calls.push(chatgpt.session().activeId); throw quota(); }, async (id) => {
+  const { checker, selected } = await fixture(t, async ({ chatgpt }) => { calls.push(chatgpt.connectionStatus().activeId); throw quota(); }, async (id) => {
     if (id === "b") await new Promise((resolve) => { release = resolve; });
     return [{ slug: "test" }];
   });
@@ -121,8 +121,8 @@ test("fallback candidates exclude incomplete, signed-out, unconsented and duplic
     registration("a", "user1"), registration("duplicate-a", "user1"), registration("b", "user2"), registration("duplicate-b", "user2"),
     registration("incomplete", undefined), registration("signed-out", "user3", { accessToken: null }), registration("unconsented", "user4", { scopes: [] }), registration("c", "user5"),
   ] }));
-  const auth = await openChatGPT({ path }); t.after(() => auth.close());
+  const auth = await openChatGPTConnection({ path }); t.after(() => auth.close());
   assert.deepEqual(auth.fallbackAccounts(), ["b", "c"]);
-  assert.deepEqual(auth.session().fallbackIds, ["b", "c"]);
-  assert.doesNotMatch(JSON.stringify(auth.session()), /secret|user1|user2/);
+  assert.deepEqual(auth.connectionStatus().fallbackIds, ["b", "c"]);
+  assert.doesNotMatch(JSON.stringify(auth.connectionStatus()), /secret|user1|user2/);
 });

@@ -5,8 +5,8 @@ import {
   assertNoSymbolicLinkPaths,
   atomicWrite,
   readOptionalFile,
-  runFileTransaction,
-} from "./file-transaction.js";
+} from "../shared/filesystem.js";
+import { runFileTransaction } from "./file-transaction.js";
 import { sha256 } from "../shared/sha256.js";
 import { ensureArtifactsUnchanged, readInstallState, STATE_VERSION } from "./install-state.js";
 import { bridgeAddress } from "../bridge/address.js";

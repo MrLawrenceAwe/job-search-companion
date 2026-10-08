@@ -1,7 +1,7 @@
 (() => {
   const companion = globalThis.jobSearchCompanion;
   const {
-    indeedJobKeyPattern: JOB_KEY_PATTERN,
+    indeedJobKeyPattern,
     linkedInJobIdPattern: LINKEDIN_JOB_ID_PATTERN,
     isIndeedHost,
     isLinkedInHost,
@@ -29,7 +29,7 @@
       }
 
       const jobKey = parsed.searchParams.get("jk") || parsed.searchParams.get("vjk");
-      if (!jobKey || !JOB_KEY_PATTERN.test(jobKey)) {
+      if (!jobKey || !indeedJobKeyPattern.test(jobKey)) {
         return null;
       }
 
@@ -78,7 +78,7 @@
     }
 
     const jobKey = text.match(/[?&](?:jk|vjk)=([A-Za-z0-9_-]+)/)?.[1];
-    return jobKey && JOB_KEY_PATTERN.test(jobKey) ? indeedJobUrlFromKey(jobKey) : null;
+    return jobKey && indeedJobKeyPattern.test(jobKey) ? indeedJobUrlFromKey(jobKey) : null;
   };
 
   const extractJobUrl = (text) => {
@@ -108,7 +108,7 @@
 
   Object.assign(companion.jobs, {
     extractJobUrl,
-    jobKeyPattern: JOB_KEY_PATTERN,
+    indeedJobKeyPattern,
     jobUrlFromPageUrl,
     jobUrlFromLinkedInPageUrl,
     indeedJobUrlFromKey,

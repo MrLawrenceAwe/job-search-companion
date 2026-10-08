@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { click, createMenuFixture, flushUntil, isJobMarked } from "../test-support/extension-vm.js";
+import { flushUntil } from "../test-support/async.js";
+import { click, createMenuFixture, isJobMarked } from "../test-support/menu-fixture.js";
 
 for (const kind of ["applied", "unsuitable"]) {
   const timestamp = `${kind}At`;
@@ -110,7 +111,7 @@ for (const kind of ["applied", "unsuitable"]) {
 
   test(`${kind}: an open menu keeps the job captured when it was opened`, async () => {
     const fixture = await createFixture({ runtime });
-    fixture.context.jobSearchCompanion.jobs.resolveJobUrl = () =>
+    fixture.context.jobSearchCompanion.jobs.consumeMenuJobUrl = () =>
       "https://uk.indeed.com/viewjob?jk=secondjob111";
     click(fixture.markButton);
     await flushUntil(() => fixture.toasts.length > 0);

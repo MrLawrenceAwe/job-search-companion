@@ -1,9 +1,8 @@
 (() => {
   const companion = globalThis.jobSearchCompanion;
   if (companion.platform !== "indeed") return;
-  const { storagePrefix: PREFIX, isValidRecord: validRecord } =
-    globalThis.jobSearchContracts.blockers;
-  const { records, saveResult, loadRecords } = companion.blockers.createRecordStore();
+  const { isRetainableResult } = globalThis.jobSearchContracts.blockers;
+  const recordStore = globalThis.jobSearchBlockerRecords.createStore();
   const checks = new Map();
   let checkerState = null;
   let selection = null;
@@ -27,8 +26,8 @@
       .map((byte) => byte.toString(16).padStart(2, "0"))
       .join("");
   const currentRecord = () => {
-    const record = selection && records.get(selection.jobId);
-    return validRecord(record) &&
+    const record = selection && recordStore.get(selection.jobId);
+    return isRetainableResult(record) &&
       record.descriptionHash === selection.hash &&
       record.profileHash === profileHash &&
       record.model === checkerState?.settings.model
@@ -40,7 +39,7 @@
     if (
       !captured ||
       !checkerState?.settings.enabled ||
-      !checkerState?.session.sharing ||
+      !checkerState?.connectionStatus.planUsageEnabled ||
       (!force && document.hidden)
     )
       return;
@@ -62,7 +61,7 @@
         // Poll completion regardless of later selection, but render only the current job.
         render();
       }
-      if (check.status === "completed") await saveResult(check.result);
+      if (check.status === "completed") await recordStore.saveResult(check.result);
       render();
     } catch (error) {
       checks.set(captured.signature, {
@@ -157,33 +156,27 @@
   };
   const descriptions = companion.blockers.observeDescriptions(schedule);
   const render = companion.blockers.createRenderer({
-    records,
+    recordStore,
     checks,
     currentRecord,
     start,
     getContext: () => ({ selection, checkerState }),
   });
   const initialize = async () => {
-    await loadRecords();
+    await recordStore.loadRecords();
     await refreshState();
     window.postMessage({ type: "jsc-request-initial-description-v1" }, location.origin);
     schedule();
   };
-  chrome.storage.onChanged.addListener((changes, area) => {
-    if (area !== "local") return;
-    for (const [key, { newValue }] of Object.entries(changes))
-      if (key.startsWith(PREFIX)) {
-        if (validRecord(newValue)) records.set(key.slice(PREFIX.length), newValue);
-        else {
-          const jobId = key.slice(PREFIX.length);
-          records.delete(jobId);
-          for (const [signature, check] of checks)
-            if (signature.startsWith(`${jobId}:`) && !["checking", "queued"].includes(check.status))
-              checks.delete(signature);
-          selection = null;
-          schedule();
-        }
-      }
+  recordStore.subscribe((changes) => {
+    for (const { jobId, removed } of changes) {
+      if (!removed) continue;
+      for (const [signature, check] of checks)
+        if (signature.startsWith(`${jobId}:`) && !["checking", "queued"].includes(check.status))
+          checks.delete(signature);
+      selection = null;
+      schedule();
+    }
     render();
   });
   new MutationObserver((mutations) => {

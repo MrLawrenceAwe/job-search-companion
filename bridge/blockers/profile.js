@@ -24,10 +24,13 @@ const preferencePrefixes = [
   "- Commute fit:",
 ];
 
-export const readVerifiedProfile = async (paths) => {
+export const readVerifiedProfile = async (profileSources) => {
   const facts = [];
   const sources = [];
-  for (const [index, path] of paths.entries()) {
+  for (const { kind, path } of profileSources) {
+    if (!["application", "verified"].includes(kind))
+      throw new Error(`Unknown profile source kind: ${kind}`);
+    const name = kind === "application" ? "Application profile" : "Verified application profile";
     const text = await readFile(path, "utf8");
     let section = "";
     let group = "";
@@ -43,7 +46,7 @@ export const readVerifiedProfile = async (paths) => {
         continue;
       }
       const allowed =
-        index === 0
+        kind === "application"
           ? applicationSections.has(section)
           : (section === "Facts" && verifiedGroups.has(group)) ||
             preferencePrefixes.some((prefix) => line.startsWith(prefix));
@@ -51,11 +54,11 @@ export const readVerifiedProfile = async (paths) => {
         facts.push({
           id: `F${facts.length + 1}`,
           text: line.slice(2),
-          source: index === 0 ? "Application profile" : "Verified application profile",
+          source: name,
         });
     }
     sources.push({
-      name: index === 0 ? "Application profile" : "Verified application profile",
+      name,
       path,
     });
   }

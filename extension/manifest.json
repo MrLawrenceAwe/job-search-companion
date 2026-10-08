@@ -27,6 +27,7 @@
         "https://*.indeed.co.uk/*"
       ],
       "js": [
+        "contracts/job-urls.js",
         "indeed-description-capture.js"
       ],
       "world": "MAIN",
@@ -53,8 +54,8 @@
         "submission.js",
         "job-marks.js",
         "shortcuts.js",
-        "share-menu.js",
-        "share-menu-observer.js",
+        "job-menu.js",
+        "job-menu-observer.js",
         "blocker-descriptions.js",
         "blocker-records.js",
         "blocker-renderer.js",

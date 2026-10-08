@@ -15,7 +15,7 @@ export const createBlockerRoutes =
         await checker.accountChanged();
         result = await chatgpt.signIn(body);
       } else if (route === "POST /blockers/cancel-sign-in") {
-        chatgpt.cancelLogin();
+        chatgpt.cancelSignIn();
         result = await checker.status();
       } else if (route === "POST /blockers/account") {
         await checker.accountChanged();

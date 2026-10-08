@@ -35,10 +35,10 @@ test("the extension runs on Indeed and LinkedIn", async () => {
   assert.ok(matches.includes("https://*.linkedin.com/*"));
 });
 
-test("menu status text describes submission rather than opening", async () => {
-  const source = await readFile(new URL("../extension/submission.js", import.meta.url), "utf8");
-
-  assert.match(source, /Submitting to Codex/);
-  assert.match(source, /CV Fit Advisor task submitted/);
-  assert.doesNotMatch(source, /Opening CV Fit Advisor|task started in Codex/);
+test("MAIN-world description capture loads its platform contract before the observer", async () => {
+  const manifest = await readJson(new URL("../extension/manifest.json", import.meta.url));
+  const mainScripts = manifest.content_scripts.find(({ world }) => world === "MAIN").js;
+  const contractIndex = mainScripts.indexOf("contracts/job-urls.js");
+  assert.ok(contractIndex >= 0);
+  assert.ok(contractIndex < mainScripts.indexOf("indeed-description-capture.js"));
 });

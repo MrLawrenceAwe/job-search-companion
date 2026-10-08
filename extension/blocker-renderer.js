@@ -1,7 +1,7 @@
 (() => {
   const companion = globalThis.jobSearchCompanion;
-  const { labels: LABELS, isValidRecord: validRecord } = globalThis.jobSearchContracts.blockers;
-  companion.blockers.createRenderer = ({ records, checks, currentRecord, start, getContext }) => {
+  const { labels: LABELS, isRetainableResult } = globalThis.jobSearchContracts.blockers;
+  companion.blockers.createRenderer = ({ recordStore, checks, currentRecord, start, getContext }) => {
     const keyFromUrl = (url) => {
       try {
         return new URL(url).searchParams.get("jk");
@@ -30,13 +30,13 @@
       const { selection, checkerState } = getContext();
       for (const badge of document.querySelectorAll(".jsc-blocker-badge")) badge.remove();
       const decorated = new Set();
-      for (const { element: carrier, jobUrl } of companion.jobs.collectJobs(
+      for (const { element: carrier, jobUrl } of companion.jobs.collectJobLinks(
         companion.dom.getRenderedRect,
       )) {
         const jobId = keyFromUrl(jobUrl);
-        const record = records.get(jobId);
+        const record = recordStore.get(jobId);
         const card = carrier.closest(companion.selectors.jobCard);
-        if (!card || decorated.has(card) || !validRecord(record)) continue;
+        if (!card || decorated.has(card) || !isRetainableResult(record)) continue;
         decorated.add(card);
         const verified = selection?.jobId === jobId && currentRecord() === record;
         const badge = element(
@@ -123,7 +123,7 @@
       const checkButton = button(result ? "Recheck" : "Check now", () => void start(true));
       checkButton.disabled =
         !checkerState?.settings.enabled ||
-        !checkerState?.session.sharing ||
+        !checkerState?.connectionStatus.planUsageEnabled ||
         ["checking", "queued"].includes(check?.status);
       controls.append(checkButton, button("Checker settings", openSettings));
       panel.append(controls);

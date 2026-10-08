@@ -34,14 +34,14 @@ test("retries document-wide menu discovery throughout the bounded scan window", 
     MutationObserver,
     jobSearchCompanion: {
       dom: { getViewportRect: () => ({ width: 1, height: 1 }) },
-      jobs: { captureShareContext: () => {}, resolveJobUrl: () => "https://uk.indeed.com/viewjob?jk=fixture111" },
+      jobs: { captureMenuContext: () => {}, consumeMenuJobUrl: () => "https://uk.indeed.com/viewjob?jk=fixture111" },
       jobMarks: { createButton() { return new Element(); } },
-      shareMenu: {
+      jobMenu: {
         insertJobMenuActions: () => false,
         mightContainMenu: () => false,
         findMenuRoot: () => null,
       },
-      shareMenuDetection: { retryIntervalMs: 120, scanWindowMs: 1800 },
+      jobMenuDetection: { retryIntervalMs: 120, scanWindowMs: 1800 },
       protocol: {},
       selectors: { menuContext: '[role="menu"]' },
       ui: { menuItemClass: "jsc-menu-item" },
@@ -55,8 +55,8 @@ test("retries document-wide menu discovery throughout the bounded scan window", 
     },
   });
 
-  const source = await readFile(new URL("../extension/share-menu-observer.js", import.meta.url), "utf8");
-  vm.runInContext(source, context, { filename: "share-menu-observer.js" });
+  const source = await readFile(new URL("../extension/job-menu-observer.js", import.meta.url), "utf8");
+  vm.runInContext(source, context, { filename: "job-menu-observer.js" });
   assert.equal(observeCount, 0);
 
   const shareButton = {
@@ -141,10 +141,10 @@ test("discovers a menu that becomes visible without a child-list mutation", asyn
         getViewportRect: () => ({ width: 100, height: 100 }),
         queryIncludingRoot: (root) => [root],
       },
-      jobs: { captureShareContext: () => {}, resolveJobUrl: () => "https://uk.indeed.com/viewjob?jk=fixture111" },
+      jobs: { captureMenuContext: () => {}, consumeMenuJobUrl: () => "https://uk.indeed.com/viewjob?jk=fixture111" },
       jobMarks: { createButton() { return new Element(); } },
-      shareMenu: {},
-      shareMenuDetection: {
+      jobMenu: {},
+      jobMenuDetection: {
         retryIntervalMs: 120,
         scanWindowMs: 1800,
         textPattern: /Copy link[\s\S]*Email[\s\S]*WhatsApp/,
@@ -154,9 +154,9 @@ test("discovers a menu that becomes visible without a child-list mutation", asyn
       selectors: { menuContext: '[role="menu"]' },
       submissions: {},
       ui: {
-        actionLabel: "Analyse with CV Fit Advisor",
+        cvFitActionLabel: "Analyse with CV Fit Advisor",
         menuItemClass: "jsc-menu-item",
-        shortcut: {
+        cvFitShortcut: {
           aria: "N",
           display: "N",
         },
@@ -171,13 +171,13 @@ test("discovers a menu that becomes visible without a child-list mutation", asyn
     },
   });
 
-  const menuSource = await readFile(new URL("../extension/share-menu.js", import.meta.url), "utf8");
-  vm.runInContext(menuSource, context, { filename: "share-menu.js" });
+  const menuSource = await readFile(new URL("../extension/job-menu.js", import.meta.url), "utf8");
+  vm.runInContext(menuSource, context, { filename: "job-menu.js" });
   const observerSource = await readFile(
-    new URL("../extension/share-menu-observer.js", import.meta.url),
+    new URL("../extension/job-menu-observer.js", import.meta.url),
     "utf8",
   );
-  vm.runInContext(observerSource, context, { filename: "share-menu-observer.js" });
+  vm.runInContext(observerSource, context, { filename: "job-menu-observer.js" });
   clickHandler({
     target: {
       closest: () => ({ getAttribute: () => "Share", textContent: "" }),

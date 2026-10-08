@@ -8,7 +8,7 @@ export const openResultCache = async (directory) => {
   });
   const prune = () => {
     const entries = Object.entries(store.value.results)
-      .filter(([, record]) => blockerContract.isValidRecord(record))
+      .filter(([, record]) => blockerContract.isRetainableResult(record))
       .sort((a, b) => Date.parse(b[1].checkedAt) - Date.parse(a[1].checkedAt));
     store.value.results = Object.fromEntries(entries.slice(0, blockerContract.maximumRecords));
   };

@@ -1,4 +1,5 @@
 (() => {
+  const { indeedJobKeyPattern } = globalThis.jobSearchContracts.jobUrls;
   globalThis.jobSearchCompanion.blockers.observeDescriptions = (onDescription) => {
     const descriptions = new Map();
     const normalize = (text) => (text || "").replace(/\s+/g, " ").trim();
@@ -10,7 +11,7 @@
       )
         return;
       const { jobId, html, text } = event.data;
-      if (!/^[A-Za-z0-9_-]{8,64}$/.test(jobId || "")) return;
+      if (!indeedJobKeyPattern.test(jobId || "")) return;
       let extracted;
       if (typeof text === "string" && text.length <= 80_000) extracted = text;
       else if (typeof html === "string" && html.length <= 160_000) {

@@ -158,9 +158,9 @@ test("blocker requests reject LinkedIn and keep account controls confined to set
 });
 
 test("Indeed status responses omit account identity and local profile paths", async () => {
-  const worker = await loadWorker(async () => ({ json: async () => ({ ok: true, session: { sharing: true, email: "private@example.test", activeId: "private" }, profile: { hash: "hash", sources: [{ path: "/private/profile.md" }] } }) }));
+  const worker = await loadWorker(async () => ({ json: async () => ({ ok: true, connectionStatus: { planUsageEnabled: true, email: "private@example.test", activeId: "private" }, profile: { hash: "hash", sources: [{ path: "/private/profile.md" }] } }) }));
   const result = await new Promise((resolve) => worker.messageHandler({ type: "BLOCKER_REQUEST", action: "status" }, { url: "https://uk.indeed.com/jobs" }, resolve));
-  assert.equal(JSON.stringify(result.session), JSON.stringify({ sharing: true }));
+  assert.equal(JSON.stringify(result.connectionStatus), JSON.stringify({ planUsageEnabled: true }));
   assert.equal(JSON.stringify(result.profile), JSON.stringify({ hash: "hash" }));
 });
 

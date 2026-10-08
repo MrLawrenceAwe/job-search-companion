@@ -165,3 +165,11 @@ test("bridge requests stay shorter than the Accessibility operation", async () =
   assert.equal(accessibilityHelperTimeoutMs, 61_000);
   assert.ok(bridgeRequestTimeout < accessibilityHelperTimeoutMs);
 });
+
+test("menu status text describes submission rather than opening", async () => {
+  const source = await readFile(new URL("../extension/submission.js", import.meta.url), "utf8");
+
+  assert.match(source, /Submitting to Codex/);
+  assert.match(source, /CV Fit Advisor task submitted/);
+  assert.doesNotMatch(source, /Opening CV Fit Advisor|task started in Codex/);
+});

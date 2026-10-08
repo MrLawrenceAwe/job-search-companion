@@ -13,7 +13,7 @@ const record = {
   checkedAt: new Date().toISOString(),
 };
 test("shared blocker validation rejects expired, unknown and incomplete records", () => {
-  assert.equal(blockerContract.isValidRecord(record), true);
+  assert.equal(blockerContract.isRetainableResult(record), true);
   for (const patch of [
     { checkerVersion: -1 },
     { outcome: "toString" },
@@ -22,10 +22,10 @@ test("shared blocker validation rejects expired, unknown and incomplete records"
     { descriptionHash: null },
     { findings: null },
   ]) {
-    assert.equal(blockerContract.isValidRecord({ ...record, ...patch }), false);
+    assert.equal(blockerContract.isRetainableResult({ ...record, ...patch }), false);
   }
   assert.equal(
-    blockerContract.isValidRecord(
+    blockerContract.isRetainableResult(
       record,
       Date.parse(record.checkedAt) + blockerContract.retentionMs,
     ),

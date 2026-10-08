@@ -1,6 +1,7 @@
 // This script runs in Indeed's MAIN world. It observes responses the page already
 // requests; it never requests descriptions, reads cookies, or receives credentials.
 (() => {
+  const { indeedJobKeyPattern } = globalThis.jobSearchContracts.jobUrls;
   const MARKER = "jsc-indeed-description-v1";
   const emit = (model, fallbackKey) => {
     const html = model?.sanitizedJobDescription;
@@ -8,7 +9,7 @@
     if (
       typeof html !== "string" ||
       html.length > 160_000 ||
-      !/^[A-Za-z0-9_-]{8,64}$/.test(jobId || "")
+      !indeedJobKeyPattern.test(jobId || "")
     )
       return;
     window.postMessage({ type: MARKER, jobId, html }, window.location.origin);
@@ -47,7 +48,7 @@
       if (
         typeof text === "string" &&
         text.length <= 80_000 &&
-        /^[A-Za-z0-9_-]{8,64}$/.test(jobId || "")
+        indeedJobKeyPattern.test(jobId || "")
       ) {
         window.postMessage({ type: MARKER, jobId, text }, window.location.origin);
       }

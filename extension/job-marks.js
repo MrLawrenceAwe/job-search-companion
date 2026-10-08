@@ -78,7 +78,7 @@
 
   const render = () => {
     if (!document.body) return;
-    const jobs = companion.jobs.collectJobs(companion.dom.getRenderedRect);
+    const jobs = companion.jobs.collectJobLinks(companion.dom.getRenderedRect);
     for (const kind of Object.keys(marks)) {
       const badgeClass = `jsc-${kind}-badge`;
       const targets = new Map();

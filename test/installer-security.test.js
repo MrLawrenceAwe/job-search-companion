@@ -3,7 +3,7 @@ import { lstat, mkdir, readFile, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import test from "node:test";
 
-import { atomicWrite } from "../installer/file-transaction.js";
+import { atomicWrite } from "../shared/filesystem.js";
 import { installFixture, makeInstallFixture } from "../test-support/install-fixture.js";
 
 test("install rejects symbolic-link targets before changing managed files", async (context) => {

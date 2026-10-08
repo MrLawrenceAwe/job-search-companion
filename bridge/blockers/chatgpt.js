@@ -24,7 +24,7 @@ export class ChatGPTError extends Error {
   }
 }
 
-export const openChatGPT = async ({ path, fetchImpl = fetch, verifyIdentity }) => {
+export const openChatGPTConnection = async ({ path, fetchImpl = fetch, verifyIdentity }) => {
   const store = await openPrivateStore(path, {
     hostId: `urn:uuid:${randomUUID()}`,
     activeId: null,
@@ -54,8 +54,8 @@ export const openChatGPT = async ({ path, fetchImpl = fetch, verifyIdentity }) =
         throw new Error("ChatGPT identity validation failed");
       return payload;
     });
-  let login = null;
-  let refresh = null;
+  let pendingSignIn = null;
+  let refreshPromise = null;
   let lastError = null;
   const active = () => data.accounts.find((account) => account.id === data.activeId);
   const fallbackAccounts = () => {
@@ -75,11 +75,11 @@ export const openChatGPT = async ({ path, fetchImpl = fetch, verifyIdentity }) =
       })
       .map((account) => account.id);
   };
-  const session = () => {
+  const connectionStatus = () => {
     const account = active();
     return {
       connected: Boolean(account?.accessToken),
-      sharing: Boolean(
+      planUsageEnabled: Boolean(
         account?.accessToken && account.scopes.includes("chatgpt.tokens.use.direct"),
       ),
       activeId: data.activeId,
@@ -89,7 +89,7 @@ export const openChatGPT = async ({ path, fetchImpl = fetch, verifyIdentity }) =
         label: `${email || (subject ? "ChatGPT account" : "Incomplete sign-in")} · ${clientId.slice(-8)}`,
       })),
       fallbackIds: fallbackAccounts(),
-      pending: Boolean(login),
+      pending: Boolean(pendingSignIn),
       error: lastError,
     };
   };
@@ -118,18 +118,18 @@ export const openChatGPT = async ({ path, fetchImpl = fetch, verifyIdentity }) =
     scopes: body.scope === undefined ? old.scopes || [] : body.scope.split(/\s+/),
     expiresAt: Date.now() + (Number(body.expires_in) || 3600) * 1000,
   });
-  const cancelLogin = () => {
-    if (!login) return;
-    clearTimeout(login.timer);
-    login.server.close();
-    login = null;
+  const cancelSignIn = () => {
+    if (!pendingSignIn) return;
+    clearTimeout(pendingSignIn.timer);
+    pendingSignIn.server.close();
+    pendingSignIn = null;
   };
   const signIn = async ({
     accountId = data.activeId || data.accounts.findLast((account) => !account.subject)?.id,
     newAccount = false,
     consent = false,
   } = {}) => {
-    cancelLogin();
+    cancelSignIn();
     lastError = null;
     const account = newAccount ? null : data.accounts.find((account) => account.id === accountId);
     if (accountId && !newAccount && !account)
@@ -145,7 +145,7 @@ export const openChatGPT = async ({ path, fetchImpl = fetch, verifyIdentity }) =
       const url = new URL(req.url, attempt.redirectUri);
       if (
         url.pathname !== "/auth/callback" ||
-        login !== attempt ||
+        pendingSignIn !== attempt ||
         url.searchParams.get("state") !== attempt.state ||
         attempt.busy
       ) {
@@ -187,7 +187,7 @@ export const openChatGPT = async ({ path, fetchImpl = fetch, verifyIdentity }) =
         const identity = await verify(body.id_token, clientId, attempt.nonce);
         if (registration.subject && identity.sub !== registration.subject)
           throw new Error("ChatGPT account identity changed. Add it as another account.");
-        if (login !== attempt) throw new Error("Sign-in was cancelled.");
+        if (pendingSignIn !== attempt) throw new Error("Sign-in was cancelled.");
         stage = "saving the connection";
         Object.assign(registration, credentials(body), {
           subject: identity.sub,
@@ -220,7 +220,7 @@ export const openChatGPT = async ({ path, fetchImpl = fetch, verifyIdentity }) =
         });
         res.end(lastError);
       } finally {
-        if (login === attempt) cancelLogin();
+        if (pendingSignIn === attempt) cancelSignIn();
       }
     });
     await new Promise((resolve, reject) => {
@@ -228,10 +228,10 @@ export const openChatGPT = async ({ path, fetchImpl = fetch, verifyIdentity }) =
       attempt.server.listen(0, "127.0.0.1", resolve);
     });
     attempt.redirectUri = `http://127.0.0.1:${attempt.server.address().port}/auth/callback`;
-    login = attempt;
+    pendingSignIn = attempt;
     attempt.timer = setTimeout(() => {
       lastError = "Sign-in timed out. Please try again.";
-      cancelLogin();
+      cancelSignIn();
     }, 5 * 60_000);
     attempt.timer.unref();
     const params = new URLSearchParams({
@@ -261,8 +261,8 @@ export const openChatGPT = async ({ path, fetchImpl = fetch, verifyIdentity }) =
         401,
       );
     if (account.expiresAt > Date.now() + 60_000) return account.accessToken;
-    if (!refresh) {
-      refresh = Promise.resolve()
+    if (!refreshPromise) {
+      refreshPromise = Promise.resolve()
         .then(async () => {
           try {
             if (!account.refreshToken)
@@ -290,10 +290,10 @@ export const openChatGPT = async ({ path, fetchImpl = fetch, verifyIdentity }) =
           }
         })
         .finally(() => {
-          refresh = null;
+          refreshPromise = null;
         });
     }
-    await refresh;
+    await refreshPromise;
     if (active() !== account)
       throw new ChatGPTError("ChatGPT account changed. Retry the check.", "account_changed", 409);
     return account.accessToken;
@@ -325,13 +325,13 @@ export const openChatGPT = async ({ path, fetchImpl = fetch, verifyIdentity }) =
     return response;
   };
   return {
-    session,
+    connectionStatus,
     signIn,
-    cancelLogin,
+    cancelSignIn,
     request,
     fallbackAccounts,
     async select(id) {
-      if (refresh || login)
+      if (refreshPromise || pendingSignIn)
         throw new ChatGPTError(
           "Wait for the current sign-in or refresh to finish.",
           "auth_busy",
@@ -341,11 +341,11 @@ export const openChatGPT = async ({ path, fetchImpl = fetch, verifyIdentity }) =
         throw new ChatGPTError("Unknown ChatGPT account", "invalid_account", 400);
       data.activeId = id;
       await store.save();
-      return session();
+      return connectionStatus();
     },
     async logout() {
-      cancelLogin();
-      if (refresh) await refresh.catch(() => {});
+      cancelSignIn();
+      if (refreshPromise) await refreshPromise.catch(() => {});
       const account = active();
       let revoked = !account?.refreshToken;
       if (account?.refreshToken) {
@@ -374,7 +374,7 @@ export const openChatGPT = async ({ path, fetchImpl = fetch, verifyIdentity }) =
       lastError = revoked
         ? null
         : "Signed out locally. Remote revocation was not confirmed; disconnect the app in ChatGPT Settings.";
-      return session();
+      return connectionStatus();
     },
     async models() {
       const response = await request("models");
@@ -385,6 +385,6 @@ export const openChatGPT = async ({ path, fetchImpl = fetch, verifyIdentity }) =
         .filter((m) => m.visibility === "list")
         .map((m) => ({ slug: m.slug, name: m.display_name }));
     },
-    close: cancelLogin,
+    close: cancelSignIn,
   };
 };

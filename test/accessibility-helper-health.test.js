@@ -28,7 +28,7 @@ test("Accessibility helper health verifies the managed helper and rejects later 
 
   process.env.JSC_BRIDGE_TOKEN = "test-token";
   process.env.JSC_EXTENSION_ORIGIN = "chrome-extension://test";
-  process.env.CODEX_ACCESSIBILITY_HELPER_PATH = binaryPath;
+  process.env.JSC_ACCESSIBILITY_HELPER_PATH = binaryPath;
   process.env.JSC_INSTALL_STATE_PATH = statePath;
   const { readAccessibilityHelperHealth } = await import("../bridge/codex/helper-health.js");
 

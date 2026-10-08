@@ -137,8 +137,8 @@ const handleBlockerMessage = (message, sender, sendResponse) => {
     .then(async (r) => {
       const body = await r.json();
       // Only the extension settings page may receive sign-in URLs or account state.
-      if (!isSettings && body.session) {
-        body.session = { sharing: body.session.sharing };
+      if (!isSettings && body.connectionStatus) {
+        body.connectionStatus = { planUsageEnabled: body.connectionStatus.planUsageEnabled };
         if (body.profile) body.profile = { hash: body.profile.hash };
       }
       sendResponse(body);
