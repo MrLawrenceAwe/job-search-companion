@@ -70,7 +70,7 @@ export const readCompletedResponse = async (response) => {
 export const runBlockerInference = async ({ chatgpt, model, description, profile, signal }) => {
   const response = await chatgpt.request("responses", {
     method: "POST", headers: { "Content-Type": "application/json" }, signal,
-    body: JSON.stringify({ model, store: false, stream: true, instructions,
+    body: JSON.stringify({ model, ...(model === "gpt-6-luna" ? { service_tier: "priority" } : {}), store: false, stream: true, instructions,
       input: [{ role: "user", content: JSON.stringify({ verifiedProfile: profile.facts, jobDescription: description }) }],
       text: { format: { type: "json_schema", name: "blocker_findings", strict: true, schema: outputSchema } },
     }),

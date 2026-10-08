@@ -57,6 +57,10 @@ test("inference uses plan-compatible parameters and produces only blocker findin
   assert.deepEqual(await runBlockerInference({ chatgpt, model: "test-model", description: job().description, profile }), noBlockers);
   assert.equal(captured.store, false); assert.equal(captured.stream, true); assert.equal(captured.endpoint, "responses");
   assert.ok(Array.isArray(captured.input)); assert.equal(captured.background, undefined); assert.equal(captured.tools, undefined);
+  assert.equal(captured.service_tier, undefined);
+  await runBlockerInference({ chatgpt, model: "gpt-6-luna", description: job().description, profile });
+  assert.equal(captured.service_tier, "priority");
+  assert.equal(captured.reasoning, undefined);
 });
 
 test("checker deduplicates across tabs, persists results, and invalidates profile or description changes", async () => {
