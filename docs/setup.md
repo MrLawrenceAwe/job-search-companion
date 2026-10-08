@@ -27,6 +27,10 @@ with bridge installation when you want CV analysis or Indeed blocker checks.
 
 ### 1. Load the Chrome extension
 
+Run `npm run build` from the repository directory to generate the MAIN-world
+description capture bundle. Repeat this after source updates, before reloading
+the extension.
+
 1. Open `chrome://extensions`.
 2. Turn on **Developer mode**.
 3. Choose **Load unpacked**.

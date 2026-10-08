@@ -27,9 +27,7 @@
         "https://*.indeed.co.uk/*"
       ],
       "js": [
-        "contracts/job-urls.js",
-        "contracts/messages.js",
-        "indeed-description-capture.js"
+        "indeed-main.js"
       ],
       "world": "MAIN",
       "run_at": "document_start"

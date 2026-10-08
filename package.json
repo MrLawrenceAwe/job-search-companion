@@ -5,6 +5,8 @@
   "description": "Job tracking and browsing on Indeed and LinkedIn, with Indeed blocker checks using ChatGPT plan usage and full CV fit analysis in Codex.",
   "type": "module",
   "scripts": {
+    "build": "node scripts/build-extension.js",
+    "pretest": "npm run build",
     "start": "node bridge/server.js",
     "test": "swiftc -typecheck bridge/codex/accessibility-helper/*.swift && node --test",
     "check:health": "node scripts/check-health.js"

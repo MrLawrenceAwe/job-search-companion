@@ -51,12 +51,12 @@ task automation, and installation recovery.
 
 ## Install
 
-Load `extension/` through Chrome's **Load unpacked** control for job
+Run `npm run build`, then load `extension/` through Chrome's **Load unpacked** control for job
 marking and browsing shortcuts. Blocker checking needs the local Node bridge and an eligible ChatGPT connection. CV analysis additionally requires macOS, Node.js
 22+, Xcode Command Line Tools, Codex, Accessibility permission and a configured
 `cv-fit-advisor` skill. The skill and CV files are not included in this repository.
 
-After updating, reload the unpacked extension in Chrome and refresh job pages.
+After updating, run `npm run build`, reload the unpacked extension in Chrome and refresh job pages.
 
 Follow [setup, configuration and removal](docs/setup.md) for the bridge, extension
 identity, token, workspace and permissions. This is an independent personal

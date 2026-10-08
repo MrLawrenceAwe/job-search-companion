@@ -5,3 +5,4 @@ node_modules/
 .env.*
 !.env.example
 bridge/codex/accessibility-helper/accessibility-helper
+extension/indeed-main.js
