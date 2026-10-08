@@ -3,11 +3,11 @@ import test from "node:test";
 
 import { createElement, createJobFixture } from "../test-support/job-fixture.js";
 
-const captureTitle = (cvFit, body, title) => {
+const captureTitle = (companion, body, title) => {
   const heading = createElement({ text: title, isHeading: true });
   const card = createElement({ parent: body, heading });
   heading.parentElement = card;
-  cvFit.jobs.captureShareContext(createElement({ parent: card }));
+  companion.jobs.captureShareContext(createElement({ parent: card }));
 };
 
 const visibleJobCarrier = (jobKey, title) => ({
@@ -20,38 +20,38 @@ const visibleJobCarrier = (jobKey, title) => ({
 });
 
 test("Indeed home-page job identity stays stable when mark controls change title-row text", async () => {
-  const { cvFit, document } = await createJobFixture({ href: "https://uk.indeed.com/" });
+  const { companion, document } = await createJobFixture({ href: "https://uk.indeed.com/" });
   const title = "IT Infrastructure Engineer – AI";
   const heading = createElement({ text: title });
   const titleRow = createElement({ text: title });
   const carrier = visibleJobCarrier("fixture123", title);
   document.querySelectorAll = (selector) => {
-    if (selector === cvFit.selectors.jobUrlCarrier) return [carrier];
+    if (selector === companion.selectors.jobUrlCarrier) return [carrier];
     // Indeed renders company-info-title-row before its vj-job-title child.
     if (selector.includes('[data-testid*="title" i]')) return [titleRow, heading];
     if (selector.includes('[data-testid="vj-job-title"]')) return [heading];
     return [];
   };
-  cvFit.dom.getVisibleRect = (element) => ({
+  companion.dom.getViewportRect = (element) => ({
     width: 500, height: 40, left: element === carrier ? 0 : 750, top: 100,
   });
 
   const expectedUrl = "https://uk.indeed.com/viewjob?jk=fixture123";
-  assert.equal(cvFit.jobs.resolveSelectedJobUrl(), expectedUrl);
+  assert.equal(companion.jobs.resolveSelectedJobUrl(), expectedUrl);
   for (const controls of ["Mark as appliedMark as unsuitable", "Unmark as appliedMark as unsuitable", ""]) {
     titleRow.textContent = title + controls;
-    assert.equal(cvFit.jobs.resolveSelectedJobUrl(), expectedUrl);
+    assert.equal(companion.jobs.resolveSelectedJobUrl(), expectedUrl);
   }
 
   // A real selection change must still update the controls' job identity.
   heading.textContent = "Support Specialist";
   carrier.textContent = heading.textContent;
   carrier.getAttribute = (name) => name === "href" ? "/viewjob?jk=secondjob1" : null;
-  assert.equal(cvFit.jobs.resolveSelectedJobUrl(), "https://uk.indeed.com/viewjob?jk=secondjob1");
+  assert.equal(companion.jobs.resolveSelectedJobUrl(), "https://uk.indeed.com/viewjob?jk=secondjob1");
 });
 
 test("resolves an embedded job key using the captured share context", async () => {
-  const { body, cvFit } = await createJobFixture({
+  const { body, companion } = await createJobFixture({
     href: "https://uk.indeed.com/jobs?q=support",
     scripts: ['{"jobKey":"fixture123","title":"Senior Support Specialist"}'],
   });
@@ -60,16 +60,16 @@ test("resolves an embedded job key using the captured share context", async () =
   heading.parentElement = card;
   const shareButton = createElement({ parent: card });
 
-  cvFit.jobs.captureShareContext(shareButton);
+  companion.jobs.captureShareContext(shareButton);
 
   assert.equal(
-    cvFit.jobs.resolveJobUrl(createElement()),
+    companion.jobs.resolveJobUrl(createElement()),
     "https://uk.indeed.com/viewjob?jk=fixture123",
   );
 });
 
 test("ignores Indeed's detail-heading suffix when resolving the shared job", async () => {
-  const { body, cvFit } = await createJobFixture({
+  const { body, companion } = await createJobFixture({
     href: "https://uk.indeed.com/?vjk=03eef228667e3e0d",
     scripts: ['{"jobKey":"03eef228667e3e0d","displayTitle":"Project Administrator"}'],
   });
@@ -77,86 +77,86 @@ test("ignores Indeed's detail-heading suffix when resolving the shared job", asy
   const detailHeader = createElement({ parent: body, heading });
   heading.parentElement = detailHeader;
 
-  cvFit.jobs.captureShareContext(createElement({ parent: detailHeader }));
+  companion.jobs.captureShareContext(createElement({ parent: detailHeader }));
 
   assert.equal(
-    cvFit.jobs.resolveJobUrl(createElement()),
+    companion.jobs.resolveJobUrl(createElement()),
     "https://uk.indeed.com/viewjob?jk=03eef228667e3e0d",
   );
 });
 
 test("falls back to the canonical job URL", async () => {
-  const { cvFit } = await createJobFixture({
+  const { companion } = await createJobFixture({
     href: "https://uk.indeed.com/jobs?q=support",
     canonicalUrl: "https://uk.indeed.com/viewjob?jk=canonical1&utm_source=test",
   });
 
   assert.equal(
-    cvFit.jobs.resolveJobUrl(createElement()),
+    companion.jobs.resolveJobUrl(createElement()),
     "https://uk.indeed.com/viewjob?jk=canonical1",
   );
 });
 
 test("does not treat arbitrary Indeed pages with a job-like query as job pages", async () => {
-  const { cvFit } = await createJobFixture({
+  const { companion } = await createJobFixture({
     href: "https://uk.indeed.com/company?jk=canonical1",
   });
 
   assert.equal(
-    cvFit.jobs.jobUrlFromIndeedPageUrl("https://uk.indeed.com/company?jk=canonical1"),
+    companion.jobs.jobUrlFromPageUrl("https://uk.indeed.com/company?jk=canonical1"),
     null,
   );
 });
 
 test("resolves a LinkedIn detail-page job URL", async () => {
-  const { cvFit } = await createJobFixture({
+  const { companion } = await createJobFixture({
     href: "https://www.linkedin.com/jobs/view/4447780789/?trackingId=ignored",
   });
 
   assert.equal(
-    cvFit.jobs.resolveCurrentJobUrl(),
+    companion.jobs.resolveCurrentJobUrl(),
     "https://www.linkedin.com/jobs/view/4447780789/",
   );
 });
 
 test("resolves the selected LinkedIn job from currentJobId", async () => {
-  const { cvFit } = await createJobFixture({
+  const { companion } = await createJobFixture({
     href: "https://www.linkedin.com/jobs/search-results/?currentJobId=4447780789&keywords=qa",
   });
 
   assert.equal(
-    cvFit.jobs.resolveCurrentJobUrl(),
+    companion.jobs.resolveCurrentJobUrl(),
     "https://www.linkedin.com/jobs/view/4447780789/",
   );
 });
 
 test("keeps the LinkedIn job selected when its More options menu opens", async () => {
-  const { body, cvFit } = await createJobFixture({
+  const { body, companion } = await createJobFixture({
     href: "https://www.linkedin.com/jobs/search-results/?currentJobId=4447780789",
   });
 
-  cvFit.jobs.captureShareContext(createElement({ parent: body }));
+  companion.jobs.captureShareContext(createElement({ parent: body }));
 
   assert.equal(
-    cvFit.jobs.resolveJobUrl(createElement()),
+    companion.jobs.resolveJobUrl(createElement()),
     "https://www.linkedin.com/jobs/view/4447780789/",
   );
 });
 
 test("prefers the exact job key in the results-page URL", async () => {
-  const { cvFit } = await createJobFixture({
+  const { companion } = await createJobFixture({
     href: "https://uk.indeed.com/jobs?q=support&vjk=detailpane1",
     scripts: ['{"jobKey":"unrelated1","title":"Another Job"}'],
   });
 
   assert.equal(
-    cvFit.jobs.resolveJobUrl(createElement()),
+    companion.jobs.resolveJobUrl(createElement()),
     "https://uk.indeed.com/viewjob?jk=detailpane1",
   );
 });
 
 test("prefers captured share context over a different results-page job", async () => {
-  const { body, cvFit } = await createJobFixture({
+  const { body, companion } = await createJobFixture({
     href: "https://uk.indeed.com/jobs?q=support&vjk=otherjob1",
     scripts: ['{"jobKey":"sharedjob1","title":"Shared Support Job"}'],
   });
@@ -164,36 +164,36 @@ test("prefers captured share context over a different results-page job", async (
   const card = createElement({ parent: body, heading });
   heading.parentElement = card;
 
-  cvFit.jobs.captureShareContext(createElement({ parent: card }));
+  companion.jobs.captureShareContext(createElement({ parent: card }));
 
   assert.equal(
-    cvFit.jobs.resolveJobUrl(createElement()),
+    companion.jobs.resolveJobUrl(createElement()),
     "https://uk.indeed.com/viewjob?jk=sharedjob1",
   );
 });
 
 test("resolves the current job independently of stale share-menu context", async () => {
-  const { body, cvFit } = await createJobFixture({
+  const { body, companion } = await createJobFixture({
     href: "https://uk.indeed.com/jobs?q=support&vjk=currentjob1",
     scripts: ['{"jobKey":"sharedjob1","title":"Previously Shared Job"}'],
   });
   const heading = createElement({ text: "Previously Shared Job", isHeading: true });
   const card = createElement({ parent: body, heading });
   heading.parentElement = card;
-  cvFit.jobs.captureShareContext(createElement({ parent: card }));
+  companion.jobs.captureShareContext(createElement({ parent: card }));
 
   assert.equal(
-    cvFit.jobs.resolveCurrentJobUrl(),
+    companion.jobs.resolveCurrentJobUrl(),
     "https://uk.indeed.com/viewjob?jk=currentjob1",
   );
   assert.equal(
-    cvFit.jobs.resolveJobUrl(createElement()),
+    companion.jobs.resolveJobUrl(createElement()),
     "https://uk.indeed.com/viewjob?jk=sharedjob1",
   );
 });
 
 test("uses title evidence to disambiguate multiple job URLs near the share button", async () => {
-  const { body, cvFit } = await createJobFixture({
+  const { body, companion } = await createJobFixture({
     href: "https://uk.indeed.com/jobs?q=support&vjk=otherjob1",
     scripts: ['{"jobKey":"sharedjob1","title":"Shared Support Job"}'],
   });
@@ -218,16 +218,16 @@ test("uses title evidence to disambiguate multiple job URLs near the share butto
   card.children.push(...nearbyJobLinks);
   heading.parentElement = card;
 
-  cvFit.jobs.captureShareContext(createElement({ parent: card }));
+  companion.jobs.captureShareContext(createElement({ parent: card }));
 
   assert.equal(
-    cvFit.jobs.resolveJobUrl(createElement()),
+    companion.jobs.resolveJobUrl(createElement()),
     "https://uk.indeed.com/viewjob?jk=sharedjob1",
   );
 });
 
 test("fails closed when a single nearby URL conflicts with captured title evidence", async () => {
-  const { body, cvFit } = await createJobFixture({
+  const { body, companion } = await createJobFixture({
     href: "https://uk.indeed.com/jobs?q=support",
     scripts: ['{"jobKey":"titlejob11","title":"Shared Support Job"}'],
   });
@@ -243,16 +243,16 @@ test("fails closed when a single nearby URL conflicts with captured title eviden
   card.children.push(nearbyJobLink);
   heading.parentElement = card;
 
-  cvFit.jobs.captureShareContext(createElement({ parent: card }));
+  companion.jobs.captureShareContext(createElement({ parent: card }));
 
   assert.throws(
-    () => cvFit.jobs.resolveJobUrl(createElement()),
+    () => companion.jobs.resolveJobUrl(createElement()),
     /could not be identified safely/,
   );
 });
 
 test("stops nearby DOM discovery after the attribute-element budget", async () => {
-  const { body, cvFit } = await createJobFixture({
+  const { body, companion } = await createJobFixture({
     href: "https://uk.indeed.com/jobs?q=support&vjk=otherjob1",
   });
   let matchingElementsVisited = 0;
@@ -278,66 +278,66 @@ test("stops nearby DOM discovery after the attribute-element budget", async () =
   const card = createElement({ parent: body });
   card.children = [descendants];
 
-  cvFit.jobs.captureShareContext(createElement({ parent: card }));
+  companion.jobs.captureShareContext(createElement({ parent: card }));
 
   assert.equal(matchingElementsVisited, 201);
   assert.equal(hrefsRead, 200);
   assert.throws(
-    () => cvFit.jobs.resolveJobUrl(createElement()),
+    () => companion.jobs.resolveJobUrl(createElement()),
     /could not be identified safely/,
   );
 });
 
 test("fails closed when captured context cannot be resolved safely", async () => {
-  const { body, cvFit } = await createJobFixture({
+  const { body, companion } = await createJobFixture({
     href: "https://uk.indeed.com/jobs?q=support&vjk=otherjob1",
   });
   const heading = createElement({ text: "Missing Shared Job", isHeading: true });
   const card = createElement({ parent: body, heading });
   heading.parentElement = card;
 
-  cvFit.jobs.captureShareContext(createElement({ parent: card }));
+  companion.jobs.captureShareContext(createElement({ parent: card }));
 
   assert.throws(
-    () => cvFit.jobs.resolveJobUrl(createElement()),
+    () => companion.jobs.resolveJobUrl(createElement()),
     /could not be identified safely/,
   );
 });
 
 test("keeps captured share context until the menu action consumes it", async () => {
-  const { body, cvFit } = await createJobFixture({
+  const { body, companion } = await createJobFixture({
     href: "https://uk.indeed.com/jobs?q=support&vjk=otherjob1",
     scripts: ['{"jobKey":"sharedjob1","title":"Shared Support Job"}'],
   });
   const heading = createElement({ text: "Shared Support Job", isHeading: true });
   const card = createElement({ parent: body, heading });
   heading.parentElement = card;
-  cvFit.jobs.captureShareContext(createElement({ parent: card }));
+  companion.jobs.captureShareContext(createElement({ parent: card }));
 
   assert.equal(
-    cvFit.jobs.resolveJobUrl(createElement()),
+    companion.jobs.resolveJobUrl(createElement()),
     "https://uk.indeed.com/viewjob?jk=sharedjob1",
   );
   assert.equal(
-    cvFit.jobs.resolveJobUrl(createElement()),
+    companion.jobs.resolveJobUrl(createElement()),
     "https://uk.indeed.com/viewjob?jk=otherjob1",
   );
 });
 
 test("does not fall back to a different page job when captured context has no evidence", async () => {
-  const { body, cvFit } = await createJobFixture({
+  const { body, companion } = await createJobFixture({
     href: "https://uk.indeed.com/jobs?q=support&vjk=otherjob1",
   });
-  cvFit.jobs.captureShareContext(createElement({ parent: createElement({ parent: body }) }));
+  companion.jobs.captureShareContext(createElement({ parent: createElement({ parent: body }) }));
 
   assert.throws(
-    () => cvFit.jobs.resolveJobUrl(createElement()),
+    () => companion.jobs.resolveJobUrl(createElement()),
     /could not be identified safely/,
   );
 });
 
 test("fails closed when a captured title maps to multiple job keys", async () => {
-  const { body, cvFit } = await createJobFixture({
+  const { body, companion } = await createJobFixture({
     href: "https://uk.indeed.com/jobs?q=manager",
     scripts: [
       '{"jobKey":"duplicate1","title":"Client Manager"}',
@@ -347,16 +347,16 @@ test("fails closed when a captured title maps to multiple job keys", async () =>
   const heading = createElement({ text: "Client Manager", isHeading: true });
   const card = createElement({ parent: body, heading });
   heading.parentElement = card;
-  cvFit.jobs.captureShareContext(createElement({ parent: card }));
+  companion.jobs.captureShareContext(createElement({ parent: card }));
 
   assert.throws(
-    () => cvFit.jobs.resolveJobUrl(createElement()),
+    () => companion.jobs.resolveJobUrl(createElement()),
     /could not be identified safely/,
   );
 });
 
 test("stops scanning embedded scripts as soon as the title mapping is ambiguous", async () => {
-  const { body, cvFit, document } = await createJobFixture({
+  const { body, companion, document } = await createJobFixture({
     href: "https://uk.indeed.com/jobs?q=manager",
   });
   let laterScriptReads = 0;
@@ -365,10 +365,10 @@ test("stops scanning embedded scripts as soon as the title mapping is ambiguous"
     { textContent: '{"jobKey":"earlyjob2","title":"Client Manager"}' },
     { get textContent() { laterScriptReads += 1; return '{"jobKey":"laterjob3","title":"Client Manager"}'; } },
   ];
-  captureTitle(cvFit, body, "Client Manager");
+  captureTitle(companion, body, "Client Manager");
 
   assert.throws(
-    () => cvFit.jobs.resolveJobUrl(createElement()),
+    () => companion.jobs.resolveJobUrl(createElement()),
     /could not be identified safely/,
   );
   assert.equal(laterScriptReads, 0);
@@ -376,7 +376,7 @@ test("stops scanning embedded scripts as soon as the title mapping is ambiguous"
 
 test("fails closed when the embedded candidate budget prevents a complete scan", async () => {
   const repeatedCandidate = '{"jobKey":"repeated1","title":"Client Manager"}';
-  const { body, cvFit, document } = await createJobFixture({
+  const { body, companion, document } = await createJobFixture({
     href: "https://uk.indeed.com/jobs?q=manager",
   });
   let laterScriptReads = 0;
@@ -384,10 +384,10 @@ test("fails closed when the embedded candidate budget prevents a complete scan",
     { textContent: Array.from({ length: 121 }, () => repeatedCandidate).join(",") },
     { get textContent() { laterScriptReads += 1; return repeatedCandidate; } },
   ];
-  captureTitle(cvFit, body, "Client Manager");
+  captureTitle(companion, body, "Client Manager");
 
   assert.throws(
-    () => cvFit.jobs.resolveJobUrl(createElement()),
+    () => companion.jobs.resolveJobUrl(createElement()),
     /could not be identified safely/,
   );
   assert.equal(laterScriptReads, 0);
@@ -395,41 +395,41 @@ test("fails closed when the embedded candidate budget prevents a complete scan",
 
 test("accepts a complete embedded scan that exactly consumes the candidate budget", async () => {
   const repeatedCandidate = '{"jobKey":"repeated1","title":"Client Manager"}';
-  const { body, cvFit, document } = await createJobFixture({
+  const { body, companion, document } = await createJobFixture({
     href: "https://uk.indeed.com/jobs?q=manager",
   });
   document.scripts = [
     { textContent: Array.from({ length: 120 }, () => repeatedCandidate).join(",") },
   ];
-  captureTitle(cvFit, body, "Client Manager");
+  captureTitle(companion, body, "Client Manager");
 
   assert.equal(
-    cvFit.jobs.resolveJobUrl(createElement()),
+    companion.jobs.resolveJobUrl(createElement()),
     "https://uk.indeed.com/viewjob?jk=repeated1",
   );
 });
 
 test("fails closed when visible and embedded title evidence identifies different jobs", async () => {
-  const { body, cvFit, document } = await createJobFixture({
+  const { body, companion, document } = await createJobFixture({
     href: "https://uk.indeed.com/jobs?q=support",
     scripts: ['{"jobKey":"embedded11","title":"Support Specialist"}'],
   });
   document.querySelectorAll = (selector) => (
-    selector === cvFit.selectors.jobUrlCarrier
+    selector === companion.selectors.jobUrlCarrier
       ? [visibleJobCarrier("visible111", "Support Specialist")]
       : []
   );
-  cvFit.dom.getVisibleRect = () => ({ width: 500, height: 100, left: 0, top: 0 });
-  captureTitle(cvFit, body, "Support Specialist");
+  companion.dom.getViewportRect = () => ({ width: 500, height: 100, left: 0, top: 0 });
+  captureTitle(companion, body, "Support Specialist");
 
   assert.throws(
-    () => cvFit.jobs.resolveJobUrl(createElement()),
+    () => companion.jobs.resolveJobUrl(createElement()),
     /could not be identified safely/,
   );
 });
 
 test("uses a unique visible title match when embedded title evidence is ambiguous", async () => {
-  const { body, cvFit, document } = await createJobFixture({
+  const { body, companion, document } = await createJobFixture({
     href: "https://uk.indeed.com/jobs?q=support",
     scripts: [
       '{"jobKey":"embedded11","title":"Support Specialist"}',
@@ -437,21 +437,21 @@ test("uses a unique visible title match when embedded title evidence is ambiguou
     ],
   });
   document.querySelectorAll = (selector) => (
-    selector === cvFit.selectors.jobUrlCarrier
+    selector === companion.selectors.jobUrlCarrier
       ? [visibleJobCarrier("visible111", "Support Specialist")]
       : []
   );
-  cvFit.dom.getVisibleRect = () => ({ width: 500, height: 100, left: 0, top: 0 });
-  captureTitle(cvFit, body, "Support Specialist");
+  companion.dom.getViewportRect = () => ({ width: 500, height: 100, left: 0, top: 0 });
+  captureTitle(companion, body, "Support Specialist");
 
   assert.equal(
-    cvFit.jobs.resolveJobUrl(createElement()),
+    companion.jobs.resolveJobUrl(createElement()),
     "https://uk.indeed.com/viewjob?jk=visible111",
   );
 });
 
 test("fails closed when visible title evidence is ambiguous", async () => {
-  const { body, cvFit, document } = await createJobFixture({
+  const { body, companion, document } = await createJobFixture({
     href: "https://uk.indeed.com/jobs?q=support",
   });
   let scriptReads = 0;
@@ -462,18 +462,18 @@ test("fails closed when visible title evidence is ambiguous", async () => {
     },
   }];
   document.querySelectorAll = (selector) => (
-    selector === cvFit.selectors.jobUrlCarrier
+    selector === companion.selectors.jobUrlCarrier
       ? [
           visibleJobCarrier("visible111", "Support Specialist"),
           visibleJobCarrier("visible222", "Support Specialist"),
         ]
       : []
   );
-  cvFit.dom.getVisibleRect = () => ({ width: 500, height: 100, left: 0, top: 0 });
-  captureTitle(cvFit, body, "Support Specialist");
+  companion.dom.getViewportRect = () => ({ width: 500, height: 100, left: 0, top: 0 });
+  captureTitle(companion, body, "Support Specialist");
 
   assert.throws(
-    () => cvFit.jobs.resolveJobUrl(createElement()),
+    () => companion.jobs.resolveJobUrl(createElement()),
     /could not be identified safely/,
   );
   assert.equal(scriptReads, 0);

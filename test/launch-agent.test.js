@@ -14,15 +14,15 @@ const execFileAsync = promisify(execFile);
 
 test("the LaunchAgent does not restart the bridge for source-file changes", async () => {
   const plist = await readFile(
-    new URL("../launchd/com.lawrenceawe.indeed-cv-fit-bridge.plist", import.meta.url),
+    new URL("../launchd/com.lawrenceawe.job-search-companion.plist", import.meta.url),
     "utf8",
   );
 
-  assert.match(plist, /<string>__INDEED_CV_FIT_NODE_EXECUTABLE__<\/string>\s*<string>__INDEED_CV_FIT_BRIDGE_ROOT__\/bridge\/server\.js<\/string>/);
-  assert.match(plist, /<key>WorkingDirectory<\/key>\s*<string>__INDEED_CV_FIT_BRIDGE_ROOT__<\/string>/);
-  assert.match(plist, /<key>INDEED_CV_FIT_WORKSPACE<\/key>\s*<string>__INDEED_CV_FIT_WORKSPACE__<\/string>/);
-  assert.match(plist, /<key>INDEED_CV_FIT_LOG_PATH<\/key>\s*<string>__INDEED_CV_FIT_LOG_PATH__<\/string>/);
-  assert.match(plist, /<key>INDEED_CV_FIT_BRIDGE_INSTANCE_ID<\/key>\s*<string>__INDEED_CV_FIT_BRIDGE_INSTANCE_ID__<\/string>/);
+  assert.match(plist, /<string>__JSC_NODE_EXECUTABLE__<\/string>\s*<string>__JSC_BRIDGE_ROOT__\/bridge\/server\.js<\/string>/);
+  assert.match(plist, /<key>WorkingDirectory<\/key>\s*<string>__JSC_BRIDGE_ROOT__<\/string>/);
+  assert.match(plist, /<key>JSC_WORKSPACE<\/key>\s*<string>__JSC_WORKSPACE__<\/string>/);
+  assert.match(plist, /<key>JSC_LOG_PATH<\/key>\s*<string>__JSC_LOG_PATH__<\/string>/);
+  assert.match(plist, /<key>JSC_BRIDGE_INSTANCE_ID<\/key>\s*<string>__JSC_BRIDGE_INSTANCE_ID__<\/string>/);
   assert.doesNotMatch(plist, /--watch/);
   assert.doesNotMatch(plist, /\/tmp\/indeed-cv-fit-bridge/);
   assert.equal((plist.match(/<string>\/dev\/null<\/string>/g) || []).length, 2);
@@ -39,12 +39,12 @@ test("installation precompiles the Accessibility helper", async () => {
     /\/usr\/bin\/swiftc -O "\$ROOT\/bridge\/codex\/accessibility-helper"\/\*\.swift -o "\$helper_binary"/,
   );
   assert.match(installScript, /--accessibility-helper-source "\$helper_binary"/);
-  assert.match(installScript, /--accessibility-helper-target "\$HOME\/Library\/Application Support\/Indeed CV Fit Bridge\/accessibility-helper"/);
+  assert.match(installScript, /--accessibility-helper-target "\$HOME\/Library\/Application Support\/Job Search Companion\/accessibility-helper"/);
   assert.doesNotMatch(installScript, /mv -f "\$helper_binary"/);
   assert.match(installScript, /ROOT=\$\(CDPATH= cd "\$\(dirname "\$0"\)\/\.\." && pwd -P\)/);
   assert.match(installScript, /--root-path "\$ROOT"/);
   assert.match(installScript, /--workspace-path "\$WORKSPACE_PATH"/);
-  assert.match(installScript, /LOG_PATH="\$\{INDEED_CV_FIT_LOG_PATH:-\$HOME\/Library\/Application Support\/Indeed CV Fit Bridge\/bridge\.log\}"/);
+  assert.match(installScript, /LOG_PATH="\$\{JSC_LOG_PATH:-\$HOME\/Library\/Application Support\/Job Search Companion\/bridge\.log\}"/);
   assert.match(installScript, /--log-path "\$LOG_PATH"/);
   assert.match(installScript, /--instance-id "\$bridge_instance_id"/);
 });
@@ -79,8 +79,8 @@ test("health verification rejects another bridge instance on the same port", asy
   ], {
     env: {
       ...process.env,
-      INDEED_CV_FIT_BRIDGE_TOKEN: "test-token",
-      INDEED_CV_FIT_BRIDGE_INSTANCE_ID: instanceId,
+      JSC_BRIDGE_TOKEN: "test-token",
+      JSC_BRIDGE_INSTANCE_ID: instanceId,
       FAKE_HEALTH_BODY: JSON.stringify(body),
     },
   });
@@ -96,7 +96,7 @@ test("reinstall stops the bridge before replacing its managed helper", async () 
   );
 
   const stopOffset = installScript.indexOf("if stop_launch_agent; then", installScript.indexOf("install_bridge()"));
-  const installOffset = installScript.indexOf('node "$ROOT/scripts/install-state-cli.js" install');
+  const installOffset = installScript.indexOf('node "$ROOT/scripts/bridge-install-cli.js" install');
   assert.ok(stopOffset >= 0);
   assert.ok(installOffset >= 0);
   assert.ok(stopOffset < installOffset);
@@ -113,8 +113,8 @@ test("reinstall backs up every managed artifact before stopping the bridge", asy
 
   assert.ok(backupOffset > installStart);
   assert.ok(stopOffset > backupOffset);
-  assert.match(installScript, /retired-artifact-paths/);
-  assert.match(installScript, /restore_managed_file "\$artifact_path" "retired-\$artifact_name"/);
+  assert.match(installScript, /managed-artifact-paths/);
+  assert.match(installScript, /restore_managed_file "\$artifact_path" "managed-\$artifact_name"/);
 });
 
 test("a failed replacement startup restores the prior installed artifacts", async () => {
@@ -124,7 +124,7 @@ test("a failed replacement startup restores the prior installed artifacts", asyn
   );
 
   const backupOffset = installScript.indexOf("backup_current_installation");
-  const installOffset = installScript.indexOf('node "$ROOT/scripts/install-state-cli.js" install');
+  const installOffset = installScript.indexOf('node "$ROOT/scripts/bridge-install-cli.js" install');
   const failedStartOffset = installScript.indexOf("if ! start_verified_launch_agent; then");
   const restoreOffset = installScript.indexOf("restore_current_installation", failedStartOffset);
 
@@ -135,7 +135,7 @@ test("a failed replacement startup restores the prior installed artifacts", asyn
   assert.ok(backupOffset < installOffset);
   assert.doesNotMatch(
     installScript.slice(failedStartOffset, restoreOffset + 200),
-    /install-state-cli\.js" uninstall/,
+    /bridge-install-cli\.js" uninstall/,
   );
 });
 
@@ -151,7 +151,7 @@ test("installation verifies the bridge health endpoint after launchd starts it",
   );
   assert.match(
     installScript,
-    /INDEED_CV_FIT_BRIDGE_INSTANCE_ID="\$bridge_instance_id" node "\$ROOT\/scripts\/check-health\.js" >\/dev\/null 2>&1/,
+    /JSC_BRIDGE_INSTANCE_ID="\$bridge_instance_id" node "\$ROOT\/scripts\/check-health\.js" >\/dev\/null 2>&1/,
   );
   assert.match(
     installScript,
@@ -177,7 +177,7 @@ test("a failed uninstall retries and restarts a LaunchAgent that was previously 
   const logPath = join(fixtureRoot, "launchctl.log");
   const plistPath = join(
     homePath,
-    "Library/LaunchAgents/com.lawrenceawe.indeed-cv-fit-bridge.plist",
+    "Library/LaunchAgents/com.lawrenceawe.job-search-companion.plist",
   );
   await mkdir(binPath, { recursive: true });
   await mkdir(join(plistPath, ".."), { recursive: true });

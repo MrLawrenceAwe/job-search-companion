@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.lawrenceawe.job-search-companion</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>__JSC_NODE_EXECUTABLE__</string>
+    <string>__JSC_BRIDGE_ROOT__/bridge/server.js</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>__JSC_BRIDGE_ROOT__</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>JSC_WORKSPACE</key>
+    <string>__JSC_WORKSPACE__</string>
+    <key>JSC_LOG_PATH</key>
+    <string>__JSC_LOG_PATH__</string>
+    <key>JSC_BRIDGE_TOKEN</key>
+    <string>__JSC_BRIDGE_TOKEN__</string>
+    <key>JSC_EXTENSION_ORIGIN</key>
+    <string>__JSC_EXTENSION_ORIGIN__</string>
+    <key>JSC_BRIDGE_INSTANCE_ID</key>
+    <string>__JSC_BRIDGE_INSTANCE_ID__</string>
+    <key>PATH</key>
+    <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>/dev/null</string>
+
+  <key>StandardErrorPath</key>
+  <string>/dev/null</string>
+</dict>
+</plist>

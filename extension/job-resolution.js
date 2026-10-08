@@ -1,5 +1,5 @@
 (() => {
-  const cvFit = globalThis.cvFitBridge;
+  const companion = globalThis.jobSearchCompanion;
 
   const MAX_TOTAL_JOB_KEY_CANDIDATES = 120;
   const MAX_SCRIPT_LENGTH = 2_000_000;
@@ -29,7 +29,7 @@
     for (const pattern of keyPatterns) {
       for (const match of text.matchAll(pattern)) {
         const jobKey = match[1];
-        if (!cvFit.jobs.jobKeyPattern.test(jobKey)) {
+        if (!companion.jobs.jobKeyPattern.test(jobKey)) {
           continue;
         }
 
@@ -41,7 +41,11 @@
 
         const start = Math.max(0, match.index - TITLE_CONTEXT_CHARS);
         const end = Math.min(text.length, match.index + TITLE_CONTEXT_CHARS);
-        if (cvFit.text.normalizeForMatch(decodePageText(text.slice(start, end))).includes(normalizedTitle)) {
+        if (
+          companion.text
+            .normalizeForMatch(decodePageText(text.slice(start, end)))
+            .includes(normalizedTitle)
+        ) {
           yield jobKey;
         }
       }
@@ -49,7 +53,7 @@
   };
 
   const resolveScriptJobByTitle = (title) => {
-    const normalizedTitle = cvFit.text.normalizeForMatch(title);
+    const normalizedTitle = companion.text.normalizeForMatch(title);
     if (!normalizedTitle) {
       return { status: "not-found", jobUrl: null };
     }
@@ -77,7 +81,7 @@
       scannedScriptLength += text.length;
 
       for (const jobKey of jobKeysNearTitle(text, normalizedTitle, budget)) {
-        matchingJobUrls.add(cvFit.jobs.jobUrlFromKey(jobKey));
+        matchingJobUrls.add(companion.jobs.indeedJobUrlFromKey(jobKey));
         if (matchingJobUrls.size > 1) {
           return { status: "ambiguous", jobUrl: null };
         }
@@ -131,18 +135,21 @@
       return null;
     }
 
-    if (/^(data-)?v?jk$|^data-jobkey$/i.test(attributeName) && cvFit.jobs.jobKeyPattern.test(value)) {
-      return cvFit.jobs.jobUrlFromKey(value);
+    if (
+      /^(data-)?v?jk$|^data-jobkey$/i.test(attributeName) &&
+      companion.jobs.jobKeyPattern.test(value)
+    ) {
+      return companion.jobs.indeedJobUrlFromKey(value);
     }
 
     if (/^id$/i.test(attributeName)) {
       const jobKey = value.match(/^job_([A-Za-z0-9_-]+)$/)?.[1];
-      if (jobKey && cvFit.jobs.jobKeyPattern.test(jobKey)) {
-        return cvFit.jobs.jobUrlFromKey(jobKey);
+      if (jobKey && companion.jobs.jobKeyPattern.test(jobKey)) {
+        return companion.jobs.indeedJobUrlFromKey(jobKey);
       }
     }
 
-    return cvFit.jobs.extractJobUrl(value);
+    return companion.jobs.extractJobUrl(value);
   };
 
   const scanJobUrlsInSubtree = (root) => {
@@ -178,19 +185,19 @@
 
   const findUniqueJobUrlInSubtree = (root) => {
     const urlScan = scanJobUrlsInSubtree(root);
-    return urlScan.complete && urlScan.jobUrls.length === 1
-      ? urlScan.jobUrls[0]
-      : null;
+    return urlScan.complete && urlScan.jobUrls.length === 1 ? urlScan.jobUrls[0] : null;
   };
 
   const readHeading = (element) => {
-    const heading = element?.matches?.("h1, h2, h3") ? element : element?.querySelector?.("h1, h2, h3");
+    const heading = element?.matches?.("h1, h2, h3")
+      ? element
+      : element?.querySelector?.("h1, h2, h3");
     return cleanJobTitle(heading?.textContent);
   };
 
   const findJobTitleNear = (sourceElement) => {
     for (const element of ancestorsOf(sourceElement, 8)) {
-      const rect = cvFit.dom.getVisibleRect(element);
+      const rect = companion.dom.getViewportRect(element);
       if (!rect || rect.width > 1000 || rect.height > 420 || element.childElementCount > 120) {
         continue;
       }
@@ -205,7 +212,7 @@
 
   const collectJobs = (getRect) => {
     const jobEntries = [];
-    for (const element of document.querySelectorAll(cvFit.selectors.jobUrlCarrier)) {
+    for (const element of document.querySelectorAll(companion.selectors.jobUrlCarrier)) {
       if (!getRect(element)) {
         continue;
       }
@@ -217,22 +224,22 @@
     return jobEntries;
   };
 
-  const collectVisibleJobs = () => collectJobs(cvFit.dom.getVisibleRect);
+  const collectVisibleJobs = () => collectJobs(companion.dom.getViewportRect);
 
   const candidateTitles = (carrier) => {
     const titles = [carrier.textContent, carrier.getAttribute("aria-label"), carrier.title];
     for (const element of ancestorsOf(carrier.parentElement, 7)) {
-      const rect = cvFit.dom.getVisibleRect(element);
+      const rect = companion.dom.getViewportRect(element);
       if (!rect || rect.width > 720 || rect.height > 520 || element.childElementCount > 160) {
         continue;
       }
       titles.push(readHeading(element), element.textContent);
     }
-    return titles.map(cvFit.text.normalizeForMatch).filter(Boolean);
+    return titles.map(companion.text.normalizeForMatch).filter(Boolean);
   };
 
   const resolveVisibleJobByTitle = (title) => {
-    const normalizedTitle = cvFit.text.normalizeForMatch(title);
+    const normalizedTitle = companion.text.normalizeForMatch(title);
     if (!normalizedTitle) {
       return { status: "not-found", jobUrl: null };
     }
@@ -253,9 +260,14 @@
   const findDetailPaneJobTitle = () => {
     // Title-row wrappers also contain our mark buttons. Reading their text
     // makes the job identity change whenever controls are inserted or removed.
-    const headings = [...document.querySelectorAll(`h1, h2, ${cvFit.selectors.jobDetailTitle}`)];
+    const headings = [
+      ...document.querySelectorAll(`h1, h2, ${companion.selectors.jobDetailTitle}`),
+    ];
     const rightPaneHeadings = headings
-      .map((heading) => ({ heading, rect: cvFit.dom.getVisibleRect(heading) }))
+      .map((heading) => ({
+        heading,
+        rect: companion.dom.getViewportRect(heading),
+      }))
       .filter(({ rect }) => rect && rect.left > window.innerWidth * 0.35)
       .sort((left, right) => left.rect.top - right.rect.top || left.rect.left - right.rect.left);
 
@@ -269,13 +281,18 @@
   };
 
   const findJobUrlInMenu = (sourceElement) => {
-    return findUniqueJobUrlInSubtree(sourceElement?.closest?.(cvFit.selectors.menuContext));
+    return findUniqueJobUrlInSubtree(sourceElement?.closest?.(companion.selectors.menuContext));
   };
 
   const scanJobUrlsNear = (sourceElement) => {
     for (const element of ancestorsOf(sourceElement, 8)) {
-      const rect = cvFit.dom.getVisibleRect(element);
-      if (!rect || rect.width > 1000 || rect.height > 1200 || element.childElementCount > MAX_ATTRIBUTE_ELEMENTS) {
+      const rect = companion.dom.getViewportRect(element);
+      if (
+        !rect ||
+        rect.width > 1000 ||
+        rect.height > 1200 ||
+        element.childElementCount > MAX_ATTRIBUTE_ELEMENTS
+      ) {
         continue;
       }
 
@@ -293,9 +310,10 @@
     pendingShareContext = {
       nearbyUrlScan: scanJobUrlsNear(shareButton),
       title: findJobTitleNear(shareButton) || findDetailPaneJobTitle(),
-      currentJobUrl: cvFit.platform === "linkedin"
-        ? cvFit.jobs.jobUrlFromLinkedInPageUrl(window.location.href)
-        : null,
+      currentJobUrl:
+        companion.platform === "linkedin"
+          ? companion.jobs.jobUrlFromLinkedInPageUrl(window.location.href)
+          : null,
     };
   };
 
@@ -306,8 +324,7 @@
     }
     const scriptMatch = resolveScriptJobByTitle(title);
     if (visibleMatch.status === "resolved") {
-      if (scriptMatch.status === "resolved"
-          && scriptMatch.jobUrl !== visibleMatch.jobUrl) {
+      if (scriptMatch.status === "resolved" && scriptMatch.jobUrl !== visibleMatch.jobUrl) {
         return null;
       }
       return visibleMatch.jobUrl;
@@ -316,13 +333,13 @@
   };
 
   const resolveCurrentJobUrl = () => {
-    const pageJobUrl = cvFit.jobs.jobUrlFromPageUrl(window.location.href);
+    const pageJobUrl = companion.jobs.jobUrlFromPageUrl(window.location.href);
     if (pageJobUrl) {
       return pageJobUrl;
     }
 
     const canonicalUrl = document.querySelector('link[rel="canonical"]')?.href;
-    const canonicalJobUrl = canonicalUrl && cvFit.jobs.jobUrlFromPageUrl(canonicalUrl);
+    const canonicalJobUrl = canonicalUrl && companion.jobs.jobUrlFromPageUrl(canonicalUrl);
     if (canonicalJobUrl) {
       return canonicalJobUrl;
     }
@@ -353,8 +370,7 @@
       return shareContext.currentJobUrl;
     }
 
-    const { jobUrls: nearbyJobUrls, complete: nearbyScanComplete } =
-      shareContext.nearbyUrlScan;
+    const { jobUrls: nearbyJobUrls, complete: nearbyScanComplete } = shareContext.nearbyUrlScan;
     const capturedTitleJobUrl = shareContext.title
       ? resolveJobUrlByTitle(shareContext.title)
       : null;
@@ -376,7 +392,7 @@
     throw new Error("The shared job could not be identified safely");
   };
 
-  Object.assign(cvFit.jobs, {
+  Object.assign(companion.jobs, {
     captureShareContext,
     collectJobs,
     resolveCurrentJobUrl,

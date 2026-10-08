@@ -3,7 +3,7 @@ import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import test from "node:test";
 
-import { readRetiredArtifactPaths } from "../installer/install-state.js";
+import { readManagedArtifactPaths } from "../installer/install-state.js";
 import { uninstall } from "../installer/lifecycle.js";
 import { installFixture, makeInstallFixture, sha256 } from "../test-support/install-fixture.js";
 
@@ -117,7 +117,7 @@ test("lists retired artifacts that a launch failure must restore", async (contex
     },
   }));
 
-  assert.deepEqual(await readRetiredArtifactPaths(paths.statePath), [
+  assert.deepEqual(await readManagedArtifactPaths(paths.statePath), [
     { name: "globalConfig", path: globalConfigPath },
     { name: "workspaceConfig", path: workspaceConfigPath },
   ]);

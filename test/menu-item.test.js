@@ -19,8 +19,8 @@ test("menu submits the resolved job and reports success", async () => {
     },
   };
   const { button, toasts } = await createMenuFixture({ runtime });
-  const status = button.querySelector(".cv-fit-bridge-menu-item-status");
-  const shortcut = button.querySelector(".cv-fit-bridge-menu-item-shortcut");
+  const status = button.querySelector(".jsc-menu-item-status");
+  const shortcut = button.querySelector(".jsc-menu-item-shortcut");
 
   click(button);
   await flushUntil(() => toasts.length > 0);
@@ -37,7 +37,7 @@ test("menu submits the resolved job and reports success", async () => {
   assert.equal(button.disabled, false);
   assert.equal(button["aria-busy"], "false");
   assert.equal(status.textContent, "Submitting this job to Codex.");
-  assert.equal(button.querySelector(".cv-fit-bridge-menu-item-label").textContent, "Analyse with CV Fit Advisor");
+  assert.equal(button.querySelector(".jsc-menu-item-label").textContent, "Analyse with CV Fit Advisor");
   assert.equal(button["aria-keyshortcuts"], "N");
   assert.equal(shortcut.textContent, "N");
   assert.equal(shortcut["aria-hidden"], "true");
@@ -161,9 +161,9 @@ test("a visible action in another menu does not suppress insertion into this men
   };
 
   context.document.querySelectorAll = () => [existingButton];
-  context.cvFitBridge.dom.queryIncludingRoot = (root) => [root];
+  context.jobSearchCompanion.dom.queryIncludingRoot = (root) => [root];
 
-  assert.equal(context.cvFitBridge.shareMenu.insertMenuItem(newMenuRow), true);
+  assert.equal(context.jobSearchCompanion.shareMenu.insertJobMenuActions(newMenuRow), true);
   assert.ok(insertedButton);
   assert.notEqual(insertedButton, existingButton);
 });

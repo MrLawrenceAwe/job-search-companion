@@ -32,19 +32,19 @@ test("retries document-wide menu discovery throughout the bounded scan window", 
     document,
     Element,
     MutationObserver,
-    cvFitBridge: {
-      dom: { getVisibleRect: () => ({ width: 1, height: 1 }) },
+    jobSearchCompanion: {
+      dom: { getViewportRect: () => ({ width: 1, height: 1 }) },
       jobs: { captureShareContext: () => {}, resolveJobUrl: () => "https://uk.indeed.com/viewjob?jk=fixture111" },
       jobMarks: { createButton() { return new Element(); } },
       shareMenu: {
-        insertMenuItem: () => false,
+        insertJobMenuActions: () => false,
         mightContainMenu: () => false,
         findMenuRoot: () => null,
       },
       shareMenuDetection: { retryIntervalMs: 120, scanWindowMs: 1800 },
       protocol: {},
       selectors: { menuContext: '[role="menu"]' },
-      ui: { menuItemClass: "cv-fit-bridge-menu-item" },
+      ui: { menuItemClass: "jsc-menu-item" },
     },
     window: {
       clearTimeout: () => {},
@@ -136,9 +136,9 @@ test("discovers a menu that becomes visible without a child-list mutation", asyn
     document,
     Element,
     MutationObserver,
-    cvFitBridge: {
+    jobSearchCompanion: {
       dom: {
-        getVisibleRect: () => ({ width: 100, height: 100 }),
+        getViewportRect: () => ({ width: 100, height: 100 }),
         queryIncludingRoot: (root) => [root],
       },
       jobs: { captureShareContext: () => {}, resolveJobUrl: () => "https://uk.indeed.com/viewjob?jk=fixture111" },
@@ -155,7 +155,7 @@ test("discovers a menu that becomes visible without a child-list mutation", asyn
       submissions: {},
       ui: {
         actionLabel: "Analyse with CV Fit Advisor",
-        menuItemClass: "cv-fit-bridge-menu-item",
+        menuItemClass: "jsc-menu-item",
         shortcut: {
           aria: "N",
           display: "N",

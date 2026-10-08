@@ -17,7 +17,7 @@
   .tools button, #open-menu { padding: 8px 12px; background: white; border: 1px solid #b5bece; border-radius: 6px; }
   #demo-menu { border: 1px solid #d8dee8; border-radius: 8px; padding: 8px; max-width: 320px; margin-top: 12px; }
   #demo-menu > button { display: block; width: 100%; text-align: left; border: 0; background: white; padding: 12px; }
-  .note { color: #596579; font-size: 14px; } .cv-fit-bridge-applied-badge { margin-left: 0; }
+  .note { color: #596579; font-size: 14px; } .jsc-applied-badge { margin-left: 0; }
 </style>
 <header><h1>Job Search Companion</h1><p>Job marking preview · sample jobs and local demo storage</p></header>
 <main>
@@ -68,11 +68,14 @@
   };
   document.querySelector('#open-menu').onclick = () => { document.querySelector('#demo-menu').hidden = false; };
 </script>
+<script src="../extension/contracts/job-urls.js"></script>
+<script src="../extension/contracts/blockers.js"></script>
 <script src="../extension/extension-context.js"></script>
 <script src="../extension/dom-visibility.js"></script>
 <script src="../extension/job-url.js"></script>
 <script src="../extension/job-resolution.js"></script>
 <script src="../extension/job-navigation.js"></script>
+<script src="../extension/feedback.js"></script>
 <script src="../extension/submission.js"></script>
 <script src="../extension/job-marks.js"></script>
 <script src="../extension/share-menu.js"></script>

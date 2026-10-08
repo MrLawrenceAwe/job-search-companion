@@ -1,9 +1,6 @@
 (() => {
-  const cvFit = globalThis.cvFitBridge;
+  const companion = globalThis.jobSearchCompanion;
   const MAX_UNDO_ACTIONS = 100;
-  const JOB_CONTAINER_SELECTOR =
-    'li, [data-testid="slider_item"], .job_seen_beacon, .cardOutline, '
-    + '[role="button"][componentkey^="job-card-component-ref-"]';
   const undoActions = [];
   const hiddenJobUrls = new Set();
   let lastNavigatedJobUrl = null;
@@ -20,16 +17,21 @@
     return [...jobsByUrl.values()];
   };
 
-  const allJobs = () => uniqueJobs(cvFit.jobs.collectJobs(() => ({ width: 1, height: 1 })));
+  const allJobs = () => uniqueJobs(companion.jobs.collectJobs(() => ({ width: 1, height: 1 })));
 
-  const renderedJobs = () => uniqueJobs(cvFit.jobs.collectJobs(cvFit.dom.getRenderedRect))
-    .filter(({ jobUrl }) => !hiddenJobUrls.has(jobUrl));
+  const renderedJobs = () =>
+    uniqueJobs(companion.jobs.collectJobs(companion.dom.getRenderedRect)).filter(
+      ({ jobUrl }) => !hiddenJobUrls.has(jobUrl),
+    );
 
   const hideRenderedJobCards = () => {
-    for (const { element, jobUrl } of uniqueJobs(cvFit.jobs.collectJobs(cvFit.dom.getRenderedRect))) {
+    for (const { element, jobUrl } of uniqueJobs(
+      companion.jobs.collectJobs(companion.dom.getRenderedRect),
+    )) {
       if (hiddenJobUrls.has(jobUrl)) {
-        (element.closest?.(JOB_CONTAINER_SELECTOR) || element)
-          .classList?.add("cv-fit-bridge-hidden-job");
+        (element.closest?.(companion.selectors.jobCard) || element).classList?.add(
+          "jsc-hidden-job",
+        );
       }
     }
   };
@@ -52,7 +54,7 @@
       return false;
     }
 
-    const previousPageJobUrl = cvFit.jobs.jobUrlFromPageUrl(window.location.href);
+    const previousPageJobUrl = companion.jobs.jobUrlFromPageUrl(window.location.href);
     clickable.scrollIntoView?.({ block: "center", inline: "nearest" });
     clickable.focus?.({ preventScroll: true });
     clickable.click();
@@ -74,7 +76,7 @@
     }
 
     try {
-      const currentJobUrl = cvFit.jobs.resolveCurrentJobUrl();
+      const currentJobUrl = companion.jobs.resolveCurrentJobUrl();
       return jobs.find(({ jobUrl }) => jobUrl === currentJobUrl) || null;
     } catch {
       return null;
@@ -82,16 +84,21 @@
   };
 
   const resolveSelectedJobUrl = () => {
-    if (lastNavigatedJobUrl !== null
-        && renderedJobs().some(({ jobUrl }) => jobUrl === lastNavigatedJobUrl)) {
-      const pageJobUrl = cvFit.jobs.jobUrlFromPageUrl(window.location.href);
-      if (pageJobUrl && pageJobUrl !== lastNavigatedJobUrl
-          && pageJobUrl !== pageJobUrlAtSelection) {
+    if (
+      lastNavigatedJobUrl !== null &&
+      renderedJobs().some(({ jobUrl }) => jobUrl === lastNavigatedJobUrl)
+    ) {
+      const pageJobUrl = companion.jobs.jobUrlFromPageUrl(window.location.href);
+      if (
+        pageJobUrl &&
+        pageJobUrl !== lastNavigatedJobUrl &&
+        pageJobUrl !== pageJobUrlAtSelection
+      ) {
         return pageJobUrl;
       }
       return lastNavigatedJobUrl;
     }
-    return cvFit.jobs.resolveCurrentJobUrl();
+    return companion.jobs.resolveCurrentJobUrl();
   };
 
   const rememberInteractedJob = (event) => {
@@ -100,18 +107,19 @@
     }
 
     const jobs = renderedJobs();
-    const carrier = event.target?.closest?.(cvFit.selectors.jobUrlCarrier);
-    const container = event.target?.closest?.(JOB_CONTAINER_SELECTOR);
-    const interactedJob = jobs.find(({ element }) => (
-      element === event.target
-      || element === carrier
-      || element.contains?.(event.target)
-      || carrier?.contains?.(element)
-      || container?.contains?.(element)
-    ));
+    const carrier = event.target?.closest?.(companion.selectors.jobUrlCarrier);
+    const container = event.target?.closest?.(companion.selectors.jobCard);
+    const interactedJob = jobs.find(
+      ({ element }) =>
+        element === event.target ||
+        element === carrier ||
+        element.contains?.(event.target) ||
+        carrier?.contains?.(element) ||
+        container?.contains?.(element),
+    );
     if (interactedJob) {
       lastNavigatedJobUrl = interactedJob.jobUrl;
-      pageJobUrlAtSelection = cvFit.jobs.jobUrlFromPageUrl(window.location.href);
+      pageJobUrlAtSelection = companion.jobs.jobUrlFromPageUrl(window.location.href);
     }
   };
 
@@ -127,9 +135,10 @@
       return false;
     }
 
-    const currentIndex = lastNavigatedJobUrl === null
-      ? -1
-      : jobs.findIndex(({ jobUrl }) => jobUrl === lastNavigatedJobUrl);
+    const currentIndex =
+      lastNavigatedJobUrl === null
+        ? -1
+        : jobs.findIndex(({ jobUrl }) => jobUrl === lastNavigatedJobUrl);
     const target = jobs[currentIndex + direction];
     if (!target) {
       return false;
@@ -154,13 +163,13 @@
     }
 
     const currentIndex = jobs.indexOf(currentJob);
-    const container = currentJob.element.closest?.(JOB_CONTAINER_SELECTOR)
-      || currentJob.element;
+    const container =
+      currentJob.element.closest?.(companion.selectors.jobCard) || currentJob.element;
     if (!container.classList) {
       return false;
     }
 
-    container.classList.add("cv-fit-bridge-hidden-job");
+    container.classList.add("jsc-hidden-job");
     hiddenJobUrls.add(currentJob.jobUrl);
     observeHiddenJobs();
     const replacement = jobs[currentIndex + 1] || jobs[currentIndex - 1] || null;
@@ -184,11 +193,15 @@
       if (hiddenJobUrls.size === 0) {
         hiddenJobObserver?.disconnect();
       }
-      lastAction.container.classList.remove("cv-fit-bridge-hidden-job");
-      for (const { element, jobUrl } of cvFit.jobs.collectJobs(() => ({ width: 1, height: 1 }))) {
+      lastAction.container.classList.remove("jsc-hidden-job");
+      for (const { element, jobUrl } of companion.jobs.collectJobs(() => ({
+        width: 1,
+        height: 1,
+      }))) {
         if (jobUrl === lastAction.jobUrl) {
-          (element.closest?.(JOB_CONTAINER_SELECTOR) || element)
-            .classList?.remove("cv-fit-bridge-hidden-job");
+          (element.closest?.(companion.selectors.jobCard) || element).classList?.remove(
+            "jsc-hidden-job",
+          );
         }
       }
       undoActions.pop();
@@ -209,8 +222,7 @@
       return true;
     }
 
-    const previousJob = renderedJobs()
-      .find(({ jobUrl }) => jobUrl === lastAction.previousJobUrl);
+    const previousJob = renderedJobs().find(({ jobUrl }) => jobUrl === lastAction.previousJobUrl);
     if (!previousJob || !selectJob(previousJob)) {
       return false;
     }
@@ -218,7 +230,7 @@
     return true;
   };
 
-  Object.assign(cvFit.jobs, {
+  Object.assign(companion.jobs, {
     hideCurrentJob,
     navigateJob,
     resolveSelectedJobUrl,

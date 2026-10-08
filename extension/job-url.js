@@ -1,23 +1,20 @@
 (() => {
-  const cvFit = globalThis.cvFitBridge;
-  const JOB_KEY_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
-  const LINKEDIN_JOB_ID_PATTERN = /^\d{6,20}$/;
+  const companion = globalThis.jobSearchCompanion;
+  const {
+    indeedJobKeyPattern: JOB_KEY_PATTERN,
+    linkedInJobIdPattern: LINKEDIN_JOB_ID_PATTERN,
+    isIndeedHost,
+    isLinkedInHost,
+    indeedJobUrl,
+    linkedInJobUrl,
+  } = globalThis.jobSearchContracts.jobUrls;
 
-  const isIndeedHost = (host) => (
-    host === "indeed.com"
-    || host.endsWith(".indeed.com")
-    || host === "indeed.co.uk"
-    || host.endsWith(".indeed.co.uk")
-  );
-
-  const isLinkedInHost = (host) => host === "linkedin.com" || host.endsWith(".linkedin.com");
-
-  const jobUrlFromKey = (jobKey) => {
-    return `${window.location.origin}/viewjob?jk=${encodeURIComponent(jobKey)}`;
+  const indeedJobUrlFromKey = (jobKey) => {
+    return indeedJobUrl(window.location.origin, jobKey);
   };
 
   const linkedInJobUrlFromId = (jobId) => {
-    return `${window.location.origin}/jobs/view/${encodeURIComponent(jobId)}/`;
+    return linkedInJobUrl(window.location.origin, jobId);
   };
 
   const jobUrlFromIndeedPageUrl = (rawUrl) => {
@@ -25,8 +22,8 @@
       const parsed = new URL(rawUrl, window.location.href);
       const host = parsed.hostname.toLowerCase();
       const isJobPage = parsed.pathname === "/viewjob";
-      const isResultsContext = ["/", "/jobs"].includes(parsed.pathname)
-        && parsed.searchParams.has("vjk");
+      const isResultsContext =
+        ["/", "/jobs"].includes(parsed.pathname) && parsed.searchParams.has("vjk");
       if (!isIndeedHost(host) || (!isJobPage && !isResultsContext)) {
         return null;
       }
@@ -36,7 +33,7 @@
         return null;
       }
 
-      return `${parsed.origin}/viewjob?jk=${encodeURIComponent(jobKey)}`;
+      return indeedJobUrl(parsed.origin, jobKey);
     } catch {
       return null;
     }
@@ -54,15 +51,14 @@
       if (!jobId || !LINKEDIN_JOB_ID_PATTERN.test(jobId)) {
         return null;
       }
-      return `${parsed.origin}/jobs/view/${encodeURIComponent(jobId)}/`;
+      return linkedInJobUrl(parsed.origin, jobId);
     } catch {
       return null;
     }
   };
 
-  const jobUrlFromPageUrl = (rawUrl) => (
-    jobUrlFromIndeedPageUrl(rawUrl) || jobUrlFromLinkedInPageUrl(rawUrl)
-  );
+  const jobUrlFromPageUrl = (rawUrl) =>
+    jobUrlFromIndeedPageUrl(rawUrl) || jobUrlFromLinkedInPageUrl(rawUrl);
 
   const extractIndeedJobUrl = (text) => {
     if (!text) {
@@ -82,7 +78,7 @@
     }
 
     const jobKey = text.match(/[?&](?:jk|vjk)=([A-Za-z0-9_-]+)/)?.[1];
-    return jobKey && JOB_KEY_PATTERN.test(jobKey) ? jobUrlFromKey(jobKey) : null;
+    return jobKey && JOB_KEY_PATTERN.test(jobKey) ? indeedJobUrlFromKey(jobKey) : null;
   };
 
   const extractJobUrl = (text) => {
@@ -110,14 +106,11 @@
     return extractIndeedJobUrl(text);
   };
 
-  Object.assign(cvFit.jobs, {
-    extractIndeedJobUrl,
+  Object.assign(companion.jobs, {
     extractJobUrl,
     jobKeyPattern: JOB_KEY_PATTERN,
     jobUrlFromPageUrl,
-    jobUrlFromIndeedPageUrl,
     jobUrlFromLinkedInPageUrl,
-    jobUrlFromKey,
-    linkedInJobUrlFromId,
+    indeedJobUrlFromKey,
   });
 })();

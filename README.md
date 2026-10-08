@@ -7,7 +7,7 @@ and sending selected jobs to a local Codex workspace for CV fit checks.
 
 **Stack:** JavaScript, Node.js, Chrome Manifest V3, Swift and macOS Accessibility.
 
-![Application marks and job menu in the synthetic preview](docs/images/applied-jobs-preview.jpg)
+![Application marks and job menu in the synthetic preview](docs/images/job-marks-preview.jpg)
 
 *Preview uses sample jobs and separate local demo storage. CV analysis is disabled.*
 
@@ -40,7 +40,7 @@ From the repository directory:
 python3 -m http.server 48974 --bind 127.0.0.1
 ```
 
-Open [the local preview](http://127.0.0.1:48974/test-support/applied-jobs-preview.html).
+Open [the local preview](http://127.0.0.1:48974/test-support/job-marks-preview.html).
 Select a sample job, open its menu and mark it as applied or unsuitable. Refresh or use
 **Re-render results** to see the saved badge restored. The preview uses the
 production content scripts with mock Chrome APIs; CV analysis stays disabled.
@@ -68,8 +68,7 @@ marking and browsing shortcuts. Blocker checking needs the local Node bridge and
 22+, Xcode Command Line Tools, Codex, Accessibility permission and a configured
 `cv-fit-advisor` skill. The skill and CV files are not included in this repository.
 
-Reload the existing unpacked extension in `chrome://extensions`, then refresh
-job pages to pick up version 0.13.0.
+After updating, reload the unpacked extension in Chrome and refresh job pages.
 
 Follow [setup, configuration and removal](docs/setup.md) for the bridge, extension
 identity, token, workspace and permissions. This is an independent personal

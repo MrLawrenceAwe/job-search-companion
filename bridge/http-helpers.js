@@ -13,7 +13,7 @@ export const isRequestOriginAllowed = (req, allowedOrigin) => {
 };
 
 export const isRequestTokenValid = (req, token) => {
-  return req.headers["x-cv-fit-bridge-token"] === token;
+  return req.headers["x-jsc-token"] === token;
 };
 
 const createCorsHeaders = (req, allowedOrigin) => {
@@ -29,7 +29,7 @@ const createCorsHeaders = (req, allowedOrigin) => {
   return {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, X-CV-Fit-Bridge-Token",
+    "Access-Control-Allow-Headers": "Content-Type, X-JSC-Token",
     Vary: "Origin",
   };
 };

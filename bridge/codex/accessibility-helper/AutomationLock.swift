@@ -23,7 +23,7 @@ final class AutomationLock {
 
     init() throws {
         let supportDirectory = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Application Support/Indeed CV Fit Bridge", isDirectory: true)
+            .appendingPathComponent("Library/Application Support/Job Search Companion", isDirectory: true)
         do {
             try FileManager.default.createDirectory(
                 at: supportDirectory,

@@ -1,11 +1,7 @@
-const isIndeedHost = (host) => (
-  host === "indeed.com"
-  || host.endsWith(".indeed.com")
-  || host === "indeed.co.uk"
-  || host.endsWith(".indeed.co.uk")
-);
+import { jobUrlContract } from "../shared/contracts.js";
 
-const isLinkedInHost = (host) => host === "linkedin.com" || host.endsWith(".linkedin.com");
+const { isIndeedHost, isLinkedInHost, indeedJobKeyPattern, linkedInJobIdPattern,
+  indeedJobUrl, linkedInJobUrl } = jobUrlContract;
 
 const normalizeIndeedJobUrl = (parsed) => {
   if (parsed.pathname !== "/viewjob") {
@@ -13,21 +9,21 @@ const normalizeIndeedJobUrl = (parsed) => {
   }
 
   const jobKey = parsed.searchParams.get("jk") || parsed.searchParams.get("vjk");
-  if (!jobKey || !/^[A-Za-z0-9_-]{8,64}$/.test(jobKey)) {
+  if (!jobKey || !indeedJobKeyPattern.test(jobKey)) {
     return null;
   }
-  return `${parsed.origin}/viewjob?jk=${encodeURIComponent(jobKey)}`;
+  return indeedJobUrl(parsed.origin, jobKey);
 };
 
 const normalizeLinkedInJobUrl = (parsed) => {
   const jobId = parsed.pathname.match(/^\/jobs\/view\/(\d+)(?:\/|$)/)?.[1];
-  if (!jobId || !/^\d{6,20}$/.test(jobId)) {
+  if (!jobId || !linkedInJobIdPattern.test(jobId)) {
     return null;
   }
-  return `${parsed.origin}/jobs/view/${encodeURIComponent(jobId)}/`;
+  return linkedInJobUrl(parsed.origin, jobId);
 };
 
-export const validateJobUrl = (value) => {
+export const normalizeJobUrl = (value) => {
   if (typeof value !== "string" || value.trim().length === 0) {
     throw new Error("Missing URL");
   }

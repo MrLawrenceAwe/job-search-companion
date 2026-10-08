@@ -5,9 +5,9 @@ import { cvFitSettings } from "../shared/cv-fit-settings.js";
 
 const HEALTH_REQUEST_TIMEOUT_MS = 2_000;
 
-const bridgeToken = process.env.INDEED_CV_FIT_BRIDGE_TOKEN;
+const bridgeToken = process.env.JSC_BRIDGE_TOKEN;
 if (!bridgeToken) {
-  throw new Error("INDEED_CV_FIT_BRIDGE_TOKEN must be set");
+  throw new Error("JSC_BRIDGE_TOKEN must be set");
 }
 
 const healthEndpoint = new URL("/health", bridgeAddress.origin);
@@ -18,7 +18,7 @@ const requestTimeout = setTimeout(
 );
 const response = await fetch(healthEndpoint, {
   headers: {
-    "X-CV-Fit-Bridge-Token": bridgeToken,
+    "X-JSC-Token": bridgeToken,
   },
   signal: requestAbortController.signal,
 }).finally(() => clearTimeout(requestTimeout));
@@ -39,7 +39,7 @@ if (body.version !== packageMetadata.version) {
 if (body.port !== Number(healthEndpoint.port)) {
   failures.push(`expected port ${healthEndpoint.port}, got ${JSON.stringify(body.port)}`);
 }
-const expectedInstanceId = process.env.INDEED_CV_FIT_BRIDGE_INSTANCE_ID;
+const expectedInstanceId = process.env.JSC_BRIDGE_INSTANCE_ID;
 if (expectedInstanceId && body.instanceId !== expectedInstanceId) {
   failures.push(`expected bridge instance ${expectedInstanceId}, got ${JSON.stringify(body.instanceId)}`);
 }

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Job Search Companion",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "description": "Track and browse jobs, check loaded Indeed descriptions for blockers using ChatGPT plan usage, and analyse CV fit with Codex.",
   "permissions": [
     "storage"
@@ -42,16 +42,22 @@
         "https://*.linkedin.com/*"
       ],
       "js": [
+        "contracts/job-urls.js",
+        "contracts/blockers.js",
         "extension-context.js",
         "dom-visibility.js",
         "job-url.js",
         "job-resolution.js",
         "job-navigation.js",
+        "feedback.js",
         "submission.js",
         "job-marks.js",
         "shortcuts.js",
         "share-menu.js",
         "share-menu-observer.js",
+        "blocker-descriptions.js",
+        "blocker-records.js",
+        "blocker-renderer.js",
         "blocker-checker.js"
       ],
       "css": [

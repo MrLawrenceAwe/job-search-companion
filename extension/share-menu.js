@@ -1,45 +1,40 @@
 (() => {
-  const cvFit = globalThis.cvFitBridge;
+  const companion = globalThis.jobSearchCompanion;
 
   const createMenuItem = (jobUrl) => {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = cvFit.ui.menuItemClass;
+    button.className = companion.ui.menuItemClass;
     button.setAttribute("role", "menuitem");
-    button.setAttribute("aria-keyshortcuts", cvFit.ui.shortcut.aria);
-    button.title = `${cvFit.ui.actionLabel} (${cvFit.ui.shortcut.display})`;
+    button.setAttribute("aria-keyshortcuts", companion.ui.shortcut.aria);
+    button.title = `${companion.ui.actionLabel} (${companion.ui.shortcut.display})`;
 
     const label = document.createElement("span");
-    label.className = "cv-fit-bridge-menu-item-label";
-    label.textContent = cvFit.ui.actionLabel;
+    label.className = "jsc-menu-item-label";
+    label.textContent = companion.ui.actionLabel;
     button.append(label);
 
     const status = document.createElement("span");
-    status.className = "cv-fit-bridge-menu-item-status";
+    status.className = "jsc-menu-item-status";
     status.setAttribute("role", "status");
     status.setAttribute("aria-live", "polite");
     status.setAttribute("aria-atomic", "true");
     button.append(status);
 
     const shortcut = document.createElement("kbd");
-    shortcut.className = "cv-fit-bridge-menu-item-shortcut";
+    shortcut.className = "jsc-menu-item-shortcut";
     shortcut.setAttribute("aria-hidden", "true");
-    shortcut.textContent = cvFit.ui.shortcut.display;
+    shortcut.textContent = companion.ui.shortcut.display;
     button.append(shortcut);
 
     button.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
-      try {
-        void cvFit.submissions.submit(jobUrl, button);
-      } catch (error) {
-        console.debug("CV Fit job URL resolution failed:", error);
-        cvFit.showToast("Couldn’t find this job’s link.", "error");
-      }
+      void companion.submissions.submit(jobUrl, button);
     });
 
     const icon = document.createElement("span");
-    icon.className = "cv-fit-bridge-menu-item-icon";
+    icon.className = "jsc-menu-item-icon";
     icon.setAttribute("aria-hidden", "true");
     icon.innerHTML = `
       <svg viewBox="0 0 24 24" focusable="false">
@@ -55,32 +50,31 @@
 
   const createMenuItems = (source) => {
     // Capture the menu's job once, even if the selected detail pane changes.
-    const jobUrl = cvFit.jobs.resolveJobUrl(source);
+    const jobUrl = companion.jobs.resolveJobUrl(source);
     return [
       createMenuItem(jobUrl),
-      cvFit.jobMarks.createButton(jobUrl, "applied", true),
-      cvFit.jobMarks.createButton(jobUrl, "unsuitable", true),
+      companion.jobMarks.createButton(jobUrl, "applied", true),
+      companion.jobMarks.createButton(jobUrl, "unsuitable", true),
     ];
   };
 
   const MENU_ROW_SELECTOR = 'button, a, [role="menuitem"], li';
 
   const removeHiddenItems = () => {
-    for (const item of document.querySelectorAll(`.${cvFit.ui.menuItemClass}`)) {
-      if (!cvFit.dom.getVisibleRect(item)) {
+    for (const item of document.querySelectorAll(`.${companion.ui.menuItemClass}`)) {
+      if (!companion.dom.getViewportRect(item)) {
         item.remove();
       }
     }
   };
 
   const hasVisibleItem = (root) => {
-    const selector = `.${cvFit.ui.menuItemClass}`;
+    const selector = `.${companion.ui.menuItemClass}`;
     const items = [
       ...(root?.matches?.(selector) ? [root] : []),
       ...(root?.querySelectorAll?.(selector) || []),
     ];
-    return items
-      .some((item) => cvFit.dom.getVisibleRect(item));
+    return items.some((item) => companion.dom.getViewportRect(item));
   };
 
   const resolveMenuRow = (element) => {
@@ -93,7 +87,7 @@
 
     for (let parent = element.parentElement; parent; parent = parent.parentElement) {
       const text = parent.textContent?.trim() || "";
-      const rect = cvFit.dom.getVisibleRect(parent);
+      const rect = companion.dom.getViewportRect(parent);
 
       if (!/^WhatsApp$/i.test(text) || !rect || rect.width > 420 || rect.height > 80) {
         break;
@@ -108,14 +102,17 @@
   const findWhatsAppRow = (root) => {
     const menuRows = [];
 
-    for (const element of cvFit.dom.queryIncludingRoot(root, `${MENU_ROW_SELECTOR}, div, span`)) {
+    for (const element of companion.dom.queryIncludingRoot(
+      root,
+      `${MENU_ROW_SELECTOR}, div, span`,
+    )) {
       const text = element.textContent?.trim() || "";
       if (!/^WhatsApp$/i.test(text)) {
         continue;
       }
 
       const row = resolveMenuRow(element);
-      const rect = cvFit.dom.getVisibleRect(row);
+      const rect = companion.dom.getViewportRect(row);
       if (!rect || rect.width > 420 || rect.height > 80) {
         continue;
       }
@@ -127,11 +124,14 @@
   };
 
   const findLinkedInShareRow = (root) => {
-    if (cvFit.platform !== "linkedin") {
+    if (companion.platform !== "linkedin") {
       return null;
     }
-    for (const element of cvFit.dom.queryIncludingRoot(root, MENU_ROW_SELECTOR)) {
-      if (/^Share$/i.test(element.textContent?.trim() || "") && cvFit.dom.getVisibleRect(element)) {
+    for (const element of companion.dom.queryIncludingRoot(root, MENU_ROW_SELECTOR)) {
+      if (
+        /^Share$/i.test(element.textContent?.trim() || "") &&
+        companion.dom.getViewportRect(element)
+      ) {
         return resolveMenuRow(element);
       }
     }
@@ -149,12 +149,14 @@
 
   const toShareMenuCandidate = (element) => {
     const text = readCompactMenuText(element);
-    if (!cvFit.shareMenuDetection.textPattern.test(text)
-        || element.querySelector(`.${cvFit.ui.menuItemClass}`)) {
+    if (
+      !companion.shareMenuDetection.textPattern.test(text) ||
+      element.querySelector(`.${companion.ui.menuItemClass}`)
+    ) {
       return null;
     }
 
-    const rect = cvFit.dom.getVisibleRect(element);
+    const rect = companion.dom.getViewportRect(element);
     if (!rect || rect.width > 420 || rect.height > 420) {
       return null;
     }
@@ -165,42 +167,48 @@
   const findShareMenus = (root) => {
     const candidates = [];
 
-    for (const element of cvFit.dom.queryIncludingRoot(root, '[role="menu"], [role="dialog"], div, ul')) {
+    for (const element of companion.dom.queryIncludingRoot(
+      root,
+      '[role="menu"], [role="dialog"], div, ul',
+    )) {
       const candidate = toShareMenuCandidate(element);
       if (candidate) {
         candidates.push(candidate);
       }
     }
 
-    return candidates.sort((left, right) => left.area - right.area).map((candidate) => candidate.element);
+    return candidates
+      .sort((left, right) => left.area - right.area)
+      .map((candidate) => candidate.element);
   };
 
   const findLastVisibleItem = (menu) => {
     const items = [];
 
     for (const element of menu.querySelectorAll('button, a, [role="menuitem"]')) {
-      const rect = cvFit.dom.getVisibleRect(element);
+      const rect = companion.dom.getViewportRect(element);
       if (rect) {
         items.push({ element, top: rect.top, left: rect.left });
       }
     }
 
-    return items.sort((left, right) => left.top - right.top || left.left - right.left).at(-1)?.element;
+    return items.sort((left, right) => left.top - right.top || left.left - right.left).at(-1)
+      ?.element;
   };
 
   const mightContainMenu = (element) => {
-    return cvFit.shareMenuDetection.textPattern.test(readCompactMenuText(element));
+    return companion.shareMenuDetection.textPattern.test(readCompactMenuText(element));
   };
 
   const findMenuRoot = (element) => {
-    if (element.matches?.(cvFit.selectors.menuContext)) {
+    if (element.matches?.(companion.selectors.menuContext)) {
       return element;
     }
 
-    return element.closest?.(cvFit.selectors.menuContext) || null;
+    return element.closest?.(companion.selectors.menuContext) || null;
   };
 
-  const insertMenuItem = (root = document.body) => {
+  const insertJobMenuActions = (root = document.body) => {
     removeHiddenItems();
     if (hasVisibleItem(root)) {
       return true;
@@ -230,8 +238,8 @@
     return true;
   };
 
-  Object.assign(cvFit.shareMenu, {
-    insertMenuItem,
+  Object.assign(companion.shareMenu, {
+    insertJobMenuActions,
     mightContainMenu,
     findMenuRoot,
   });

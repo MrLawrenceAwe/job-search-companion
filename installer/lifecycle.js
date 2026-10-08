@@ -19,13 +19,13 @@ const escapeXml = (value) => String(value)
   .replaceAll("'", "&apos;");
 
 const renderLaunchAgent = async (options) => (await readFile(options.plistSource, "utf8"))
-  .replaceAll("__INDEED_CV_FIT_NODE_EXECUTABLE__", escapeXml(process.execPath))
-  .replaceAll("__INDEED_CV_FIT_BRIDGE_ROOT__", escapeXml(options.rootPath))
-  .replaceAll("__INDEED_CV_FIT_WORKSPACE__", escapeXml(options.workspacePath))
-  .replaceAll("__INDEED_CV_FIT_LOG_PATH__", escapeXml(options.logPath))
-  .replaceAll("__INDEED_CV_FIT_BRIDGE_TOKEN__", escapeXml(options.token))
-  .replaceAll("__INDEED_CV_FIT_EXTENSION_ORIGIN__", escapeXml(options.allowedExtensionOrigin))
-  .replaceAll("__INDEED_CV_FIT_BRIDGE_INSTANCE_ID__", escapeXml(options.instanceId));
+  .replaceAll("__JSC_NODE_EXECUTABLE__", escapeXml(process.execPath))
+  .replaceAll("__JSC_BRIDGE_ROOT__", escapeXml(options.rootPath))
+  .replaceAll("__JSC_WORKSPACE__", escapeXml(options.workspacePath))
+  .replaceAll("__JSC_LOG_PATH__", escapeXml(options.logPath))
+  .replaceAll("__JSC_BRIDGE_TOKEN__", escapeXml(options.token))
+  .replaceAll("__JSC_EXTENSION_ORIGIN__", escapeXml(options.allowedExtensionOrigin))
+  .replaceAll("__JSC_BRIDGE_INSTANCE_ID__", escapeXml(options.instanceId));
 
 const prepareArtifact = async ({
   path,
@@ -110,7 +110,7 @@ export const install = async (options, dependencies = {}) => {
   ]);
   await ensureArtifactsUnchanged(priorState);
 
-  const extensionContent = `(() => {\n  Object.assign(globalThis.cvFitBridge.protocol, {\n    bridgeOrigin: ${JSON.stringify(bridgeAddress.origin)},\n    bridgeToken: ${JSON.stringify(options.token)},\n  });\n})();\n`;
+  const extensionContent = `(() => {\n  Object.assign(globalThis.jobSearchCompanion.protocol, {\n    bridgeOrigin: ${JSON.stringify(bridgeAddress.origin)},\n    bridgeToken: ${JSON.stringify(options.token)},\n  });\n})();\n`;
   const accessibilityHelperContent = await readFile(options.accessibilityHelperSource);
 
   const artifactMoved = (artifact, targetPath) => artifact && artifact.path !== targetPath;

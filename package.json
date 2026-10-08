@@ -1,6 +1,6 @@
 {
   "name": "job-search-companion",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "private": true,
   "description": "Job tracking and browsing on Indeed and LinkedIn, with Indeed blocker checks using ChatGPT plan usage and full CV fit analysis in Codex.",
   "type": "module",

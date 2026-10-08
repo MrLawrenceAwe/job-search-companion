@@ -31,11 +31,13 @@ const fixture = async (initialStorage = {}) => {
     } },
     storage: { local: { async get() { return { ...storage }; }, async set(values) { Object.assign(storage, values); }, async remove(keys) { for (const key of keys) delete storage[key]; } }, onChanged: { addListener(fn) { listeners.push(fn); } } },
   };
+  await load(w, "contracts/job-urls.js");
+  await load(w, "contracts/blockers.js");
   await load(w, "extension-context.js");
-  Object.assign(w.cvFitBridge.dom, { getRenderedRect: () => ({ width: 200, height: 100 }) });
-  Object.assign(w.cvFitBridge.jobs, { resolveSelectedJobUrl: () => `https://uk.indeed.com/viewjob?jk=${currentId}`, collectJobs: () => [{ element: w.document.querySelector("a"), jobUrl: "https://uk.indeed.com/viewjob?jk=first1111" }] });
+  Object.assign(w.jobSearchCompanion.dom, { getRenderedRect: () => ({ width: 200, height: 100 }) });
+  Object.assign(w.jobSearchCompanion.jobs, { resolveSelectedJobUrl: () => `https://uk.indeed.com/viewjob?jk=${currentId}`, collectJobs: () => [{ element: w.document.querySelector("a"), jobUrl: "https://uk.indeed.com/viewjob?jk=first1111" }] });
   w._initialData = { autoOpenTwoPaneJobKey: "first1111", autoOpenTwoPaneViewjobResponse: { body: { jobInfoWrapperModel: { jobInfoModel: { sanitizedJobDescription: `<p>${text1}</p>` } } } } };
-  await load(w, "indeed-description-capture.js"); await load(w, "blocker-checker.js");
+  await load(w, "indeed-description-capture.js"); await load(w, "blocker-descriptions.js"); await load(w, "blocker-records.js"); await load(w, "blocker-renderer.js"); await load(w, "blocker-checker.js");
   return { w, calls, storage, listeners, select(id) { currentId = id; w.document.querySelector('h2').textContent = id; }, close: () => w.close() };
 };
 

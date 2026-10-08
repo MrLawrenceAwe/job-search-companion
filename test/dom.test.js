@@ -5,7 +5,7 @@ import vm from "node:vm";
 
 const loadDomHelpers = async () => {
   const context = vm.createContext({
-    cvFitBridge: { dom: {} },
+    jobSearchCompanion: { dom: {} },
     window: {
       innerHeight: 800,
       innerWidth: 1200,
@@ -14,11 +14,11 @@ const loadDomHelpers = async () => {
   });
   const source = await readFile(new URL("../extension/dom-visibility.js", import.meta.url), "utf8");
   vm.runInContext(source, context, { filename: "dom-visibility.js" });
-  return context.cvFitBridge.dom;
+  return context.jobSearchCompanion.dom;
 };
 
-test("getVisibleRect rejects detached and off-screen elements", async () => {
-  const { getVisibleRect } = await loadDomHelpers();
+test("getViewportRect rejects detached and off-screen elements", async () => {
+  const { getViewportRect } = await loadDomHelpers();
   const rect = (overrides = {}) => ({
     bottom: 120,
     height: 20,
@@ -29,22 +29,22 @@ test("getVisibleRect rejects detached and off-screen elements", async () => {
     ...overrides,
   });
 
-  assert.equal(getVisibleRect({
+  assert.equal(getViewportRect({
     isConnected: false,
     getBoundingClientRect: () => rect(),
   }), null);
-  assert.equal(getVisibleRect({
+  assert.equal(getViewportRect({
     isConnected: true,
     getBoundingClientRect: () => rect({ bottom: -1, top: -21 }),
   }), null);
-  assert.equal(getVisibleRect({
+  assert.equal(getViewportRect({
     isConnected: true,
     getBoundingClientRect: () => rect({ left: 1200, right: 1300 }),
   }), null);
 });
 
-test("getVisibleRect accepts an element intersecting the viewport", async () => {
-  const { getVisibleRect } = await loadDomHelpers();
+test("getViewportRect accepts an element intersecting the viewport", async () => {
+  const { getViewportRect } = await loadDomHelpers();
   const visibleRect = {
     bottom: 10,
     height: 20,
@@ -55,7 +55,7 @@ test("getVisibleRect accepts an element intersecting the viewport", async () => 
   };
 
   assert.deepEqual(
-    getVisibleRect({
+    getViewportRect({
       isConnected: true,
       getBoundingClientRect: () => visibleRect,
     }),
@@ -64,7 +64,7 @@ test("getVisibleRect accepts an element intersecting the viewport", async () => 
 });
 
 test("getRenderedRect accepts a rendered element outside the viewport", async () => {
-  const { getRenderedRect, getVisibleRect } = await loadDomHelpers();
+  const { getRenderedRect, getViewportRect } = await loadDomHelpers();
   const offscreenRect = {
     bottom: 1020,
     height: 100,
@@ -79,11 +79,11 @@ test("getRenderedRect accepts a rendered element outside the viewport", async ()
   };
 
   assert.deepEqual(getRenderedRect(element), offscreenRect);
-  assert.equal(getVisibleRect(element), null);
+  assert.equal(getViewportRect(element), null);
 });
 
-test("getVisibleRect rejects CSS-hidden and semantically hidden elements", async () => {
-  const { getVisibleRect } = await loadDomHelpers();
+test("getViewportRect rejects CSS-hidden and semantically hidden elements", async () => {
+  const { getViewportRect } = await loadDomHelpers();
   const visibleRect = {
     bottom: 120,
     height: 20,
@@ -93,13 +93,13 @@ test("getVisibleRect rejects CSS-hidden and semantically hidden elements", async
     width: 100,
   };
 
-  assert.equal(getVisibleRect({
+  assert.equal(getViewportRect({
     isConnected: true,
     checkVisibility: () => false,
     closest: () => null,
     getBoundingClientRect: () => visibleRect,
   }), null);
-  assert.equal(getVisibleRect({
+  assert.equal(getViewportRect({
     isConnected: true,
     checkVisibility: () => true,
     closest: () => ({ getAttribute: () => "true" }),

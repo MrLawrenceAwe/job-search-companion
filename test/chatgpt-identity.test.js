@@ -24,7 +24,7 @@ for (const scenario of ['valid', 'wrong nonce', 'missing nonce', 'wrong audience
       return Response.json({ access_token: 'secret-access', id_token: idToken, token_type: 'Bearer', scope: 'openid chatgpt.tokens.use.direct' });
     } });
     t.after(() => auth.close());
-    const authorization = new URL((await auth.signIn({ newProfile: true })).authUrl);
+    const authorization = new URL((await auth.signIn({ newAccount: true })).authUrl);
     nonce = authorization.searchParams.get('nonce');
     const callback = new URL(authorization.searchParams.get('redirect_uri'));
     callback.search = new URLSearchParams({ state: authorization.searchParams.get('state'), client_id: 'oaiapp_test', code: 'secret-code' });
@@ -36,7 +36,7 @@ for (const scenario of ['valid', 'wrong nonce', 'missing nonce', 'wrong audience
     const stored = JSON.parse(await readFile(join(directory, 'chatgpt.json')));
     if (scenario !== 'valid') {
       assert.equal(stored.activeId, null);
-      assert.equal(stored.profiles[0].accessToken, undefined);
+      assert.equal(stored.accounts[0].accessToken, undefined);
       assert.match(page, /identity verification/);
       const retry = new URL((await auth.signIn()).authUrl);
       assert.equal(retry.searchParams.get('client_id'), 'oaiapp_test');
@@ -44,3 +44,12 @@ for (const scenario of ['valid', 'wrong nonce', 'missing nonce', 'wrong audience
     }
   });
 }
+
+test("OAuth authorization keeps the standard profile scope", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), 'jsc-scopes-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const auth = await openChatGPT({ path: join(directory, 'chatgpt.json') });
+  t.after(() => auth.close());
+  const url = new URL((await auth.signIn()).authUrl);
+  assert.deepEqual(url.searchParams.get('scope').split(' '), ['openid', 'profile', 'email', 'offline_access', 'resource.invoke', 'chatgpt.tokens.use.direct']);
+});

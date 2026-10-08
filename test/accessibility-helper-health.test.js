@@ -26,10 +26,10 @@ test("Accessibility helper health verifies the managed helper and rejects later 
   };
   await writeFile(statePath, JSON.stringify(state));
 
-  process.env.INDEED_CV_FIT_BRIDGE_TOKEN = "test-token";
-  process.env.INDEED_CV_FIT_EXTENSION_ORIGIN = "chrome-extension://test";
+  process.env.JSC_BRIDGE_TOKEN = "test-token";
+  process.env.JSC_EXTENSION_ORIGIN = "chrome-extension://test";
   process.env.CODEX_ACCESSIBILITY_HELPER_PATH = binaryPath;
-  process.env.INDEED_CV_FIT_INSTALL_STATE_PATH = statePath;
+  process.env.JSC_INSTALL_STATE_PATH = statePath;
   const { readAccessibilityHelperHealth } = await import("../bridge/codex/helper-health.js");
 
   assert.deepEqual(await readAccessibilityHelperHealth(), {

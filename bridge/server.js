@@ -41,7 +41,7 @@ server.listen(config.bridge.port, config.bridge.host, async () => {
     logger.info(`Job Search Companion service listening on http://${config.bridge.host}:${config.bridge.port}`);
     logger.info(`Workspace: ${config.cvFit.workspacePath}`);
   } catch (error) {
-    logger.error("Job Search Companion could not load submission statuses:", error);
+    logger.error("Job Search Companion could not initialize:", error);
     server.close();
     process.exitCode = 1;
   }

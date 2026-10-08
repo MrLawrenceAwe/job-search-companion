@@ -7,7 +7,7 @@ import {
   isRequestTokenValid,
   sendJson,
 } from "./http-helpers.js";
-import { validateJobUrl } from "./job-url.js";
+import { normalizeJobUrl } from "./job-url.js";
 
 export const createRequestHandler = ({
   bridgeConfig,
@@ -122,7 +122,7 @@ export const createRequestHandler = ({
     let jobUrl;
     try {
       const { jobUrl: rawJobUrl } = await readJsonBody(req);
-      jobUrl = validateJobUrl(rawJobUrl);
+      jobUrl = normalizeJobUrl(rawJobUrl);
     } catch (error) {
       logger.warn(`CV Fit task request rejected: ${error.message}`);
       respond(error instanceof RequestBodyTooLargeError ? 413 : 400, {

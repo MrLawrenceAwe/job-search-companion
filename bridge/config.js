@@ -8,7 +8,7 @@ import { helperContract } from "./codex/helper-contract.js";
 
 const packageMetadata = createRequire(import.meta.url)("../package.json");
 const workspacePath = resolve(
-  process.env.INDEED_CV_FIT_WORKSPACE || join(homedir(), "CV Fit Advisor"),
+  process.env.JSC_WORKSPACE || join(homedir(), "CV Fit Advisor"),
 );
 
 const requiredEnv = (name) => {
@@ -25,16 +25,16 @@ export const config = Object.freeze({
     version: packageMetadata.version,
     host: bridgeAddress.host,
     port: bridgeAddress.port,
-    token: requiredEnv("INDEED_CV_FIT_BRIDGE_TOKEN"),
-    allowedExtensionOrigin: requiredEnv("INDEED_CV_FIT_EXTENSION_ORIGIN"),
-    instanceId: process.env.INDEED_CV_FIT_BRIDGE_INSTANCE_ID || null,
+    token: requiredEnv("JSC_BRIDGE_TOKEN"),
+    allowedExtensionOrigin: requiredEnv("JSC_EXTENSION_ORIGIN"),
+    instanceId: process.env.JSC_BRIDGE_INSTANCE_ID || null,
   }),
   cvFit: Object.freeze({
     workspacePath,
     settings: cvFitSettings,
   }),
   blockers: Object.freeze({
-    directory: join(homedir(), "Library/Application Support/Indeed CV Fit Bridge/blockers"),
+    directory: join(homedir(), "Library/Application Support/Job Search Companion/blockers"),
     profilePaths: [
       join(homedir(), "Job Hunting/profile.md"),
       join(homedir(), ".codex/skills/apply-to-jobs/references/profile.md"),
@@ -45,16 +45,16 @@ export const config = Object.freeze({
     accessibilityProtocolVersion: helperContract.protocolVersion,
     accessibilityContractVersion: helperContract.contractVersion,
     accessibilityHelperPath: process.env.CODEX_ACCESSIBILITY_HELPER_PATH
-      || join(homedir(), "Library/Application Support/Indeed CV Fit Bridge/accessibility-helper"),
+      || join(homedir(), "Library/Application Support/Job Search Companion/accessibility-helper"),
     composerReadyTimeoutMs: 8000,
     settingsTimeoutMs: 8000,
     submissionTimeoutMs: 5000,
   }),
   storage: Object.freeze({
-    installStatePath: process.env.INDEED_CV_FIT_INSTALL_STATE_PATH
-      || join(homedir(), "Library/Application Support/Indeed CV Fit Bridge/install-state.json"),
-    logPath: process.env.INDEED_CV_FIT_LOG_PATH
-      || join(homedir(), "Library/Application Support/Indeed CV Fit Bridge/bridge.log"),
-    submissionsPath: join(homedir(), "Library/Application Support/Indeed CV Fit Bridge/submissions.json"),
+    installStatePath: process.env.JSC_INSTALL_STATE_PATH
+      || join(homedir(), "Library/Application Support/Job Search Companion/install-state.json"),
+    logPath: process.env.JSC_LOG_PATH
+      || join(homedir(), "Library/Application Support/Job Search Companion/bridge.log"),
+    submissionsPath: join(homedir(), "Library/Application Support/Job Search Companion/submissions.json"),
   }),
 });

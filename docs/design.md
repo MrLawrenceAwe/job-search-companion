@@ -42,7 +42,7 @@ Marks are manual and reversible; they are not proof of successful submission.
 Each accepted task receives a submission ID, and status checks use
 that ID so multiple browser tabs cannot observe one another's results. Completed
 records are bounded. Submission records are saved privately in
-`~/Library/Application Support/Indeed CV Fit Bridge/submissions.json` and loaded
+`~/Library/Application Support/Job Search Companion/submissions.json` and loaded
 on startup. A restart marks unfinished `submitting` records as `interrupted`;
 completed records retain their status. Check Codex before retrying an interrupted
 task because submission may have happened before confirmation was saved.
@@ -51,16 +51,24 @@ task because submission may have happened before confirmation was saved.
 
 The content scripts are ordered by dependency in the manifest:
 
+- `contracts/job-urls.js` and `contracts/blockers.js` define shared URL and result contracts, also consumed by Node through `shared/contracts.js`;
 - `extension-context.js` creates the small shared cross-script API and configuration;
 - `dom-visibility.js` provides rendered-element and viewport visibility checks, plus queries that include the root element;
 - `job-url.js` parses and normalizes Indeed and LinkedIn page and job URLs;
 - `job-resolution.js` resolves the selected job from URL, DOM, title, and page data;
 - `job-navigation.js` owns results-page navigation, hiding, and undo state;
+- `feedback.js` provides shared toast feedback independently of CV submission;
 - `submission.js` owns bridge messaging, completion polling, and submission feedback;
 - `job-marks.js` persists manual applied and unsuitable records and decorates cards, job headers and menu actions;
 - `shortcuts.js` dispatches the N/J/K/H/U keyboard actions and ignores editable targets, modifier keys, repeated key events and composition;
 - `share-menu.js` creates and inserts the CV fit and job-record actions; and
-- `share-menu-observer.js` detects newly opened share menus.
+- `share-menu-observer.js` detects newly opened share menus;
+- `blocker-descriptions.js` observes captured descriptions and extracts inert text;
+- `blocker-records.js` stores and prunes local findings;
+- `blocker-renderer.js` presents badges, findings, and checker controls; and
+- `blocker-checker.js` coordinates selection verification, dwell timing, and request polling.
+
+The separate `indeed-description-capture.js` MAIN-world script observes descriptions before the isolated content scripts start. `service-worker.js` authenticates bridge requests, and `options.html`, `options.js`, and `options.css` implement settings.
 
 Helpers that are used only inside one content script remain file-local. The
 shared object contains only operations required by another script.
@@ -128,3 +136,27 @@ the user's pre-install content before dropping those artifacts.
 ## Indeed blocker checks
 
 The Indeed-only MAIN-world description observer and isolated `blocker-checker.js` bind complete loaded descriptions to job IDs, render findings, and send authenticated requests through the service worker. The local `bridge/blockers/` modules own verified-profile snapshots, SIWC authentication, single-pass Responses inference, scheduling, and versioned result caching. This flow has separate status and endpoints from CV Fit task submission. See [checker design and behaviour](blocker-checker.md).
+
+## Blocker-checking internals
+
+The bridge scheduler in `bridge/blockers/checker.js` delegates persisted result retention to `result-cache.js` and account rotation to `account-fallback.js`. Profile parsing and inference remain separate. `extension/contracts/blockers.js` owns the checker version, retention, record bound, storage prefix, result labels, and record validation for both runtimes.
+
+The selected full description must match the captured embedded or `/viewjob` response description before checking. Initial selected descriptions use Indeed's `autoOpenTwoPaneJobKey` paired with `autoOpenTwoPaneViewjobResponse`. Subsequent descriptions are observed from fetch/XHR responses at `body.jobInfoWrapperModel.jobInfoModel.sanitizedJobDescription`. The newer GraphQL rollout is also observed at `data.viewjob.job.description.text`, paired with `viewjob.key` / `job.key`; batched responses are supported. Classic and React Native description layouts are supported by matching the entire rendered description subtree. Unknown layouts or mismatched identities wait for a complete description rather than producing findings.
+
+
+A new OAuth attempt has fresh state, nonce and PKCE values, a loopback callback, and ID-token signature/issuer/audience/expiry/nonce validation. Refreshes are serialized in the single bridge process. Job text is untrusted input and the model has no tools. Findings are accepted only after `response.completed`, valid JSON, valid outcome fields, quoted description evidence and known profile fact IDs. Failed, incomplete or interrupted streams never produce “no blockers found.” Usage errors can trigger the optional account [account fallback](blocker-checker.md#fallback-accounts); auth/access errors pause requests; **Manage usage** opens ChatGPT usage settings. The app never falls back to API-key billing.
+
+
+The MAIN-world observer runs before the isolated content scripts and preserves fetch observation across normal page reassignment. It wraps fetch/XHR without changing their request parameters or fetching additional jobs. Indeed layout and response changes can prevent capture. Prefetching unopened jobs remains unproven and is deliberately absent.
+
+
+### Processing-tier validation
+
+GPT-6-Luna checks request Fast processing (`service_tier: "priority"`), as advertised by the connected account's model catalog. Actual processing can differ: the live ChatGPT plan-usage test reported `service_tier: "default"` despite this request. Fast speed is therefore unconfirmed for this connection. Reasoning stays at the model default. Other models use their default processing tier. This does not remove the 1.5-second selection delay or the single-job queue.
+
+
+## Installation identity migration
+
+Current installations use `JSC_*` environment variables, `com.lawrenceawe.job-search-companion`, and `~/Library/Application Support/Job Search Companion/`. The installer stops the former `com.lawrenceawe.indeed-cv-fit-bridge` service and moves its data directory before reinstalling. Managed artifact paths are rewritten, while credentials, findings, logs, submission history, file modes, and pre-install snapshots are retained. A failed replacement startup restores managed files and the original data directory, then attempts to restart the previously loaded service. Rollback restores installation artifacts, not repository source; if that service uses the retired environment contract, restore the previous checkout revision before running it. If both data directories exist, migration stops without merging or overwriting either.
+
+ChatGPT storage converts the former `profiles` field to `accounts` once on opening. Conflicting old and new fields fail without changing credentials. The runtime uses only the current field. The retired global/workspace configuration restoration remains necessary to avoid losing the user's pre-install configuration.

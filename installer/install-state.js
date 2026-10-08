@@ -9,16 +9,6 @@ const SUPPORTED_ARTIFACT_NAMES = new Set([
   ...RETIRED_ARTIFACT_NAMES,
 ]);
 
-export const readRetiredArtifactPaths = async (path) => {
-  const state = await readInstallState(path, { optional: true });
-  if (!state) {
-    return [];
-  }
-  return RETIRED_ARTIFACT_NAMES
-    .map((name) => ({ name, path: state.artifacts[name]?.path }))
-    .filter(({ path: artifactPath }) => typeof artifactPath === "string" && artifactPath.length > 0);
-};
-
 const hydrateArtifact = (artifact) => {
   if (!artifact?.binary) {
     return artifact;
@@ -81,4 +71,9 @@ export const ensureArtifactsUnchanged = async (state) => {
   if (changedPaths.length > 0) {
     throw new Error(`Installed files changed after installation; reinstall was cancelled:\n${changedPaths.join("\n")}`);
   }
+};
+
+export const readManagedArtifactPaths = async (path) => {
+  const state = await readInstallState(path, { optional: true });
+  return Object.entries(state?.artifacts || {}).map(([name, artifact]) => ({ name, path: artifact.path }));
 };

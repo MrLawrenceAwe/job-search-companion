@@ -117,7 +117,7 @@ test("fallback candidates exclude incomplete, signed-out, unconsented and duplic
   t.after(() => rm(directory, { recursive: true, force: true }));
   const path = join(directory, "chatgpt.json");
   const registration = (id, subject, patch = {}) => ({ id, subject, clientId: `client_${id}`, accessToken: "secret", scopes: ["chatgpt.tokens.use.direct"], ...patch });
-  await writeFile(path, JSON.stringify({ hostId: "host", activeId: "a", profiles: [
+  await writeFile(path, JSON.stringify({ hostId: "host", activeId: "a", accounts: [
     registration("a", "user1"), registration("duplicate-a", "user1"), registration("b", "user2"), registration("duplicate-b", "user2"),
     registration("incomplete", undefined), registration("signed-out", "user3", { accessToken: null }), registration("unconsented", "user4", { scopes: [] }), registration("c", "user5"),
   ] }));

@@ -47,8 +47,8 @@ underscores and hyphens. Other characters are rejected by the installer. Replace
 the example token and extension ID below, then run:
 
 ```bash
-INDEED_CV_FIT_BRIDGE_TOKEN="your-local-token" \
-INDEED_CV_FIT_EXTENSION_ORIGIN="chrome-extension://your-extension-id" \
+JSC_BRIDGE_TOKEN="your-local-token" \
+JSC_EXTENSION_ORIGIN="chrome-extension://your-extension-id" \
 ./scripts/manage-bridge.sh install
 ```
 
@@ -60,9 +60,12 @@ The installer:
 
 Reload the extension in Chrome after installation.
 
+When updating an older installation, the installer migrates its former Indeed CV Fit Bridge data and service identity. Use the `JSC_*` variables shown here; old environment-variable names are no longer accepted. Existing account credentials, findings, and submission history are preserved. If both old and new data directories exist, resolve that conflict before reinstalling. Because the helper moves, macOS may require its Accessibility permission to be granted again at the new path. See [migration details](design.md#installation-identity-migration).
+
+
 Before verifying task submission, open **System Settings → Privacy & Security →
 Accessibility** and enable the installed helper. Use **+**, then **Command+Shift+G**
-to select `~/Library/Application Support/Indeed CV Fit Bridge/accessibility-helper`.
+to select `~/Library/Application Support/Job Search Companion/accessibility-helper`.
 If macOS requests permission for the terminal or Node process used to launch the
 helper, enable that entry too. The helper requires Accessibility permission to
 inspect Codex and submit tasks; a successful bridge health check alone does not
@@ -90,7 +93,7 @@ top rendered job.
 To check the bridge directly:
 
 ```bash
-INDEED_CV_FIT_BRIDGE_TOKEN="your-local-token" npm run test:health
+JSC_BRIDGE_TOKEN="your-local-token" npm run test:health
 ```
 
 ## Indeed blocker checks
@@ -103,37 +106,37 @@ After installation and Accessibility setup, stop the LaunchAgent before running
 the bridge manually on the same port:
 
 ```bash
-launchctl bootout "gui/$(id -u)/com.lawrenceawe.indeed-cv-fit-bridge"
+launchctl bootout "gui/$(id -u)/com.lawrenceawe.job-search-companion"
 ```
 
 Then run:
 
 ```bash
-INDEED_CV_FIT_BRIDGE_TOKEN="your-local-token" \
-INDEED_CV_FIT_EXTENSION_ORIGIN="chrome-extension://your-extension-id" \
+JSC_BRIDGE_TOKEN="your-local-token" \
+JSC_EXTENSION_ORIGIN="chrome-extension://your-extension-id" \
 npm start
 ```
 
 If you installed with a custom workspace or log path, also supply the same
-`INDEED_CV_FIT_WORKSPACE` and `INDEED_CV_FIT_LOG_PATH` values when running
+`JSC_WORKSPACE` and `JSC_LOG_PATH` values when running
 `npm start`. Manual startup reads environment variables; it does not load the
 settings saved in the LaunchAgent. For example:
 
 ```bash
-INDEED_CV_FIT_BRIDGE_TOKEN="your-local-token" \
-INDEED_CV_FIT_EXTENSION_ORIGIN="chrome-extension://your-extension-id" \
-INDEED_CV_FIT_WORKSPACE="/absolute/path/to/your/workspace" \
-INDEED_CV_FIT_LOG_PATH="/absolute/path/to/your/bridge.log" \
+JSC_BRIDGE_TOKEN="your-local-token" \
+JSC_EXTENSION_ORIGIN="chrome-extension://your-extension-id" \
+JSC_WORKSPACE="/absolute/path/to/your/workspace" \
+JSC_LOG_PATH="/absolute/path/to/your/bridge.log" \
 npm start
 ```
 
 Include only the optional variables you customised. The saved values are in the
 `EnvironmentVariables` section of
-`~/Library/LaunchAgents/com.lawrenceawe.indeed-cv-fit-bridge.plist`.
+`~/Library/LaunchAgents/com.lawrenceawe.job-search-companion.plist`.
 
 The bridge listens only on `127.0.0.1:48973`.
 Submission statuses are saved privately in
-`~/Library/Application Support/Indeed CV Fit Bridge/submissions.json`. After a
+`~/Library/Application Support/Job Search Companion/submissions.json`. After a
 bridge restart, a task that was still running is reported as interrupted; check
 Codex before submitting that job again.
 
@@ -151,15 +154,15 @@ of overwriting the change.
 
 Required environment variables:
 
-- `INDEED_CV_FIT_BRIDGE_TOKEN`: token required by local bridge requests.
-- `INDEED_CV_FIT_EXTENSION_ORIGIN`: allowed Chrome extension origin.
+- `JSC_BRIDGE_TOKEN`: token required by local bridge requests.
+- `JSC_EXTENSION_ORIGIN`: allowed Chrome extension origin.
 
 Optional environment variables:
 
-- `INDEED_CV_FIT_WORKSPACE`: Codex workspace. Default: `$HOME/CV Fit Advisor`.
+- `JSC_WORKSPACE`: Codex workspace. Default: `$HOME/CV Fit Advisor`.
   Set it when installing; the installer writes that resolved path into the
   LaunchAgent. Supply it again for manual startup if you use a custom workspace.
-- `INDEED_CV_FIT_LOG_PATH`: private rotating bridge log. Set it when running
+- `JSC_LOG_PATH`: private rotating bridge log. Set it when running
   `install`; the chosen path is saved in the LaunchAgent. Re-run `install` to
   change it later. Supply it again for manual startup if you use a custom log path.
 

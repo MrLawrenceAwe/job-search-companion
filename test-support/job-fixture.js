@@ -69,5 +69,5 @@ export const createJobFixture = async ({ href, scripts = [], canonicalUrl = null
     "job-navigation.js",
   ]);
 
-  return { body, cvFit: context.cvFitBridge, document, mutationObservers };
+  return { body, companion: context.jobSearchCompanion, document, mutationObservers };
 };

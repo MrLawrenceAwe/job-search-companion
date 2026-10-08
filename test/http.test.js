@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { PassThrough } from "node:stream";
 import test from "node:test";
 
-process.env.INDEED_CV_FIT_BRIDGE_TOKEN ||= "test-token";
-process.env.INDEED_CV_FIT_EXTENSION_ORIGIN ||= "chrome-extension://test";
+process.env.JSC_BRIDGE_TOKEN ||= "test-token";
+process.env.JSC_EXTENSION_ORIGIN ||= "chrome-extension://test";
 
 const { readJsonBody, RequestBodyTooLargeError } = await import("../bridge/http-helpers.js");
 const { createRequestHandler } = await import("../bridge/request-handler.js");
@@ -13,7 +13,7 @@ const invokeHandler = async (handler, { method, url, body }) => {
   Object.assign(request, {
     headers: {
       origin: "chrome-extension://test",
-      "x-cv-fit-bridge-token": "test-token",
+      "x-jsc-token": "test-token",
     },
     method,
     url,

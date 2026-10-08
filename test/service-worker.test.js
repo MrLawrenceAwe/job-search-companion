@@ -22,7 +22,7 @@ const loadWorker = async (fetch) => {
     },
     fetch,
     importScripts: () => {},
-    cvFitBridge: {
+    jobSearchCompanion: {
       protocol: {
         bridgeToken: "test-token",
         bridgeOrigin: "http://127.0.0.1:48973",
@@ -35,6 +35,7 @@ const loadWorker = async (fetch) => {
       return 17;
     },
   });
+  vm.runInContext(await readFile(new URL("../extension/contracts/job-urls.js", import.meta.url), "utf8"), context);
   const source = await readFile(new URL("../extension/service-worker.js", import.meta.url), "utf8");
   vm.runInContext(source, context, { filename: "service-worker.js" });
   const request = (message) => new Promise((resolve) => {
@@ -165,6 +166,6 @@ test("Indeed status responses omit account identity and local profile paths", as
 
 test("settings may initiate sign-in and receive its authorization URL", async () => {
   const worker = await loadWorker(async () => ({ json: async () => ({ ok: true, authUrl: "https://auth.openai.com/authorize" }) }));
-  const result = await new Promise((resolve) => worker.messageHandler({ type: "BLOCKER_REQUEST", action: "sign-in", body: { newProfile: true } }, { url: "chrome-extension://test/options.html" }, resolve));
+  const result = await new Promise((resolve) => worker.messageHandler({ type: "BLOCKER_REQUEST", action: "sign-in", body: { newAccount: true } }, { url: "chrome-extension://test/options.html" }, resolve));
   assert.equal(result.authUrl, "https://auth.openai.com/authorize");
 });

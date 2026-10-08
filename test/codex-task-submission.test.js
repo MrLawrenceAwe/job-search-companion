@@ -9,8 +9,8 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 
-process.env.INDEED_CV_FIT_BRIDGE_TOKEN ||= "test-token";
-process.env.INDEED_CV_FIT_EXTENSION_ORIGIN ||= "chrome-extension://test";
+process.env.JSC_BRIDGE_TOKEN ||= "test-token";
+process.env.JSC_EXTENSION_ORIGIN ||= "chrome-extension://test";
 
 const {
   createTaskDeepLink,

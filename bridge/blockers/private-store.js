@@ -5,8 +5,12 @@ import { randomUUID } from "node:crypto";
 export const openPrivateStore = async (path, initial) => {
   await mkdir(dirname(path), { recursive: true, mode: 0o700 });
   let value;
-  try { value = JSON.parse(await readFile(path, "utf8")); }
-  catch (error) { if (error.code !== "ENOENT") throw error; value = structuredClone(initial); }
+  try {
+    value = JSON.parse(await readFile(path, "utf8"));
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+    value = structuredClone(initial);
+  }
   let writes = Promise.resolve();
   return {
     value,

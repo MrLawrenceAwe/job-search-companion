@@ -41,18 +41,19 @@ export class FakeElement {
 }
 
 export const runExtensionScripts = async (context, filenames) => {
-  for (const filename of filenames) {
+  const ordered = filenames.flatMap((filename) =>
+    filename === "extension-context.js"
+      ? ["contracts/job-urls.js", "contracts/blockers.js", filename, "feedback.js"]
+      : [filename],
+  );
+  for (const filename of ordered) {
     const source = await readFile(new URL(`../extension/${filename}`, import.meta.url), "utf8");
     vm.runInContext(source, context, { filename });
   }
 };
 
-export const loadMenuScripts = (context) => runExtensionScripts(context, [
-  "submission.js",
-  "job-url.js",
-  "job-marks.js",
-  "share-menu.js",
-]);
+export const loadMenuScripts = (context) =>
+  runExtensionScripts(context, ["submission.js", "job-url.js", "job-marks.js", "share-menu.js"]);
 
 export const createMenuFixture = async ({
   runtime,
@@ -81,9 +82,8 @@ export const createMenuFixture = async ({
     },
     createElement: (tagName) => new FakeElement(tagName),
     addEventListener() {},
-    querySelector: (selector) => selector === ".cv-fit-bridge-toast"
-      ? toasts.findLast((element) => !element.removed) || null
-      : null,
+    querySelector: (selector) =>
+      selector === ".jsc-toast" ? toasts.findLast((element) => !element.removed) || null : null,
     querySelectorAll: () => [],
   };
   const context = vm.createContext({
@@ -91,11 +91,21 @@ export const createMenuFixture = async ({
       runtime,
       storage: {
         local: {
-          async get(key) { return key === null ? { ...storage } : { [key]: storage[key] }; },
-          async set(values) { Object.assign(storage, values); },
-          async remove(key) { delete storage[key]; },
+          async get(key) {
+            return key === null ? { ...storage } : { [key]: storage[key] };
+          },
+          async set(values) {
+            Object.assign(storage, values);
+          },
+          async remove(key) {
+            delete storage[key];
+          },
         },
-        onChanged: { addListener(listener) { storageChanges.push(listener); } },
+        onChanged: {
+          addListener(listener) {
+            storageChanges.push(listener);
+          },
+        },
       },
     },
     URL,
@@ -118,14 +128,15 @@ export const createMenuFixture = async ({
     },
   });
   await runExtensionScripts(context, ["extension-context.js"]);
-  Object.assign(context.cvFitBridge.dom, {
-    getVisibleRect: () => ({ width: 200, height: 40 }),
+  Object.assign(context.jobSearchCompanion.dom, {
+    getViewportRect: () => ({ width: 200, height: 40 }),
     queryIncludingRoot: (root) => [root],
   });
-  context.cvFitBridge.jobs.resolveJobUrl = () => jobUrl;
-  context.cvFitBridge.jobs.collectJobs = () => [];
+  context.jobSearchCompanion.jobs.resolveJobUrl = () => jobUrl;
+  context.jobSearchCompanion.jobs.collectJobs = () => [];
   await loadMenuScripts(context);
-  context.cvFitBridge.shareMenu.insertMenuItem(insertionRow);
+  context.jobSearchCompanion.shareMenu.insertJobMenuActions(insertionRow);
+  await new Promise((resolve) => setImmediate(resolve));
   return {
     button: insertedButton,
     appliedButton,
@@ -137,13 +148,20 @@ export const createMenuFixture = async ({
   };
 };
 
-export const click = (button) => button.listeners.click({
-  preventDefault() {},
-  stopPropagation() {},
-});
+export const click = (button) =>
+  button.listeners.click({
+    preventDefault() {},
+    stopPropagation() {},
+  });
 
 export const flushUntil = async (condition, attempts = 30) => {
   for (let attempt = 0; attempt < attempts && !condition(); attempt += 1) {
     await new Promise((resolve) => setImmediate(resolve));
   }
 };
+
+// Inspect the control contract rather than exposing the production record cache.
+export const isJobMarked = (fixture, jobUrl, kind) =>
+  fixture.context.jobSearchCompanion.jobMarks
+    .createButton(jobUrl, kind)
+    .getAttribute("aria-pressed") === "true";

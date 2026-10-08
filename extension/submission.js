@@ -1,45 +1,38 @@
 (() => {
-  const cvFit = globalThis.cvFitBridge;
+  const companion = globalThis.jobSearchCompanion;
+  const { showToast } = companion;
 
   const setActionLabel = (button, label) => {
-    const labelElement = button?.querySelector?.(".cv-fit-bridge-menu-item-label");
+    const labelElement = button?.querySelector?.(".jsc-menu-item-label");
     if (labelElement) {
       labelElement.textContent = label;
     }
   };
 
   const announce = (button, message) => {
-    const status = button?.querySelector?.(".cv-fit-bridge-menu-item-status");
+    const status = button?.querySelector?.(".jsc-menu-item-status");
     if (status) {
       status.textContent = message;
     }
   };
 
-  const showToast = (message, kind = "info") => {
-    document.querySelector(".cv-fit-bridge-toast")?.remove();
-    const toast = document.createElement("div");
-    toast.className = "cv-fit-bridge-toast";
-    toast.dataset.kind = kind;
-    toast.textContent = message;
-    toast.setAttribute("role", kind === "error" ? "alert" : "status");
-    toast.setAttribute("aria-live", kind === "error" ? "assertive" : "polite");
-    document.body.appendChild(toast);
-    window.setTimeout(() => toast.remove(), 4500);
-  };
-
-  const sendBridgeRequest = (message) => new Promise((resolve, reject) => {
-    chrome.runtime.sendMessage(message, (response) => {
-      if (chrome.runtime.lastError) {
-        reject(new Error("Couldn’t reach the Job Search Companion service. Check that it is running."));
-      } else if (!response?.ok) {
-        reject(new Error(response?.error || "Task submission failed"));
-      } else {
-        resolve(response);
-      }
+  const sendBridgeRequest = (message) =>
+    new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage(message, (response) => {
+        if (chrome.runtime.lastError) {
+          reject(
+            new Error("Couldn’t reach the Job Search Companion service. Check that it is running."),
+          );
+        } else if (!response?.ok) {
+          reject(new Error(response?.error || "Task submission failed"));
+        } else {
+          resolve(response);
+        }
+      });
     });
-  });
 
-  const delay = (milliseconds) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+  const delay = (milliseconds) =>
+    new Promise((resolve) => window.setTimeout(resolve, milliseconds));
   let submissionInProgress = false;
 
   const waitForCompletion = async (submissionId) => {
@@ -47,7 +40,7 @@
     while (Date.now() < deadline) {
       await delay(1000);
       const { submission } = await sendBridgeRequest({
-        type: cvFit.protocol.getTaskStatusMessage,
+        type: companion.protocol.getTaskStatusMessage,
         submissionId,
       });
       if (submission?.status === "submitted") {
@@ -74,7 +67,7 @@
 
     submissionInProgress = true;
     const previousLabel = button
-      ? button.querySelector(".cv-fit-bridge-menu-item-label")?.textContent || button.textContent
+      ? button.querySelector(".jsc-menu-item-label")?.textContent || button.textContent
       : null;
     if (button) {
       button.disabled = true;
@@ -87,16 +80,18 @@
 
     try {
       const { submission } = await sendBridgeRequest({
-        type: cvFit.protocol.submitTaskMessage,
+        type: companion.protocol.submitTaskMessage,
         jobUrl,
       });
       if (!submission?.id) {
         throw new Error("The local bridge did not return a submission ID");
       }
       const status = await waitForCompletion(submission.id);
-      showToast(status === "submitted"
-        ? "CV Fit Advisor task submitted."
-        : "CV Fit Advisor draft is ready—check 6.1 Sol, Medium, and Fast in Codex, then send it.");
+      showToast(
+        status === "submitted"
+          ? "CV Fit Advisor task submitted."
+          : "CV Fit Advisor draft is ready—check 6.1 Sol, Medium, and Fast in Codex, then send it.",
+      );
     } catch (error) {
       showToast(
         `Couldn’t confirm the CV Fit Advisor submission. Check Codex before retrying: ${error.message}`,
@@ -112,6 +107,5 @@
     }
   };
 
-  cvFit.showToast = showToast;
-  cvFit.submissions.submit = submit;
+  companion.submissions.submit = submit;
 })();

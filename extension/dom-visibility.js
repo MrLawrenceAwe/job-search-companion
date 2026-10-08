@@ -1,5 +1,5 @@
 (() => {
-  const cvFit = globalThis.cvFitBridge;
+  const companion = globalThis.jobSearchCompanion;
 
   const queryIncludingRoot = (root, selector) => {
     if (!root) {
@@ -20,8 +20,8 @@
     }
 
     if (
-      typeof element.checkVisibility === "function"
-      && !element.checkVisibility({
+      typeof element.checkVisibility === "function" &&
+      !element.checkVisibility({
         checkOpacity: true,
         checkVisibilityCSS: true,
       })
@@ -42,18 +42,24 @@
     return rect;
   };
 
-  const getVisibleRect = (element) => {
+  const getViewportRect = (element) => {
     const rect = getRenderedRect(element);
-    if (!rect
-        || rect.bottom <= 0
-        || rect.right <= 0
-        || rect.top >= window.innerHeight
-        || rect.left >= window.innerWidth) {
+    if (
+      !rect ||
+      rect.bottom <= 0 ||
+      rect.right <= 0 ||
+      rect.top >= window.innerHeight ||
+      rect.left >= window.innerWidth
+    ) {
       return null;
     }
 
     return rect;
   };
 
-  Object.assign(cvFit.dom, { getRenderedRect, getVisibleRect, queryIncludingRoot });
+  Object.assign(companion.dom, {
+    getRenderedRect,
+    getViewportRect,
+    queryIncludingRoot,
+  });
 })();

@@ -1,5 +1,5 @@
 (() => {
-  const cvFit = globalThis.cvFitBridge;
+  const companion = globalThis.jobSearchCompanion;
   const pendingRoots = new Set();
   let scanDeadline = 0;
   let insertionTimer = null;
@@ -16,21 +16,21 @@
           continue;
         }
 
-        const menuRoot = cvFit.shareMenu.findMenuRoot(node);
-        if (menuRoot || cvFit.shareMenu.mightContainMenu(node)) {
-          scheduleMenuItemInsertion(menuRoot || node);
+        const menuRoot = companion.shareMenu.findMenuRoot(node);
+        if (menuRoot || companion.shareMenu.mightContainMenu(node)) {
+          scheduleJobMenuActionInsertion(menuRoot || node);
         }
       }
     }
   });
 
-  const tryInsertMenuItem = (root = document.body) => {
+  const tryInsertJobMenuActions = (root = document.body) => {
     if (!document.body) {
       return false;
     }
 
     try {
-      return cvFit.shareMenu.insertMenuItem(root);
+      return companion.shareMenu.insertJobMenuActions(root);
     } catch (error) {
       console.debug("CV Fit menu insertion skipped:", error);
       return false;
@@ -54,8 +54,9 @@
   };
 
   const visibleMenuRoots = () => {
-    return [...document.querySelectorAll(cvFit.selectors.menuContext)]
-      .filter((element) => cvFit.dom.getVisibleRect(element));
+    return [...document.querySelectorAll(companion.selectors.menuContext)].filter((element) =>
+      companion.dom.getViewportRect(element),
+    );
   };
 
   const isScanActive = () => Date.now() <= scanDeadline;
@@ -68,7 +69,7 @@
     observer.disconnect();
   };
 
-  const scheduleMenuItemInsertion = (root = null, delay = 40) => {
+  const scheduleJobMenuActionInsertion = (root = null, delay = 40) => {
     addPendingRoot(root);
     window.clearTimeout(insertionTimer);
     insertionTimer = window.setTimeout(() => {
@@ -80,13 +81,13 @@
         roots.push(...visibleMenuRoots());
       }
       for (const pendingRoot of roots) {
-        if (tryInsertMenuItem(pendingRoot)) {
+        if (tryInsertJobMenuActions(pendingRoot)) {
           stopMenuScan();
           return;
         }
       }
       if (isScanActive()) {
-        scheduleMenuItemInsertion(null, cvFit.shareMenuDetection.retryIntervalMs);
+        scheduleJobMenuActionInsertion(null, companion.shareMenuDetection.retryIntervalMs);
       } else {
         stopMenuScan();
       }
@@ -94,7 +95,7 @@
   };
 
   const startMenuScan = () => {
-    scanDeadline = Date.now() + cvFit.shareMenuDetection.scanWindowMs;
+    scanDeadline = Date.now() + companion.shareMenuDetection.scanWindowMs;
     observer.observe(document.documentElement || document, {
       childList: true,
       subtree: true,
@@ -107,9 +108,9 @@
       const button = event.target?.closest?.('button, [role="button"], [aria-label*="share" i]');
       const label = `${button?.getAttribute?.("aria-label") || ""} ${button?.textContent || ""}`;
       if (/\bshare\b|\bmore options\b/i.test(label)) {
-        cvFit.jobs.captureShareContext(button);
+        companion.jobs.captureShareContext(button);
         startMenuScan();
-        scheduleMenuItemInsertion();
+        scheduleJobMenuActionInsertion();
       }
     },
     true,

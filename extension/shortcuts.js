@@ -1,5 +1,5 @@
 (() => {
-  const cvFit = globalThis.cvFitBridge;
+  const companion = globalThis.jobSearchCompanion;
   const supportedShortcutKeys = new Set(["n", "j", "k", "h", "u"]);
 
   const isEditableTarget = (target) => {
@@ -7,18 +7,20 @@
       return false;
     }
 
-    return Boolean(target.closest(
-      'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"]',
-    ));
+    return Boolean(
+      target.closest(
+        'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"]',
+      ),
+    );
   };
 
-  const activateCurrentJob = () => {
+  const submitSelectedJob = () => {
     try {
-      const jobUrl = cvFit.jobs.resolveSelectedJobUrl();
-      void cvFit.submissions.submit(jobUrl);
+      const jobUrl = companion.jobs.resolveSelectedJobUrl();
+      void companion.submissions.submit(jobUrl);
     } catch (error) {
       console.debug("CV Fit keyboard shortcut job resolution failed:", error);
-      cvFit.showToast("Couldn’t identify the current job.", "error");
+      companion.showToast("Couldn’t identify the current job.", "error");
     }
   };
 
@@ -40,35 +42,40 @@
     switch (shortcutKey(event)) {
       case "n":
         return () => {
-          activateCurrentJob();
+          submitSelectedJob();
           return true;
         };
       case "j":
-        return () => cvFit.jobs.navigateJob(1);
+        return () => companion.jobs.navigateJob(1);
       case "k":
-        return () => cvFit.jobs.navigateJob(-1);
+        return () => companion.jobs.navigateJob(-1);
       case "h":
-        return cvFit.jobs.hideCurrentJob;
+        return companion.jobs.hideCurrentJob;
       case "u":
-        return cvFit.jobs.undoLastJobAction;
+        return companion.jobs.undoLastJobAction;
       default:
         return null;
     }
   };
 
-  document.addEventListener("keydown", (event) => {
-    if (event.defaultPrevented
-        || event.repeat
-        || event.isComposing
-        || isEditableTarget(event.target)) {
-      return;
-    }
+  document.addEventListener(
+    "keydown",
+    (event) => {
+      if (
+        event.defaultPrevented ||
+        event.repeat ||
+        event.isComposing ||
+        isEditableTarget(event.target)
+      ) {
+        return;
+      }
 
-    const action = shortcutActionFor(event);
-    if (action?.()) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-  }, true);
-
+      const action = shortcutActionFor(event);
+      if (action?.()) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    },
+    true,
+  );
 })();

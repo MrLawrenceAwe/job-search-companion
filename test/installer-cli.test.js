@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { parseArguments } from "../scripts/install-state-cli.js";
+import { parseArguments } from "../scripts/bridge-install-cli.js";
 
 test("CLI parsing converts kebab-case flags to option names", () => {
   assert.deepEqual(parseArguments([
@@ -22,13 +22,13 @@ test("CLI parsing converts kebab-case flags to option names", () => {
   });
 });
 
-test("CLI parsing accepts a retired-artifact listing request", () => {
+test("CLI parsing accepts a managed-artifact listing request", () => {
   assert.deepEqual(parseArguments([
-    "retired-artifact-paths",
+    "managed-artifact-paths",
     "--state-path",
     "/tmp/state",
   ]), {
-    command: "retired-artifact-paths",
+    command: "managed-artifact-paths",
     options: { statePath: "/tmp/state" },
   });
 });

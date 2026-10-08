@@ -33,7 +33,7 @@ const loadShortcuts = async () => {
       },
     },
     Element,
-    cvFitBridge: {
+    jobSearchCompanion: {
       jobs: {
         hideCurrentJob() {
           hides.push(true);
@@ -184,7 +184,7 @@ test("H hides the current job and U undoes the latest job action", async () => {
 
 test("shortcut reports a job-resolution failure without submitting", async () => {
   const fixture = await loadShortcuts();
-  fixture.context.cvFitBridge.jobs.resolveSelectedJobUrl = () => {
+  fixture.context.jobSearchCompanion.jobs.resolveSelectedJobUrl = () => {
     throw new Error("ambiguous job");
   };
 

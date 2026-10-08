@@ -137,7 +137,7 @@ test("OAuth validates state and identity before activating a registration, prese
   const auth = await openChatGPT({ path, verifyIdentity: async (_token, clientId, expectedNonce) => { assert.equal(clientId, "oaiapp_test"); assert.equal(expectedNonce, nonce); return { sub: "user1", email: "user@example.test" }; }, fetchImpl: async (_url, options) => {
     tokenParams = new URLSearchParams(options.body); return Response.json({ access_token: "test-access", refresh_token: "test-refresh", id_token: "test-id", token_type: "Bearer", expires_in: 3600, scope: "openid chatgpt.tokens.use.direct" });
   } });
-  const { authUrl } = await auth.signIn({ newProfile: true }); const url = new URL(authUrl); nonce = url.searchParams.get("nonce");
+  const { authUrl } = await auth.signIn({ newAccount: true }); const url = new URL(authUrl); nonce = url.searchParams.get("nonce");
   assert.equal(url.searchParams.get("client_id"), "dynamic_agent_client"); assert.equal(url.searchParams.get("code_challenge_method"), "S256");
   const callback = new URL(url.searchParams.get("redirect_uri")); callback.search = new URLSearchParams({ state: "wrong", code: "code", client_id: "oaiapp_test" });
   assert.equal((await fetch(callback)).status, 400); assert.equal(auth.session().connected, false);
@@ -157,8 +157,8 @@ test("checker routes require the existing bridge authentication boundary", async
   try {
     const url = `http://127.0.0.1:${server.address().port}/blockers/status`;
     assert.equal((await fetch(url)).status, 403);
-    assert.equal((await fetch(url, { headers: { "X-CV-Fit-Bridge-Token": "token", Origin: "https://uk.indeed.com" } })).status, 403);
-    const response = await fetch(url, { headers: { "X-CV-Fit-Bridge-Token": "token", Origin: "chrome-extension://test" } });
+    assert.equal((await fetch(url, { headers: { "X-JSC-Token": "token", Origin: "https://uk.indeed.com" } })).status, 403);
+    const response = await fetch(url, { headers: { "X-JSC-Token": "token", Origin: "chrome-extension://test" } });
     assert.equal(response.status, 200); assert.equal((await response.json()).settings.enabled, false);
   } finally { server.close(); }
 });
