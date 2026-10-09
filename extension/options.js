@@ -77,7 +77,19 @@ const updateSave = () => {
         : "Saved";
   button.disabled = busy || (!changed && !resume);
 };
-const render = (state) => {
+const preferenceFields = {
+  enabled: ["checksEnabled", "checked"],
+  accountFallback: ["accountFallback", "checked"],
+  reasoningEffort: ["checkerReasoning", "value"],
+  model: ["checkerModel", "value"],
+  indexModel: ["indexModel", "value"],
+};
+const render = (state, { preserveEdits = false } = {}) => {
+  const edits = preserveEdits && settingsState
+    ? Object.entries(preferenceFields).filter(([key, [id, property]]) =>
+      (byId(id)[property] || null) !== (settingsState.settings[key] || null),
+    ).map(([, [id, property]]) => [id, property, byId(id)[property]])
+    : [];
   settingsState = state;
   byId("connection").textContent = state.connectionStatus.pending
     ? "Finish signing in in your browser."
@@ -111,11 +123,12 @@ const render = (state) => {
   byId("checksEnabled").checked = state.settings.enabled;
   byId("accountFallback").checked = state.settings.accountFallback;
   byId("checkerReasoning").value = state.settings.reasoningEffort;
-  renderFallbacks();
   if (modelsLoaded) {
     byId("checkerModel").value = state.settings.model || "";
     byId("indexModel").value = state.settings.indexModel || "";
   }
+  for (const [id, property, value] of edits) byId(id)[property] = value;
+  renderFallbacks();
   renderInferenceSettings();
   byId("connectChatGPT").disabled = state.connectionStatus.pending;
   byId("connectChatGPT").hidden = state.connectionStatus.planUsageEnabled && !state.connectionStatus.pending;
@@ -127,7 +140,7 @@ const render = (state) => {
     feedback(state.pausedReason || state.connectionStatus.error, "error");
   updateSave();
 };
-const load = async () => render(await request("status"));
+const load = async (options) => render(await request("status"), options);
 const loadModels = async () => {
   if (!settingsState?.connectionStatus.planUsageEnabled) {
     byId("checkerModel").replaceChildren(option("", "Connect ChatGPT plan usage first"));
@@ -240,3 +253,11 @@ setInterval(() => {
       if (!settingsState.connectionStatus.pending) await loadModels();
     });
 }, 2000);
+
+// Returning from a job tab must expose pauses without discarding draft preferences.
+const refreshOnReturn = () => {
+  if (!document.hidden && !busy && settingsState)
+    void perform(() => load({ preserveEdits: true }));
+};
+window.addEventListener("focus", refreshOnReturn);
+document.addEventListener("visibilitychange", refreshOnReturn);

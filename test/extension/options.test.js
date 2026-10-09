@@ -84,3 +84,41 @@ test("settings use account registrations, save preferences, and clear only block
   await waitUntil(() => element("feedback").textContent === "Saved findings cleared.");
   assert.deepEqual(removed, ["blocker-result:first111"]);
 });
+
+
+test("returning to settings detects a pause and preserves unsaved preferences", async (t) => {
+  const dom = new JSDOM(await readFile(new URL("../../extension/options.html", import.meta.url), "utf8"),
+    { url: "https://extension.test/options.html", runScripts: "outside-only", pretendToBeVisual: true });
+  t.after(() => dom.window.close());
+  const { window } = dom;
+  const state = {
+    settings: { enabled: true, model: "test", indexModel: null, accountFallback: false, reasoningEffort: "medium" },
+    pausedReason: null,
+    connectionStatus: { planUsageEnabled: true, connected: true, pending: false, activeId: "a", fallbackIds: [], accounts: [{ id: "a", label: "Account A" }] },
+    profile: { hash: "profile" },
+  };
+  window.chrome = {
+    runtime: { async sendMessage(message) {
+      if (message.action === "models") return { ok: true, models: [{ slug: "test", name: "Test" }, { slug: "gpt-6-luna", name: "Luna" }] };
+      return { ok: true, ...structuredClone(state) };
+    } },
+    storage: { local: { async get() { return {}; } }, onChanged: { addListener() {} } },
+  };
+  await runScriptsInDom(window, ["contracts/blockers.js", "contracts/messages.js", "blockers/client.js", "blockers/result-store.js", "options.js"]);
+  const element = (id) => window.document.getElementById(id);
+  await waitUntil(() => element("saveSettings").textContent === "Saved");
+  state.pausedReason = "Plan usage limit reached";
+  window.dispatchEvent(new window.Event("focus"));
+  await waitUntil(() => element("saveSettings").textContent === "Resume checks");
+  assert.equal(element("saveSettings").disabled, false);
+  element("checkerModel").value = "gpt-6-luna";
+  element("checkerModel").dispatchEvent(new window.Event("change"));
+  element("checkerReasoning").value = "low";
+  element("checkerReasoning").dispatchEvent(new window.Event("change"));
+  state.pausedReason = "Updated pause reason";
+  window.document.dispatchEvent(new window.Event("visibilitychange"));
+  await waitUntil(() => element("feedback").textContent === "Updated pause reason");
+  assert.equal(element("checkerModel").value, "gpt-6-luna");
+  assert.equal(element("checkerReasoning").value, "low");
+  assert.equal(element("saveSettings").textContent, "Save and resume checks");
+});

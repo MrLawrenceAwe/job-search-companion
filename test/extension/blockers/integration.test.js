@@ -261,3 +261,24 @@ test("GraphQL selected descriptions are captured without inferring descriptions 
     fixture.close();
   }
 });
+
+
+test("cancelled checks retry the current job automatically", async () => {
+  const fixture = await createBlockerFixture({}, { dwellDelayMs: 100 });
+  try {
+    const original = fixture.window.chrome.runtime.sendMessage;
+    let starts = 0;
+    fixture.window.chrome.runtime.sendMessage = async (message) => {
+      if (message.action === "check" && ++starts === 1)
+        return { ok: true, check: { id: "cancelled-check", status: "queued" } };
+      if (message.action === "poll")
+        return { ok: true, check: { id: "cancelled-check", status: "cancelled" } };
+      return original(message);
+    };
+    await waitUntil(() => fixture.storage["blocker-result:first1111"]);
+    await waitUntil(() => fixture.window.document.querySelector(".jsc-blocker-panel")?.textContent.includes("No blockers found"));
+    assert.equal(starts, 2);
+  } finally {
+    fixture.close();
+  }
+});

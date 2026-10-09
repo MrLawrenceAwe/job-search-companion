@@ -30,7 +30,7 @@
     const captured = selection;
     if (
       !captured ||
-      !checkerState?.settings.enabled ||
+      !checkerState?.settings.enabled || checkerState?.pausedReason ||
       !checkerState?.connectionStatus.planUsageEnabled ||
       (!force && document.hidden)
     )
@@ -54,6 +54,11 @@
         render();
       }
       if (check.status === "completed") await recordStore.saveResult(check.result);
+      if (check.status === "cancelled") {
+        checks.delete(captured.signature);
+        // A cancelled request has no result. Restart dwell only for the selected job.
+        if (selection?.signature === captured.signature) schedule();
+      }
       render();
     } catch (error) {
       checks.set(captured.signature, {
@@ -70,7 +75,7 @@
   const scheduleDwell = () => {
     if (
       dwellTimer !== null || !selection || document.hidden ||
-      !checkerState?.settings.enabled ||
+      !checkerState?.settings.enabled || checkerState?.pausedReason ||
       !checkerState?.connectionStatus.planUsageEnabled ||
       getCurrentResult() || checks.has(selection.signature)
     ) return;
