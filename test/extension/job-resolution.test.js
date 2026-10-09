@@ -15,8 +15,52 @@ const visibleJobCarrier = (jobKey, title) => ({
   parentElement: null,
   textContent: title,
   title: "",
+  getBoundingClientRect: () => ({ width: 500, height: 40, left: 0, top: 100 }),
   getAttribute: (name) => name === "href" ? `/viewjob?jk=${jobKey}` : null,
   matches: (selector) => selector.includes("[href]"),
+});
+
+test("Indeed results resolve the displayed job instead of a stale vjk", async () => {
+  const { companion, document } = await createJobFixture({
+    href: "https://uk.indeed.com/?vjk=stalejob11",
+  });
+  const heading = createElement({ text: "Customer Service Executive" });
+  const carrier = visibleJobCarrier("current111", heading.textContent);
+  document.querySelectorAll = (selector) => {
+    if (selector === companion.selectors.jobUrlCarrier) return [carrier];
+    if (selector.includes('[data-testid="vj-job-title"]')) return [heading];
+    return [];
+  };
+  companion.dom.getViewportRect = companion.dom.getRenderedRect = (element) => ({
+    width: 500, height: 40, left: element === carrier ? 0 : 750, top: 100,
+  });
+  assert.equal(companion.jobs.resolveSelectedJobUrl(), "https://uk.indeed.com/viewjob?jk=current111");
+});
+
+test("Indeed results use the selected card to distinguish duplicate displayed titles", async () => {
+  const { companion, document } = await createJobFixture({
+    href: "https://uk.indeed.com/?vjk=stalejob11",
+  });
+  const heading = createElement({ text: "Support Specialist" });
+  const carriers = [visibleJobCarrier("current111", heading.textContent), visibleJobCarrier("otherjob11", heading.textContent)];
+  const originalMatches = carriers[0].matches;
+  carriers[0].matches = (selector) => selector.includes("aria-pressed") || originalMatches(selector);
+  document.querySelectorAll = (selector) => {
+    if (selector === companion.selectors.jobUrlCarrier) return carriers;
+    if (selector.includes('[data-testid="vj-job-title"]')) return [heading];
+    return [];
+  };
+  companion.dom.getRenderedRect = () => ({ width: 500, height: 40, left: 750, top: -500 });
+  companion.dom.getViewportRect = () => null;
+  assert.equal(companion.jobs.resolveSelectedJobUrl(), "https://uk.indeed.com/viewjob?jk=current111");
+});
+
+test("Indeed results with an unresolved displayed title do not mark the address-bar job", async () => {
+  const { companion, document } = await createJobFixture({ href: "https://uk.indeed.com/?vjk=stalejob11" });
+  const heading = createElement({ text: "Unknown displayed job" });
+  document.querySelectorAll = (selector) => selector.includes('[data-testid="vj-job-title"]') ? [heading] : [];
+  companion.dom.getViewportRect = companion.dom.getRenderedRect = () => ({ width: 500, height: 40, left: 750, top: 100 });
+  assert.throws(() => companion.jobs.resolveSelectedJobUrl(), /could not be identified safely/);
 });
 
 test("Indeed home-page job identity stays stable when mark controls change title-row text", async () => {

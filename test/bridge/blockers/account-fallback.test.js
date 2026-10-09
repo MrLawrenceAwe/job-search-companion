@@ -31,6 +31,48 @@ const settle = async (checker, task) => {
   return checker.get(task.id);
 };
 
+for (const scenario of ["index limit", "missing index model", "index and check limits"]) {
+  test(`CV refresh uses account fallback for ${scenario}`, async (t) => {
+    const directory = await mkdtemp(join(await realpath(tmpdir()), "jsc-index-fallback-"));
+    let activeId = "a";
+    const selected = [], calls = [];
+    const chatgpt = {
+      connectionStatus: () => ({ activeId, planUsageEnabled: true }),
+      fallbackAccountIds: () => ["b", "c"],
+      select: async (id) => { selected.push(id); activeId = id; },
+      models: async () => [{ slug: "test" }, ...(scenario === "missing index model" && activeId === "b" ? [] : [{ slug: "index" }])],
+      request: async (_endpoint, options) => {
+        const body = JSON.parse(options.body);
+        calls.push({ stage: "index", account: activeId, model: body.model });
+        if (activeId === "a") throw quota();
+        return new Response(`data: ${JSON.stringify({ type: "response.completed", response: {
+          status: "completed", output: [{ type: "message", role: "assistant", content: [{ type: "output_text", text: JSON.stringify({ passageIds: ["P1"] }) }] }],
+        } })}\n\n`);
+      },
+      close() {},
+    };
+    await writeFile(join(directory, "profile.md"), "## Personal Constraints\n- Provisional driving licence.\n");
+    await writeFile(join(directory, "Lawrence_Awe_Test_CV.txt"), "PROFILE\nCustomer service experience with responsibilities for enquiries, records, scheduling and resolving customer issues in a sample organisation.\n");
+    const checker = await openBlockerChecker({
+      directory, cvDirectory: directory, chatgpt,
+      profileSources: [{ kind: "application", path: join(directory, "profile.md") }],
+      infer: async ({ model }) => {
+        calls.push({ stage: "check", account: activeId, model });
+        if (scenario === "index and check limits" && activeId === "b") throw quota();
+        return result;
+      },
+    });
+    t.after(async () => { checker.close(); await rm(directory, { recursive: true, force: true }); });
+    await checker.configure({ enabled: true, model: "test", indexModel: "index", accountFallback: true });
+    const task = await checker.start(job());
+    assert.equal((await settle(checker, task)).status, "completed");
+    assert.deepEqual(selected, scenario === "index limit" ? ["b"] : ["b", "c"]);
+    assert.deepEqual(calls.filter((call) => call.stage === "index").map((call) => call.account), ["a", scenario === "missing index model" ? "c" : "b"]);
+    assert.ok(calls.every((call) => call.model === (call.stage === "index" ? "index" : "test")));
+    assert.equal((await checker.status()).pausedReason, null);
+  });
+}
+
 test("confirmed usage exhaustion retries the same check and queued jobs continue on the fallback", async (t) => {
   const calls = []; let release;
   const { checker, chatgpt, selected } = await fixture(t, async ({ chatgpt, model, description }) => {

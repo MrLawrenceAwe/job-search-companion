@@ -224,8 +224,6 @@
     return jobEntries;
   };
 
-  const collectVisibleJobs = () => collectJobCarriers(companion.dom.getViewportRect);
-
   const candidateTitles = (carrier) => {
     const titles = [carrier.textContent, carrier.getAttribute("aria-label"), carrier.title];
     for (const element of ancestorsOf(carrier.parentElement, 7)) {
@@ -238,14 +236,15 @@
     return titles.map(companion.text.normalizeForMatch).filter(Boolean);
   };
 
-  const resolveVisibleJobByTitle = (title) => {
+  const resolveVisibleJobByTitle = (title, isEligible = companion.dom.getViewportRect, selectedOnly = false) => {
     const normalizedTitle = companion.text.normalizeForMatch(title);
     if (!normalizedTitle) {
       return { status: "not-found", jobUrl: null };
     }
 
     const matchingJobUrls = new Set();
-    for (const { element, jobUrl } of collectVisibleJobs()) {
+    for (const { element, jobUrl } of collectJobCarriers(isEligible)) {
+      if (selectedOnly && !element.matches?.('[aria-pressed="true"], [aria-selected="true"]')) continue;
       if (candidateTitles(element).some((candidateTitle) => candidateTitle === normalizedTitle)) {
         matchingJobUrls.add(jobUrl);
       }
@@ -260,6 +259,9 @@
   const findDetailPaneJobTitle = () => {
     // Title-row wrappers also contain our mark buttons. Reading their text
     // makes the job identity change whenever controls are inserted or removed.
+    const detailHeading = [...document.querySelectorAll(companion.selectors.jobDetailTitle)]
+      .find((heading) => companion.dom.getRenderedRect(heading));
+    if (detailHeading) return cleanJobTitle(detailHeading.textContent);
     const headings = [
       ...document.querySelectorAll(`h1, h2, ${companion.selectors.jobDetailTitle}`),
     ];
@@ -317,8 +319,8 @@
     };
   };
 
-  const resolveJobUrlByTitle = (title) => {
-    const visibleMatch = resolveVisibleJobByTitle(title);
+  const resolveJobUrlByTitle = (title, isEligible = companion.dom.getViewportRect) => {
+    const visibleMatch = resolveVisibleJobByTitle(title, isEligible);
     if (visibleMatch.status === "ambiguous") {
       return null;
     }
@@ -333,6 +335,18 @@
   };
 
   const resolvePageJobUrl = () => {
+    // Indeed's feed can retain an old vjk after rendering a different job.
+    // Resolve the displayed pane against rendered cards, including offscreen ones.
+    if (companion.platform === "indeed" && ["/", "/jobs"].includes(window.location.pathname)) {
+      const title = findDetailPaneJobTitle();
+      if (title) {
+        const selected = resolveVisibleJobByTitle(title, companion.dom.getRenderedRect, true);
+        const displayedJobUrl = selected.status === "resolved" ? selected.jobUrl
+          : selected.status === "ambiguous" ? null : resolveJobUrlByTitle(title, companion.dom.getRenderedRect);
+        if (displayedJobUrl) return displayedJobUrl;
+        throw new Error("The displayed job could not be identified safely");
+      }
+    }
     const pageJobUrl = companion.jobs.jobUrlFromPageUrl(window.location.href);
     if (pageJobUrl) {
       return pageJobUrl;

@@ -25,6 +25,7 @@ export const createJobFixture = async ({ href, scripts = [], canonicalUrl = null
   const body = createElement();
   const documentElement = createElement();
   const listeners = {};
+  const windowListeners = {};
   const mutationObservers = [];
   const document = {
     body,
@@ -55,6 +56,9 @@ export const createJobFixture = async ({ href, scripts = [], canonicalUrl = null
       notify() { if (this.observing) this.callback(); }
     },
     window: {
+      addEventListener(type, listener) {
+        (windowListeners[type] ||= []).push(listener);
+      },
       getComputedStyle: () => ({ display: "block", visibility: "visible" }),
       innerWidth: 1440,
       location,
@@ -71,5 +75,5 @@ export const createJobFixture = async ({ href, scripts = [], canonicalUrl = null
     "job-navigation.js",
   ]);
 
-  return { body, companion: context.jobSearchCompanion, document, mutationObservers };
+  return { body, companion: context.jobSearchCompanion, document, mutationObservers, location, windowListeners };
 };

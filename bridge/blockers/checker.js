@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { blockerContract, jobUrlContract } from "../../shared/contracts.js";
 import { sha256, hashJson } from "../../shared/sha256.js";
 import { normalizeJobUrl } from "../job-url.js";
-import { inferWithAccountFallback } from "./account-fallback.js";
+import { runWithAccountFallback } from "./account-fallback.js";
 import { runBlockerInference } from "./inference.js";
 import { openPrivateStore } from "./private-store.js";
 import { readVerifiedProfile } from "./profile.js";
@@ -34,12 +34,12 @@ export const openBlockerChecker = async ({
   const cache = await openResultCache(directory);
   const cvIndex = cvDirectory ? await openCvIndex({ directory, cvDirectory, chatgpt }) : null;
   let indexController = new AbortController();
-  const readProfile = suppliedReadProfile || (async ({ refreshCvIndex = true } = {}) => {
+  const readProfile = suppliedReadProfile || (async ({ refreshCvIndex = true, signal } = {}) => {
     const profile = await readVerifiedProfile(profileSources);
     if (!cvIndex) return profile;
     if (indexController.signal.aborted) indexController = new AbortController();
     const index = refreshCvIndex
-      ? await cvIndex.ensureCurrent({ signal: indexController.signal, model: settings.value.indexModel || settings.value.model, reasoningEffort: "medium" })
+      ? await cvIndex.ensureCurrent({ signal: signal ? AbortSignal.any([signal, indexController.signal]) : indexController.signal, model: settings.value.indexModel || settings.value.model, reasoningEffort: "medium" })
       : await cvIndex.readCurrent({ model: settings.value.indexModel || settings.value.model });
     if (!index) return { ...profile, hash: hashJson({ facts: profile.facts, cvFingerprint: null, indexModel: settings.value.indexModel || settings.value.model }) };
     const facts = [...profile.facts, ...index.facts.map((fact, i) => ({ ...fact, id: `CV${i + 1}` }))];
@@ -118,33 +118,42 @@ export const openBlockerChecker = async ({
     let previousRecord = cache.get(checkJob.key);
     const isCurrent = () => isCheckCurrent(checkJob);
     try {
-      if (cvIndex) {
-        checkJob.profile = await readProfile();
-        if (!isCurrent()) throw new Error("Check interrupted while preparing CV evidence.");
-        checksByCacheKey.delete(checkJob.key);
-        checkJob.key = cacheKeyFor(checkJob);
-        checksByCacheKey.set(checkJob.key, checkJob);
-        previousRecord = cache.get(checkJob.key);
-        if (!checkJob.force && previousRecord) {
-          checkJob.publicState.status = "completed";
-          checkJob.publicState.result = previousRecord;
-          return;
-        }
-      }
-      const result = await inferWithAccountFallback({
+      let requiredModel = checkJob.model;
+      const outcome = await runWithAccountFallback({
         chatgpt,
-        infer,
         checkJob,
-        signal: controller.signal,
+        model: () => requiredModel,
         isCurrent,
         enabled: () => settings.value.accountFallback,
+        run: async () => {
+          if (cvIndex) {
+            requiredModel = settings.value.indexModel || checkJob.model;
+            checkJob.profile = await readProfile({ signal: controller.signal });
+            if (!isCurrent()) throw new Error("Check interrupted while preparing CV evidence.");
+            checksByCacheKey.delete(checkJob.key);
+            checkJob.key = cacheKeyFor(checkJob);
+            checksByCacheKey.set(checkJob.key, checkJob);
+            previousRecord = cache.get(checkJob.key);
+            if (!checkJob.force && previousRecord) return { cachedRecord: previousRecord };
+          }
+          requiredModel = checkJob.model;
+          return { result: await infer({
+            chatgpt, model: checkJob.model, reasoningEffort: checkJob.reasoningEffort,
+            description: checkJob.description, profile: checkJob.profile, signal: controller.signal,
+          }) };
+        },
       });
       if (!isCurrent()) {
         checkJob.publicState.status = "cancelled";
         return;
       }
+      if (outcome.cachedRecord) {
+        checkJob.publicState.status = "completed";
+        checkJob.publicState.result = outcome.cachedRecord;
+        return;
+      }
       const record = {
-        ...result,
+        ...outcome.result,
         jobId: checkJob.jobId,
         descriptionHash: checkJob.descriptionHash,
         profileHash: checkJob.profile.hash,

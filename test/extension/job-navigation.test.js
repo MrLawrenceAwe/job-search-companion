@@ -3,6 +3,48 @@ import test from "node:test";
 
 import { createJobFixture } from "../../test-support/job-fixture.js";
 
+for (const action of ["hide", "navigate"]) {
+  test(`${action} reconciles keyboard selection after the page selects another job`, async () => {
+    const { companion } = await createJobFixture({ href: "https://uk.indeed.com/jobs?vjk=visiblejob3" });
+    const hidden = [], clicked = [];
+    const jobs = ["visiblejob1", "visiblejob2", "visiblejob3"].map((id) => ({
+      jobUrl: `https://uk.indeed.com/viewjob?jk=${id}`,
+      element: {
+        matches: () => true, click: () => clicked.push(id), focus() {}, scrollIntoView() {},
+        closest: () => ({ classList: { add: () => hidden.push(id) } }),
+      },
+    }));
+    companion.jobs.collectJobCarriers = () => jobs;
+    companion.jobs.navigateJob(1);
+    companion.jobs.jobUrlFromPageUrl = () => jobs[1].jobUrl;
+    if (action === "hide") {
+      assert.equal(companion.jobs.hideCurrentJob(), true);
+      assert.deepEqual(hidden, ["visiblejob2"]);
+    } else {
+      assert.equal(companion.jobs.navigateJob(1), true);
+      assert.deepEqual(clicked, ["visiblejob1", "visiblejob3"]);
+    }
+  });
+}
+
+test("history can return to the URL captured before keyboard navigation", async () => {
+  const { companion, windowListeners } = await createJobFixture({ href: "https://uk.indeed.com/jobs?vjk=visiblejob3" });
+  const hidden = [];
+  const jobs = ["visiblejob1", "visiblejob2", "visiblejob3"].map((id) => ({
+    jobUrl: `https://uk.indeed.com/viewjob?jk=${id}`,
+    element: {
+      matches: () => true, click() {}, focus() {}, scrollIntoView() {},
+      closest: () => ({ classList: { add: () => hidden.push(id) } }),
+    },
+  }));
+  companion.jobs.collectJobCarriers = () => jobs;
+  companion.jobs.navigateJob(1);
+  companion.jobs.navigateJob(1);
+  for (const listener of windowListeners.popstate) listener();
+  assert.equal(companion.jobs.hideCurrentJob(), true);
+  assert.deepEqual(hidden, ["visiblejob3"]);
+});
+
 test("rendered-job navigation starts at the top after page load", async () => {
   const { companion, document } = await createJobFixture({
     href: "https://uk.indeed.com/jobs?q=support&vjk=visiblejob2",

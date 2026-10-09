@@ -1,23 +1,16 @@
 // One invocation retains its candidate list, trying each distinct subscriber once.
-export const inferWithAccountFallback = async ({
+export const runWithAccountFallback = async ({
   chatgpt,
-  infer,
+  run,
+  model,
   checkJob,
-  signal,
   isCurrent,
   enabled,
 }) => {
   let candidates = null;
   while (true) {
     try {
-      return await infer({
-        chatgpt,
-        model: checkJob.model,
-        reasoningEffort: checkJob.reasoningEffort,
-        description: checkJob.description,
-        profile: checkJob.profile,
-        signal,
-      });
+      return await run();
     } catch (error) {
       if (!isCurrent() || !enabled() || error.code !== "subscription_sharing_usage_limit_exceeded")
         throw error;
@@ -42,7 +35,7 @@ export const inferWithAccountFallback = async ({
             throw catalogError;
           }
           if (!isCurrent()) throw error;
-          if (models.some((model) => model.slug === checkJob.model)) {
+          if (models.some((availableModel) => availableModel.slug === model())) {
             available = true;
             break;
           }

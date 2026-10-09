@@ -71,22 +71,18 @@
   };
 
   const currentRenderedJob = (jobs) => {
-    if (lastNavigatedJobUrl !== null) {
-      return jobs.find(({ jobUrl }) => jobUrl === lastNavigatedJobUrl) || null;
-    }
-
     try {
-      const currentJobUrl = companion.jobs.resolvePageJobUrl();
+      const currentJobUrl = resolveSelectedJobUrl(jobs);
       return jobs.find(({ jobUrl }) => jobUrl === currentJobUrl) || null;
     } catch {
       return null;
     }
   };
 
-  const resolveSelectedJobUrl = () => {
+  const resolveSelectedJobUrl = (jobs = null) => {
     if (
       lastNavigatedJobUrl !== null &&
-      renderedJobs().some(({ jobUrl }) => jobUrl === lastNavigatedJobUrl)
+      (jobs || renderedJobs()).some(({ jobUrl }) => jobUrl === lastNavigatedJobUrl)
     ) {
       const pageJobUrl = companion.jobs.jobUrlFromPageUrl(window.location.href);
       if (
@@ -94,7 +90,8 @@
         pageJobUrl !== lastNavigatedJobUrl &&
         pageJobUrl !== pageJobUrlAtSelection
       ) {
-        return pageJobUrl;
+        lastNavigatedJobUrl = pageJobUrl;
+        pageJobUrlAtSelection = pageJobUrl;
       }
       return lastNavigatedJobUrl;
     }
@@ -124,6 +121,10 @@
   };
 
   document.addEventListener?.("click", rememberInteractedJob, true);
+  window.addEventListener?.("popstate", () => {
+    // A history change is distinct from the stale URL during a pending card click.
+    pageJobUrlAtSelection = null;
+  });
 
   const navigateJob = (direction) => {
     if (![1, -1].includes(direction)) {
@@ -131,6 +132,7 @@
     }
 
     const jobs = renderedJobs();
+    const previousJob = currentRenderedJob(jobs);
     if (jobs.length === 0 || (lastNavigatedJobUrl === null && direction === -1)) {
       return false;
     }
@@ -138,13 +140,12 @@
     const currentIndex =
       lastNavigatedJobUrl === null
         ? -1
-        : jobs.findIndex(({ jobUrl }) => jobUrl === lastNavigatedJobUrl);
+        : jobs.indexOf(previousJob);
     const target = jobs[currentIndex + direction];
     if (!target) {
       return false;
     }
 
-    const previousJob = currentRenderedJob(jobs);
     if (!selectJob(target)) {
       return false;
     }
