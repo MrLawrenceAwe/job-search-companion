@@ -1,4 +1,4 @@
-importScripts("contracts/job-urls.js", "contracts/messages.js", "bridge-config.js");
+importScripts("contracts/job-urls.js", "contracts/job-analyses.js", "contracts/messages.js", "bridge-config.js");
 try {
   importScripts("local-config.js");
 } catch {
@@ -9,6 +9,28 @@ const bridgeConfig = globalThis.jobSearchBridgeConfig;
 const messages = globalThis.jobSearchContracts.messages;
 const submissionsEndpoint = `${bridgeConfig.bridgeOrigin}/cv-fit-submissions`;
 const REQUEST_TIMEOUT_MS = 10_000;
+let analysisSync = null;
+
+const syncJobAnalyses = () => {
+  if (analysisSync) return analysisSync;
+  analysisSync = (async () => {
+    if (!bridgeConfig.bridgeToken) throw new Error("Local bridge is not configured");
+    const { response, body } = await requestBridgeJson(`${bridgeConfig.bridgeOrigin}/analyses`, { method: "GET" });
+    if (!response.ok || !body?.ok || !Array.isArray(body.analyses)) throw new Error("Analysis records unavailable");
+    const contract = globalThis.jobSearchContracts.jobAnalyses;
+    const values = {};
+    for (const record of body.analyses) {
+      if (!contract.isRecord(record)) throw new Error("Invalid analysis record");
+      values[contract.keyFor(record.jobUrl)] = record;
+    }
+    const prior = await chrome.storage.local.get(Object.keys(values));
+    const changed = Object.fromEntries(Object.entries(values).filter(([key, record]) =>
+      JSON.stringify(prior[key]) !== JSON.stringify(record)));
+    if (Object.keys(changed).length) await chrome.storage.local.set(changed);
+    return { ok: true };
+  })().finally(() => { analysisSync = null; });
+  return analysisSync;
+};
 
 const requestBridgeJson = async (endpoint, { method, body: requestBody }) => {
   const controller = new AbortController();
@@ -155,6 +177,24 @@ const handleBlockerMessage = (message, sender, sendResponse) => {
   return true;
 };
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if ([messages.syncJobAnalyses, messages.openJobAnalysis].includes(message?.type)) {
+    let allowed = false;
+    try {
+      const url = new URL(sender.url);
+      const hosts = globalThis.jobSearchContracts.jobUrls;
+      allowed = url.protocol === "https:" && (hosts.isIndeedHost(url.hostname) || hosts.isLinkedInHost(url.hostname));
+    } catch { /* Reject unknown senders. */ }
+    if (!allowed) { sendResponse({ ok: false, error: "Analysis request is not allowed" }); return false; }
+    const action = message.type === messages.syncJobAnalyses ? syncJobAnalyses()
+      : requestBridgeJson(`${bridgeConfig.bridgeOrigin}/analyses/open`, {
+        method: "POST", body: { jobUrl: message.jobUrl },
+      }).then(({ response, body }) => {
+        if (!response.ok || !body?.ok) throw new Error(body?.error || "Couldn’t open the analysis");
+        return { ok: true };
+      });
+    action.then(sendResponse, (error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
   if (message?.type === messages.openBlockerSettings && isIndeedSender(sender)) {
     chrome.runtime.openOptionsPage();
     sendResponse({ ok: true });
@@ -166,3 +206,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   );
 });
 chrome.action?.onClicked.addListener(() => chrome.runtime.openOptionsPage());
+chrome.alarms?.create("sync-job-analyses", { periodInMinutes: 0.5 });
+chrome.alarms?.onAlarm.addListener((alarm) => {
+  if (alarm.name === "sync-job-analyses") void syncJobAnalyses().catch(() => {});
+});

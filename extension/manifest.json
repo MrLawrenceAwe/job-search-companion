@@ -1,10 +1,11 @@
 {
   "manifest_version": 3,
   "name": "Job Search Companion",
-  "version": "0.14.0",
+  "version": "0.15.1",
   "description": "Track and browse jobs, check loaded Indeed descriptions for blockers using ChatGPT plan usage, and analyse CV fit with Codex.",
   "permissions": [
-    "storage"
+    "storage",
+    "alarms"
   ],
   "host_permissions": [
     "http://127.0.0.1:48973/*",
@@ -53,6 +54,7 @@
       ],
       "js": [
         "contracts/job-urls.js",
+        "contracts/job-analyses.js",
         "contracts/blockers.js",
         "contracts/messages.js",
         "contracts/cv-fit-submissions.js",
@@ -67,6 +69,7 @@
         "cv-fit-submission.js",
         "job-mark-store.js",
         "job-marks.js",
+        "job-analyses.js",
         "shortcuts.js",
         "job-menu.js",
         "job-menu-observer.js",

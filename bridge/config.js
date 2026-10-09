@@ -37,6 +37,7 @@ export const config = Object.freeze({
   }),
   blockers: Object.freeze({
     directory: join(supportDirectory, "blockers"),
+    cvDirectory: join(homedir(), "Job Hunting"),
     profileSources: [
       { kind: "application", path: join(homedir(), "Job Hunting/profile.md") },
       { kind: "verified", path: join(homedir(), ".codex/skills/apply-to-jobs/references/profile.md") },
@@ -58,5 +59,6 @@ export const config = Object.freeze({
     logPath: process.env.JSC_LOG_PATH
       || join(supportDirectory, "bridge.log"),
     submissionsPath: join(supportDirectory, "submissions.json"),
+    analysesPath: join(supportDirectory, "analyses.json"),
   }),
 });

@@ -25,10 +25,10 @@ test("checker deduplicates across tabs, persists results, and invalidates profil
   assert.equal(checker.get(a.id).status, "completed");
   assert.equal((await checker.start(job())).cached, true); assert.equal(calls, 1);
   currentProfile = { ...profile, hash: "profile-v2" };
-  const changed = await checker.start(job()); await drainEventLoopUntil(() => checker.get(changed.id).status === "completed", 100);
+  const changed = await checker.start(job()); await waitUntil(() => checker.get(changed.id).status === "completed");
   assert.equal(calls, 2);
   const changedText = await checker.start({ ...job(), description: job().description + " Travel every day." });
-  await drainEventLoopUntil(() => checker.get(changedText.id).status === "completed", 100);
+  await waitUntil(() => checker.get(changedText.id).status === "completed");
   assert.equal(calls, 3);
   checker.close();
   const restored = await openBlockerChecker({ directory, profileSources: [], chatgpt, infer: async () => { throw new Error("Should be cached"); }, readProfile: async () => currentProfile });
@@ -98,5 +98,19 @@ test("reasoning changes persist, cancel pending work, and invalidate Luna result
   assert.equal((await checker.start(job())).result.reasoningEffort, "medium");
   assert.equal(JSON.parse(await readFile(join(directory, "settings.json"), "utf8")).reasoningEffort, "medium");
   await assert.rejects(checker.configure({ reasoningEffort: "light" }), /Invalid checker settings/);
+  checker.close();
+});
+
+test("indexing model is selected independently and validates catalog availability", async () => {
+  const { checker, chatgpt, directory } = await setup(async () => noBlockers);
+  chatgpt.models = async () => [{ slug: "gpt-6-luna" }, { slug: "gpt-6-sol" }];
+  await checker.configure({ model: "gpt-6-luna", indexModel: "gpt-6-sol" });
+  const status = await checker.status();
+  assert.equal(status.settings.model, "gpt-6-luna");
+  assert.equal(status.settings.indexModel, "gpt-6-sol");
+  assert.equal(JSON.parse(await readFile(join(directory, "settings.json"), "utf8")).indexModel, "gpt-6-sol");
+  await assert.rejects(checker.configure({ indexModel: "invented-model" }), /available/);
+  await checker.configure({ indexModel: null });
+  assert.equal((await checker.status()).settings.indexModel, null);
   checker.close();
 });

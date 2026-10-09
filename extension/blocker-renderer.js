@@ -90,7 +90,7 @@
         panel.append(
           element(
             "p",
-            `Checked ${new Date(result.checkedAt).toLocaleString()} against your current verified profile.`,
+            `Checked ${new Date(result.checkedAt).toLocaleString()} against your current profile and CV evidence.`,
           ),
         );
         if (!result.findings.length)
@@ -113,7 +113,7 @@
             details.append(element("p", `${fact.source}: ${fact.text}`));
           if (!finding.profileFacts?.length)
             details.append(
-              element("p", "Your verified profile does not establish this requirement."),
+              element("p", "Your profile and CV evidence do not establish this requirement."),
             );
           panel.append(details);
         }

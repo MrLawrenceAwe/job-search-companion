@@ -1,0 +1,108 @@
+{
+  "measuredAt": "2026-10-09T10:17:58.078Z",
+  "model": "gpt-6-luna",
+  "reasoningEffort": "medium",
+  "requestedServiceTier": "priority",
+  "indexModel": "gpt-6-sol",
+  "indexingMs": 24216,
+  "cvFiles": 65,
+  "indexedFacts": 39,
+  "indexCharacters": 13403,
+  "runs": [
+    {
+      "case": "renewables-specialist",
+      "durationMs": 10358,
+      "outcome": "uncertain_requirement",
+      "expected": "uncertain_requirement",
+      "passed": true,
+      "findings": [
+        {
+          "kind": "uncertain_requirement",
+          "requirementQuote": "with experience in the renewal energy sector",
+          "explanation": "No supplied evidence establishes renewable-energy sector experience; interest in product compliance and regulated operations is not that experience.",
+          "profileFacts": []
+        },
+        {
+          "kind": "uncertain_requirement",
+          "requirementQuote": "Proven office experience with a strong understanding of administrative procedures",
+          "explanation": "Records, process-following and customer-service experience are documented, but proven office experience and a strong understanding of office procedures are not established.",
+          "profileFacts": []
+        },
+        {
+          "kind": "uncertain_requirement",
+          "requirementQuote": "Proficiency in computer skills including Microsoft Office Suite (Word, Excel, PowerPoint), Google Workspace (Gmail, Drive), and QuickBooks",
+          "explanation": "Some Microsoft Office skills are listed, but proficiency across the named suite and Google Workspace and QuickBooks is not established.",
+          "profileFacts": []
+        },
+        {
+          "kind": "uncertain_requirement",
+          "requirementQuote": "Experience with compliance documentation including MCS records, Building regulations, insurance backed guarantees, electrical certificates and heat loss designs.",
+          "explanation": "No supplied evidence establishes experience with these specialist renewable-energy compliance records or designs.",
+          "profileFacts": []
+        },
+        {
+          "kind": "uncertain_requirement",
+          "requirementQuote": "Work Location: In person",
+          "explanation": "The job location and commute fit are unspecified; onsite willingness is limited to London up to three days weekly, and relocation is job-specific.",
+          "profileFacts": []
+        }
+      ]
+    },
+    {
+      "case": "documented-qualification",
+      "durationMs": 6247,
+      "outcome": "no_blockers_found",
+      "expected": "no_blockers_found",
+      "passed": true,
+      "findings": []
+    },
+    {
+      "case": "mandatory-driving",
+      "durationMs": 3436,
+      "outcome": "clear_blocker",
+      "expected": "clear_blocker",
+      "passed": true,
+      "findings": [
+        {
+          "kind": "clear_blocker",
+          "requirementQuote": "You must hold a full UK driving licence",
+          "explanation": "The profile confirms only a provisional UK licence, not a full licence.",
+          "profileFacts": [
+            {
+              "id": "F1",
+              "text": "Holds a provisional UK driving licence only; does not have a full driving licence.",
+              "source": "Application profile"
+            },
+            {
+              "id": "F15",
+              "text": "Driving licence: provisional UK driving licence only.",
+              "source": "Verified application profile"
+            }
+          ]
+        },
+        {
+          "kind": "clear_blocker",
+          "requirementQuote": "drive to customer sites every day",
+          "explanation": "Daily driving to customer sites requires driving; the profile says the candidate has only a provisional licence and flags regular driving as a likely blocker.",
+          "profileFacts": [
+            {
+              "id": "F1",
+              "text": "Holds a provisional UK driving licence only; does not have a full driving licence.",
+              "source": "Application profile"
+            },
+            {
+              "id": "F2",
+              "text": "Treat jobs requiring a driving licence, regular driving, a company car, field sales travel by car, or independent client/site visits by car as likely blockers unless the posting clearly allows public transport or non-driving travel.",
+              "source": "Application profile"
+            },
+            {
+              "id": "F15",
+              "text": "Driving licence: provisional UK driving licence only.",
+              "source": "Verified application profile"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -55,6 +55,7 @@ const createHandler = (overrides = {}) => createRequestHandler({
   readHelperHealth: async () => ({ ready: true }),
   submitTask: async () => ({ status: "submitted" }),
   submissionStore: { submissions: new Map(), save: async () => {} },
+  analysisStore: { create: async ({ id }) => ({ id, token: "a".repeat(64) }), list: () => [] },
   createSubmissionId: () => "submission-1",
   ...overrides,
 });
@@ -286,4 +287,37 @@ test("request handler does not start a task if pending status cannot be saved", 
 
   assert.equal(response.statusCode, 503);
   assert.equal(started, false);
+});
+
+test("submission hands its own completion context to Codex without exposing it to Chrome", async () => {
+  let context;
+  let requested;
+  const handler = createHandler({
+    analysisStore: {
+      create: async (request) => { requested = request; return { id: request.id, token: "scoped-token" }; },
+      list: () => [],
+    },
+    submitTask: async (args) => { context = args; return { status: "submitted" }; },
+  });
+  const result = await invokeHandler(handler, { method: "POST", url: "/cv-fit-submissions", body: { jobUrl: "https://uk.indeed.com/viewjob?jk=fixture111" } });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(requested, { id: "submission-1", jobUrl: "https://uk.indeed.com/viewjob?jk=fixture111" });
+  assert.deepEqual(context.completion, { id: "submission-1", token: "scoped-token" });
+  assert.equal(JSON.stringify(result).includes("scoped-token"), false);
+});
+
+test("Open analysis opens only the saved chat for the requested job", async () => {
+  let opened;
+  const threadId = "01a11fef-d2cd-7410-953a-37e6497346d8";
+  const handler = createHandler({
+    analysisStore: { list: () => [{ jobUrl: "https://uk.indeed.com/viewjob?jk=fixture111", threadId }] },
+    openAnalysis: async (id) => { opened = id; },
+  });
+  const result = await invokeHandler(handler, { method: "POST", url: "/analyses/open", body: { jobUrl: "https://www.indeed.com/jobs?vjk=fixture111", threadId: "attacker-id" } });
+  assert.equal(result.statusCode, 200);
+  assert.equal(opened, threadId);
+  const missing = await invokeHandler(handler, { method: "POST", url: "/analyses/open", body: { jobUrl: "https://uk.indeed.com/viewjob?jk=otherjob111" } });
+  assert.equal(missing.statusCode, 404);
+  const invalid = await invokeHandler(handler, { method: "POST", url: "/analyses/open", body: { jobUrl: "javascript:alert(1)" } });
+  assert.equal(invalid.statusCode, 400);
 });

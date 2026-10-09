@@ -8,9 +8,9 @@ The checker uses Sign in with ChatGPT plan usage through the public Responses AP
 2. Reload the unpacked extension and refresh Indeed pages.
 3. Click the extension toolbar action to open settings.
 4. Choose **Continue with ChatGPT**, finish browser sign-in, and grant ChatGPT plan usage. Sign-in without this grant leaves checking disabled.
-5. Choose a model from your account's catalog, turn on **Enable blocker checks**, and save.
+5. Choose a checker model and an optional separate **CV indexing model** from your account's catalog (for example, Luna checks with Sol indexing), turn on **Enable blocker checks**, and save.
 
-The bridge reads relevant facts from `~/Job Hunting/profile.md` and `~/.codex/skills/apply-to-jobs/references/profile.md`. Contact and unrelated sensitive disclosure fields are omitted. Missing/unreadable profile files prevent checking. Edit the verified source files to update facts; changes invalidate prior checks. Semantically conflicting evidence stays uncertain.
+The bridge reads relevant constraint/profile facts from `~/Job Hunting/profile.md` and `~/.codex/skills/apply-to-jobs/references/profile.md`. Contact and unrelated sensitive disclosure fields are omitted. It also builds a compact, source-backed experience index from the top-level Lawrence CV files (`Lawrence_Awe_*CV*` and `Folarin CV D`) in `~/Job Hunting`; staged upload copies and application proofs are excluded. Word and PDF variants are both checked, and identical text is deduplicated. CV excerpts retain paid-work, training, project and qualification context; they are not treated as independently verified constraints. Missing/unreadable profile files prevent checking. Edit the verified source files or CVs to update evidence; changes invalidate prior checks. The CV index refreshes automatically on the next check after a CV is added, edited or removed, using the selected indexing model/account. **Use checker model** uses the checker model for indexing; an explicit indexing model remains independent. Changing the indexing model invalidates the index and saved findings, and rebuilds the index on the next check. Indexing requires Poppler (`brew install poppler`) for PDFs and macOS `textutil` for Word documents. The first refresh takes an additional model request; unchanged CVs reuse the local index without another indexing request. A failed refresh prevents a result rather than reusing stale evidence. Semantically conflicting evidence stays uncertain.
 
 ## Processing and findings
 
@@ -19,6 +19,8 @@ Only complete descriptions verified against the selected job are checked. Unsupp
 **Enable blocker checks** controls both automatic checks and the manual **Check now** and **Recheck** actions. **Off** means checking is disabled. **Paused** means checking is enabled but needs attention before it can resume.
 
 Automatic checks begin after a 1.5-second dwell in a visible tab. One model request runs at a time. Recent eligible selections take precedence over waiting jobs, with at most ten waiting checks. Already-running checks finish when selection changes; turning checks off, clearing findings, shutdown, and account changes cancel work. Identical checks share a task across tabs. Requests time out after 90 seconds. Failed checks require an explicit retry; transient failures do not retry automatically or switch billing.
+
+The model inventories candidate requirements in introductory prose and Experience/Requirements sections before the bridge derives findings. Requested sector and specialist compliance experience count even without “must”; missing CV/profile evidence produces uncertainty. Explicitly preferred/optional experience does not produce a blocker. All requirement quotes and evidence IDs are validated. This reduces omissions but remains a model-based check, not a guarantee that every requirement was recognised.
 
 The selected detail shows **Confirmed blocker**, **Uncertain requirement**, or **No blockers found**, with requirement excerpts and profile evidence. Confirmed blockers require an explicit mandatory requirement and contradictory verified evidence. Absence of evidence stays uncertain. Completed cards receive compact badges; unopened cards can show **Previously checked** but are never claimed current before their description is verified. Manual marks and job visibility are not changed.
 
@@ -36,6 +38,8 @@ When no fallback can continue, the check fails and queued checks pause. Use **Ma
 
 Each store keeps at most 300 saved findings on this device for up to 30 days. **Clear saved findings** clears both the bridge cache and extension records without changing manual marks. Older findings may appear as **Previously checked** until their description and profile are verified again.
 
+The index is saved privately as `cv-index.json` in the checker data directory, with exact CV passages, the indexing model and source fingerprints. Full CV text is sent only when refreshing the index; routine checks send the compact excerpts and profile facts.
+
 Checker data lives in `~/Library/Application Support/Job Search Companion/blockers/`. OAuth tokens remain in the bridge. Signing out clears local credentials and attempts remote revocation; settings reports if revocation is unconfirmed. Sign-out preserves the issued registration and stable host ID. Multiple registrations remain distinct even when they use the same email. Changing accounts or starting sign-in turns checks off and clears model selection.
 
 ## Limitations and validation
@@ -46,10 +50,16 @@ GPT-6 Luna requests Fast processing (`service_tier: "priority"`), but the delive
 
 For GPT-6 Luna, **Reasoning level** selects **Light (low)** or **Medium** and sends an explicit `reasoning.effort`. Medium remains the default. Saving a different level cancels pending checks and keeps results from the previous level from being reused as current findings. Account fallback retains the chosen level.
 
-On 9 October 2026, 12 live requests compared low and medium using the same verified profile, three sample descriptions and Fast processing. Two rounds alternated request order. Median completion time was **2.59 seconds for Light** and **2.44 seconds for Medium**: Light was 6.2% slower in this small sample, so no automatic switch was made. The switch threshold was a 20% reduction with all fixture outcomes passing. Low passed all six outcomes; medium passed five, missing the uncertain DBS requirement once in an advert containing an instruction injection. These synthetic cases are a limited check, not a comprehensive accuracy evaluation or a promise of future latency. Full inputs, timings and outcomes are in [the benchmark report](blocker-benchmark.json).
+Before requirement inventory and CV indexing were added, on 9 October 2026, 12 live requests compared low and medium using the same verified profile, three sample descriptions and Fast processing. Two rounds alternated request order. Median completion time was **2.59 seconds for Light** and **2.44 seconds for Medium**: Light was 6.2% slower in this small sample, so no automatic switch was made. The switch threshold was a 20% reduction with all fixture outcomes passing. Low passed all six outcomes; medium passed five, missing the uncertain DBS requirement once in an advert containing an instruction injection. These synthetic cases are a limited check, not a comprehensive accuracy evaluation or a promise of future latency. Full inputs, timings and outcomes are in [the benchmark report](blocker-benchmark.json).
 
-Run `node scripts/benchmark-blockers.js` to repeat this comparison using the currently connected account and verified profile. It uses ChatGPT plan usage, requires a fresh access token, and does not change checker settings, saved findings, accounts or credentials.
+Run `node scripts/benchmark-blockers.js` to compare reasoning levels using the currently connected account and verified profile. The historical report above does not measure the new requirement inventory or CV index; timings must be remeasured for that path. It uses ChatGPT plan usage, requires a fresh access token, and does not change checker settings, saved findings, accounts or credentials.
 
 See [checker internals and validation notes](design.md#blocker-checking-internals) for description capture, storage contracts, and automated coverage.
 
 Official documentation: [Sign-in](https://developers.openai.com/siwc/token-sharing-open-source/sign-in), [models/inference](https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference), [preview limitations](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations), [recovery](https://developers.openai.com/siwc/token-sharing-open-source/errors-and-recovery).
+
+## CV evidence regression verification
+
+Run `node scripts/verify-cv-blockers.js medium gpt-6-sol` to rebuild/reuse a Sol index and check the renewables advert, evidenced testing qualifications and mandatory driving. This uses ChatGPT plan usage and saves the local index plus a verification report. It does not change checker settings or credentials. The live reports are limited samples, not guarantees of completeness or latency.
+
+With a Sol-built CV index on 9 October 2026, the three live regression outcomes passed: renewables/compliance uncertainty, evidenced degree/ISTQB/manual testing, and mandatory driving. The index build took 24.2 seconds; Luna Medium checks took 10.4, 6.2 and 3.4 seconds respectively. These are single-run measurements. The separate low/medium comparison using a Luna-built index did not show a consistent Light speed advantage, so Medium was retained. See [the Sol index verification report](cv-blocker-verification-gpt-6-sol-medium.json).

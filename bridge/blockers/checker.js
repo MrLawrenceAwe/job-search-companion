@@ -8,6 +8,7 @@ import { inferWithAccountFallback } from "./account-fallback.js";
 import { runBlockerInference } from "./inference.js";
 import { openPrivateStore } from "./private-store.js";
 import { readVerifiedProfile } from "./profile.js";
+import { openCvIndex } from "./cv-index.js";
 import { openResultCache } from "./result-cache.js";
 
 const { version: CHECKER_VERSION } = blockerContract;
@@ -15,19 +16,36 @@ const { version: CHECKER_VERSION } = blockerContract;
 export const openBlockerChecker = async ({
   directory,
   profileSources,
+  cvDirectory,
   chatgpt,
   infer = runBlockerInference,
-  readProfile = () => readVerifiedProfile(profileSources),
+  readProfile: suppliedReadProfile,
 }) => {
   const settings = await openPrivateStore(join(directory, "settings.json"), {
     enabled: false,
     model: null,
+    indexModel: null,
     accountFallback: false,
     reasoningEffort: blockerContract.defaultReasoningEffort,
   });
+  settings.value.indexModel ??= null;
   settings.value.accountFallback ??= false;
   settings.value.reasoningEffort ??= blockerContract.defaultReasoningEffort;
   const cache = await openResultCache(directory);
+  const readCvIndex = cvDirectory ? await openCvIndex({ directory, cvDirectory, chatgpt }) : null;
+  let indexController = new AbortController();
+  const readProfile = suppliedReadProfile || (async ({ includeCv = true } = {}) => {
+    const profile = await readVerifiedProfile(profileSources);
+    if (!readCvIndex) return profile;
+    if (indexController.signal.aborted) indexController = new AbortController();
+    const index = includeCv
+      ? await readCvIndex({ signal: indexController.signal, model: settings.value.indexModel || settings.value.model, reasoningEffort: "medium" })
+      : await readCvIndex.peek({ model: settings.value.indexModel || settings.value.model });
+    if (!index) return { ...profile, hash: hashJson({ facts: profile.facts, cvFingerprint: null, indexModel: settings.value.indexModel || settings.value.model }) };
+    const facts = [...profile.facts, ...index.facts.map((fact, i) => ({ ...fact, id: `CV${i + 1}` }))];
+    return { facts, sources: [...profile.sources, { name: "CV experience index", path: join(directory, "cv-index.json") }],
+      hash: hashJson({ facts, cvFingerprint: index.fingerprint }) };
+  });
   const checksById = new Map();
   const checksByCacheKey = new Map();
   let queue = [];
@@ -49,7 +67,7 @@ export const openBlockerChecker = async ({
     let profile = null;
     let profileError = null;
     try {
-      profile = await readProfile();
+      profile = await readProfile({ includeCv: false });
     } catch {
       profileError = "Verified profile unavailable. Check the local profile files.";
     }
@@ -79,13 +97,28 @@ export const openBlockerChecker = async ({
     checkJob.controller = controller;
     const timer = setTimeout(() => controller.abort(), 90_000);
     let pendingRecord = null;
-    const previousRecord = cache.get(checkJob.key);
+    let previousRecord = cache.get(checkJob.key);
     const isCurrent = () =>
       checkJob.cancellationGeneration === cancellationGeneration &&
       checkJob.accountId === chatgpt.connectionStatus().activeId &&
       !disposed &&
       !controller.signal.aborted;
     try {
+      if (readCvIndex) {
+        checkJob.profile = await readProfile();
+        if (!isCurrent()) throw new Error("Check interrupted while preparing CV evidence.");
+        checksByCacheKey.delete(checkJob.key);
+        checkJob.key = hashJson({ jobId: checkJob.jobId, descriptionHash: checkJob.descriptionHash,
+          profileHash: checkJob.profile.hash, checkerVersion: CHECKER_VERSION,
+          model: checkJob.model, reasoningEffort: checkJob.reasoningEffort });
+        checksByCacheKey.set(checkJob.key, checkJob);
+        previousRecord = cache.get(checkJob.key);
+        if (!checkJob.force && previousRecord) {
+          checkJob.publicState.status = "completed";
+          checkJob.publicState.result = previousRecord;
+          return;
+        }
+      }
       const result = await inferWithAccountFallback({
         chatgpt,
         infer,
@@ -158,6 +191,7 @@ export const openBlockerChecker = async ({
   };
   const cancelAllChecks = () => {
     cancellationGeneration += 1;
+    indexController.abort();
     for (const checkJob of queue) {
       checkJob.publicState.status = "cancelled";
       checksByCacheKey.delete(checkJob.key);
@@ -170,25 +204,26 @@ export const openBlockerChecker = async ({
     status,
     async configure(patch) {
       if (
-        Object.keys(patch).some((key) => !["enabled", "model", "accountFallback", "reasoningEffort"].includes(key)) ||
+        Object.keys(patch).some((key) => !["enabled", "model", "indexModel", "accountFallback", "reasoningEffort"].includes(key)) ||
         (patch.reasoningEffort !== undefined && !["low", "medium"].includes(patch.reasoningEffort)) ||
         ["enabled", "accountFallback"].some(
           (key) => patch[key] !== undefined && typeof patch[key] !== "boolean",
         )
       )
         throw new Error("Invalid checker settings");
-      if (patch.model !== undefined) {
+      if (patch.model !== undefined || (patch.indexModel !== undefined && patch.indexModel !== null)) {
         const models = await chatgpt.models();
-        if (!models.some((m) => m.slug === patch.model))
+        if ([patch.model, patch.indexModel].filter((model) => model !== undefined && model !== null).some((model) => !models.some((m) => m.slug === model)))
           throw new Error("Choose a model available to the connected ChatGPT account");
       }
       if (patch.enabled && (!chatgpt.connectionStatus().planUsageEnabled || !(patch.model || settings.value.model)))
         throw new Error("Connect ChatGPT plan usage and choose a model first");
-      if (patch.enabled && !(await readProfile()).facts.length)
+      if (patch.enabled && !(await readProfile({ includeCv: false })).facts.length)
         throw new Error("Verified profile unavailable");
       if (
         patch.enabled === false ||
         (patch.model && patch.model !== settings.value.model) ||
+        (patch.indexModel !== undefined && patch.indexModel !== settings.value.indexModel) ||
         (patch.reasoningEffort !== undefined && patch.reasoningEffort !== settings.value.reasoningEffort) ||
         (patch.accountFallback !== undefined &&
           patch.accountFallback !== settings.value.accountFallback)
@@ -212,7 +247,15 @@ export const openBlockerChecker = async ({
         typeof force !== "boolean"
       )
         throw new Error("A full job description between 40 and 80,000 characters is required");
-      const profile = await readProfile();
+      if (pausedReason || !settings.value.enabled)
+        throw new Error(pausedReason || "Blocker checks are off. Enable them in settings.");
+      if (!chatgpt.connectionStatus().planUsageEnabled || !settings.value.model)
+        throw new Error("Connect ChatGPT plan usage and choose a model in settings");
+      const generation = cancellationGeneration;
+      const activeId = chatgpt.connectionStatus().activeId;
+      const profile = await readProfile({ includeCv: false });
+      if (disposed || generation !== cancellationGeneration || activeId !== chatgpt.connectionStatus().activeId)
+        throw new Error("Check interrupted while preparing CV evidence. Try again.");
       const jobId = parsed.searchParams.get("jk");
       const descriptionHash = sha256(description);
       const model = settings.value.model;
@@ -228,12 +271,9 @@ export const openBlockerChecker = async ({
       if (checksByCacheKey.has(key)) return checksByCacheKey.get(key).publicState;
       const cached = cache.get(key);
       if (!force && cached) return { status: "completed", cached: true, result: cached };
-      if (pausedReason || !settings.value.enabled)
-        throw new Error(pausedReason || "Blocker checks are off. Enable them in settings.");
-      if (!chatgpt.connectionStatus().planUsageEnabled || !model)
-        throw new Error("Connect ChatGPT plan usage and choose a model in settings");
       const checkJob = {
         key,
+        force,
         jobId,
         model,
         reasoningEffort,
@@ -271,6 +311,7 @@ export const openBlockerChecker = async ({
       cancelAllChecks();
       settings.value.enabled = false;
       settings.value.model = null;
+      settings.value.indexModel = null;
       pausedReason = null;
       await settings.save();
     },

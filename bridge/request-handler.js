@@ -1,4 +1,4 @@
-import { cvFitSubmissionContract } from "../shared/contracts.js";
+import { cvFitSubmissionContract, jobAnalysisContract } from "../shared/contracts.js";
 import { randomUUID } from "node:crypto";
 
 import {
@@ -9,6 +9,8 @@ import {
   sendJson,
 } from "./http-helpers.js";
 import { normalizeJobUrl } from "./job-url.js";
+import { handleAnalysisCompletion } from "./analysis-routes.js";
+import { runCommand } from "./run-command.js";
 
 const { statuses } = cvFitSubmissionContract;
 
@@ -19,6 +21,8 @@ export const createRequestHandler = ({
   readHelperHealth,
   submitTask,
   submissionStore,
+  analysisStore,
+  openAnalysis = (threadId) => runCommand("/usr/bin/open", [jobAnalysisContract.linkFor(threadId)], { timeoutMs: 10_000 }),
   createSubmissionId = randomUUID,
   blockerRoutes = null,
 }) => {
@@ -35,10 +39,10 @@ export const createRequestHandler = ({
     }
   };
 
-  const runSubmission = async (submissionId, jobUrl) => {
+  const runSubmission = async (submissionId, jobUrl, completion) => {
     let completedSubmission;
     try {
-      const { status } = await submitTask({ jobUrl });
+      const { status } = await submitTask({ jobUrl, completion });
       completedSubmission = { id: submissionId, status };
       logger.info(`CV Fit task automation completed: ${completedSubmission.status}`);
     } catch (error) {
@@ -75,8 +79,27 @@ export const createRequestHandler = ({
       respond(204, {});
       return;
     }
+    // Scoped completion callbacks do not expose the extension's general bridge credential.
+    if (await handleAnalysisCompletion(req, respond, analysisStore)) return;
     if (!isRequestTokenValid(req, bridgeConfig.token)) {
       respond(403, { ok: false, error: "Bridge token is invalid" });
+      return;
+    }
+    if (req.method === "GET" && req.url === "/analyses") {
+      respond(200, { ok: true, analyses: analysisStore.list() });
+      return;
+    }
+    if (req.method === "POST" && req.url === "/analyses/open") {
+      try {
+        const { jobUrl } = await readJsonBody(req);
+        const key = jobAnalysisContract.keyFor(jobUrl);
+        const analysis = analysisStore.list().find((record) => jobAnalysisContract.keyFor(record.jobUrl) === key);
+        if (!analysis) { respond(404, { ok: false, error: "No completed analysis for this job" }); return; }
+        await openAnalysis(analysis.threadId);
+        respond(200, { ok: true });
+      } catch (error) {
+        respond(error instanceof RequestBodyTooLargeError ? 413 : 400, { ok: false, error: error.message });
+      }
       return;
     }
 
@@ -144,8 +167,10 @@ export const createRequestHandler = ({
     const submission = { id: submissionId, status: statuses.submitting };
     submissions.set(submissionId, submission);
     activeSubmissionId = submissionId;
+    let completion;
     try {
       await submissionStore.save();
+      completion = await analysisStore.create({ id: submissionId, jobUrl });
     } catch (error) {
       submissions.delete(submissionId);
       activeSubmissionId = null;
@@ -154,7 +179,7 @@ export const createRequestHandler = ({
       return;
     }
     logger.info("CV Fit task submission started");
-    void runSubmission(submissionId, jobUrl);
+    void runSubmission(submissionId, jobUrl, completion);
     respond(202, { ok: true, submission });
   };
 };

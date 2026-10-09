@@ -6,7 +6,7 @@
     no_blockers_found: "No blockers found",
   });
   const contract = {
-    version: 1,
+    version: 2,
     retentionMs: 30 * 86400_000,
     maximumRecords: 300,
     storagePrefix: "blocker-result:",

@@ -15,11 +15,11 @@ export const accessibilityHelperTimeoutMs = (config.codex.composerReadyTimeoutMs
   + config.codex.submissionTimeoutMs
   + HELPER_COMMAND_GRACE_MS;
 
-export const createAccessibilityHelperArguments = ({ jobUrl }) => [
+export const createAccessibilityHelperArguments = ({ jobUrl, completion }) => [
   "auto-submit-if-configured",
   JSON.stringify({
     jobUrl,
-    newTaskUrl: createTaskDeepLink({ jobUrl }),
+    newTaskUrl: createTaskDeepLink({ jobUrl, completion }),
     bundleIdentifier: config.codex.bundleId,
     settings: config.cvFit.settings.map(({ category, label, match }) => ({
       category,
@@ -34,12 +34,12 @@ export const createAccessibilityHelperArguments = ({ jobUrl }) => [
   }),
 ];
 
-export const submitCvFitTask = async ({ jobUrl }) => {
+export const submitCvFitTask = async ({ jobUrl, completion }) => {
   const helperHealth = await readAccessibilityHelperHealth();
   if (!helperHealth.ready) {
     throw new Error(`Accessibility helper is not current: ${helperHealth.error || JSON.stringify(helperHealth)}`);
   }
-  const result = await runCommand(config.codex.accessibilityHelperPath, createAccessibilityHelperArguments({ jobUrl }), {
+  const result = await runCommand(config.codex.accessibilityHelperPath, createAccessibilityHelperArguments({ jobUrl, completion }), {
     timeoutMs: accessibilityHelperTimeoutMs,
   });
   const status = result.trim();

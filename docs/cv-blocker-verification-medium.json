@@ -1,0 +1,118 @@
+{
+  "measuredAt": "2026-10-09T10:13:59.888Z",
+  "model": "gpt-6-luna",
+  "reasoningEffort": "medium",
+  "requestedServiceTier": "priority",
+  "indexingMs": 137,
+  "cvFiles": 65,
+  "indexedFacts": 34,
+  "indexCharacters": 13336,
+  "runs": [
+    {
+      "case": "renewables-specialist",
+      "durationMs": 8814,
+      "outcome": "uncertain_requirement",
+      "expected": "uncertain_requirement",
+      "passed": true,
+      "findings": [
+        {
+          "kind": "uncertain_requirement",
+          "requirementQuote": "with experience in the renewal energy sector",
+          "explanation": "No renewable-energy sector experience is documented; the CV states only an interest in developing product-compliance knowledge.",
+          "profileFacts": []
+        },
+        {
+          "kind": "uncertain_requirement",
+          "requirementQuote": "Proven office experience with a strong understanding of administrative procedures",
+          "explanation": "Administrative and record-handling tasks are documented, but proven office experience and a strong understanding of administrative procedures are not established.",
+          "profileFacts": []
+        },
+        {
+          "kind": "uncertain_requirement",
+          "requirementQuote": "Proficiency in computer skills including Microsoft Office Suite (Word, Excel, PowerPoint), Google Workspace (Gmail, Drive), and QuickBooks",
+          "explanation": "The indexed CV mentions Excel basics but does not establish proficiency across the listed suite, Google Workspace, or QuickBooks.",
+          "profileFacts": []
+        },
+        {
+          "kind": "uncertain_requirement",
+          "requirementQuote": "Excellent organizational skills with the ability to prioritize tasks effectively in a fast-paced environment",
+          "explanation": "Fast-paced work and accuracy are documented, but explicit task-prioritization experience is not established.",
+          "profileFacts": []
+        },
+        {
+          "kind": "uncertain_requirement",
+          "requirementQuote": "Experience with compliance documentation including MCS records, Building regulations, insurance backed guarantees, electrical certificates and heat loss designs.",
+          "explanation": "No experience with these specialist renewable-energy compliance records or designs is documented; general technical documentation does not establish it.",
+          "profileFacts": []
+        },
+        {
+          "kind": "uncertain_requirement",
+          "requirementQuote": "Work Location: In person",
+          "explanation": "The in-person location is unspecified, so commute feasibility or willingness to relocate for this role cannot be determined.",
+          "profileFacts": []
+        }
+      ]
+    },
+    {
+      "case": "documented-qualification",
+      "durationMs": 4283,
+      "outcome": "no_blockers_found",
+      "expected": "no_blockers_found",
+      "passed": true,
+      "findings": []
+    },
+    {
+      "case": "mandatory-driving",
+      "durationMs": 3699,
+      "outcome": "clear_blocker",
+      "expected": "clear_blocker",
+      "passed": true,
+      "findings": [
+        {
+          "kind": "clear_blocker",
+          "requirementQuote": "must hold a full UK driving licence",
+          "explanation": "The profile states that Lawrence holds only a provisional UK driving licence.",
+          "profileFacts": [
+            {
+              "id": "F1",
+              "text": "Holds a provisional UK driving licence only; does not have a full driving licence.",
+              "source": "Application profile"
+            },
+            {
+              "id": "F15",
+              "text": "Driving licence: provisional UK driving licence only.",
+              "source": "Verified application profile"
+            }
+          ]
+        },
+        {
+          "kind": "clear_blocker",
+          "requirementQuote": "drive to customer sites every day",
+          "explanation": "Daily driving to customer sites is required; Lawrence has only a provisional licence and is not willing to travel to client sites elsewhere in the UK.",
+          "profileFacts": [
+            {
+              "id": "F1",
+              "text": "Holds a provisional UK driving licence only; does not have a full driving licence.",
+              "source": "Application profile"
+            },
+            {
+              "id": "F7",
+              "text": "Willing to work onsite in London up to three days per week, but not willing to travel to client sites elsewhere in the UK.",
+              "source": "Application profile"
+            },
+            {
+              "id": "F15",
+              "text": "Driving licence: provisional UK driving licence only.",
+              "source": "Verified application profile"
+            },
+            {
+              "id": "F36",
+              "text": "London travel boundary: willing to work onsite in London up to three days per week, but not willing to travel to client sites elsewhere in the UK.",
+              "source": "Verified application profile"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

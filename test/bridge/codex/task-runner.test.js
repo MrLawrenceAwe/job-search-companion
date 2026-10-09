@@ -8,13 +8,15 @@ const { accessibilityHelperTimeoutMs, createAccessibilityHelperArguments } =
 
 test("requests auto-submit only when Sol, Medium, and Fast are already selected", () => {
   const jobUrl = "https://uk.indeed.com/viewjob?jk=configured1";
-  const args = createAccessibilityHelperArguments({ jobUrl });
+  const completion = { id: "12345678-1234-1234-1234-123456789abc", token: "a".repeat(64) };
+  const args = createAccessibilityHelperArguments({ jobUrl, completion });
   const command = JSON.parse(args[1]);
 
   assert.equal(args[0], "auto-submit-if-configured");
   assert.equal(args.length, 2);
   assert.equal(command.jobUrl, jobUrl);
-  assert.equal(new URL(command.newTaskUrl).searchParams.get("prompt"), `$cv-fit-advisor\n${jobUrl}`);
+  assert.ok(new URL(command.newTaskUrl).searchParams.get("prompt").startsWith(`$cv-fit-advisor\n${jobUrl}`));
+  assert.ok(new URL(command.newTaskUrl).searchParams.get("prompt").includes(completion.token));
   assert.equal(command.bundleIdentifier, "com.openai.codex");
   assert.deepEqual(command.settings.map(({ category, expectedValue, match }) => ({
     category,

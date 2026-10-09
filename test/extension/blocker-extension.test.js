@@ -1,3 +1,4 @@
+import { blockerContract } from "../../shared/contracts.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { waitUntil } from "../../test-support/async.js";
@@ -43,7 +44,7 @@ const createCompletedCheck = async ({ jobUrl, description }) => {
       profileHash: "profile",
       model: "test",
       reasoningEffort: null,
-      checkerVersion: 1,
+      checkerVersion: blockerContract.version,
       checkedAt: new Date().toISOString(),
     },
   };
@@ -193,7 +194,7 @@ test("cached profile mismatches never display a current clean result", async () 
       profileHash: "old",
       model: "test",
       reasoningEffort: null,
-      checkerVersion: 1,
+      checkerVersion: blockerContract.version,
       checkedAt: new Date().toISOString(),
     },
   });

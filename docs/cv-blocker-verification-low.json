@@ -1,0 +1,119 @@
+{
+  "measuredAt": "2026-10-09T10:13:49.982Z",
+  "model": "gpt-6-luna",
+  "reasoningEffort": "low",
+  "requestedServiceTier": "priority",
+  "indexingMs": 21,
+  "cvFiles": 65,
+  "indexedFacts": 34,
+  "indexCharacters": 13336,
+  "runs": [
+    {
+      "case": "renewables-specialist",
+      "durationMs": 9999,
+      "outcome": "uncertain_requirement",
+      "expected": "uncertain_requirement",
+      "passed": true,
+      "findings": [
+        {
+          "kind": "uncertain_requirement",
+          "requirementQuote": "with experience in the renewal energy sector",
+          "explanation": "No renewable-energy sector experience is established by the supplied profile or CV evidence.",
+          "profileFacts": []
+        },
+        {
+          "kind": "uncertain_requirement",
+          "requirementQuote": "Proven office experience with a strong understanding of administrative procedures",
+          "explanation": "Administrative tasks appear in prior roles, but proven office experience and broader administrative-procedure knowledge are not established.",
+          "profileFacts": []
+        },
+        {
+          "kind": "uncertain_requirement",
+          "requirementQuote": "Proficiency in computer skills including Microsoft Office Suite (Word, Excel, PowerPoint), Google Workspace (Gmail, Drive), and QuickBooks",
+          "explanation": "Excel basics are listed, but proficiency in the named suites and QuickBooks is not established.",
+          "profileFacts": []
+        },
+        {
+          "kind": "uncertain_requirement",
+          "requirementQuote": "Demonstrated clerical experience with data entry, filing, and document management",
+          "explanation": "Records and reports are evidenced, but clerical experience covering data entry, filing, and document management is not established.",
+          "profileFacts": []
+        },
+        {
+          "kind": "uncertain_requirement",
+          "requirementQuote": "Excellent organizational skills with the ability to prioritize tasks effectively in a fast-paced environment",
+          "explanation": "Accuracy and time-sensitive work are evidenced, but the stated organizational and prioritization ability is not established.",
+          "profileFacts": []
+        },
+        {
+          "kind": "uncertain_requirement",
+          "requirementQuote": "Experience with compliance documentation including MCS records, Building regulations, insurance backed guarantees, electrical certificates and heat loss designs.",
+          "explanation": "No experience with these renewable-energy compliance records or designs is evidenced; compliance knowledge is described only as an interest.",
+          "profileFacts": []
+        },
+        {
+          "kind": "uncertain_requirement",
+          "requirementQuote": "Work Location: In person",
+          "explanation": "In-person location and commute fit are unspecified; no job-specific relocation decision is available.",
+          "profileFacts": []
+        }
+      ]
+    },
+    {
+      "case": "documented-qualification",
+      "durationMs": 5451,
+      "outcome": "no_blockers_found",
+      "expected": "no_blockers_found",
+      "passed": true,
+      "findings": []
+    },
+    {
+      "case": "mandatory-driving",
+      "durationMs": 3661,
+      "outcome": "clear_blocker",
+      "expected": "clear_blocker",
+      "passed": true,
+      "findings": [
+        {
+          "kind": "clear_blocker",
+          "requirementQuote": "must hold a full UK driving licence",
+          "explanation": "Profile states only a provisional UK licence, not a full licence.",
+          "profileFacts": [
+            {
+              "id": "F1",
+              "text": "Holds a provisional UK driving licence only; does not have a full driving licence.",
+              "source": "Application profile"
+            },
+            {
+              "id": "F15",
+              "text": "Driving licence: provisional UK driving licence only.",
+              "source": "Verified application profile"
+            }
+          ]
+        },
+        {
+          "kind": "clear_blocker",
+          "requirementQuote": "drive to customer sites every day",
+          "explanation": "Daily site driving is required; profile says only a provisional licence and treats driving/site visits by car as likely blockers.",
+          "profileFacts": [
+            {
+              "id": "F1",
+              "text": "Holds a provisional UK driving licence only; does not have a full driving licence.",
+              "source": "Application profile"
+            },
+            {
+              "id": "F2",
+              "text": "Treat jobs requiring a driving licence, regular driving, a company car, field sales travel by car, or independent client/site visits by car as likely blockers unless the posting clearly allows public transport or non-driving travel.",
+              "source": "Application profile"
+            },
+            {
+              "id": "F15",
+              "text": "Driving licence: provisional UK driving licence only.",
+              "source": "Verified application profile"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

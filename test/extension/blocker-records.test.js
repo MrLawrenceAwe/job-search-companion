@@ -1,3 +1,4 @@
+import { blockerContract } from "../../shared/contracts.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import vm from "node:vm";
@@ -6,7 +7,7 @@ import { runScriptsInVm } from "../../test-support/extension-scripts.js";
 
 const makeRecord = (jobId, checkedAt = new Date().toISOString()) => ({
   jobId,
-  checkerVersion: 1,
+  checkerVersion: blockerContract.version,
   outcome: "no_blockers_found",
   findings: [],
   descriptionHash: "description",

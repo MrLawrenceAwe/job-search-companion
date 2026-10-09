@@ -100,3 +100,22 @@ CV analysis sends the selected job URL to `127.0.0.1:48973`, then prepares a tas
 in your configured Codex workspace. CV handling follows that workspace's skill
 and Codex account configuration. The bridge stores submission status and rotating
 logs locally; it does not make applications on your behalf.
+
+## Completed CV-fit analyses
+
+New CV-fit submissions include a job-specific completion command. When Codex
+finishes the assessment, it records the chat ID with the local bridge. The
+extension then shows **Analysed · Open analysis** on the job card and in the
+job detail controls, normally within 30 seconds. The action opens the saved
+chat through macOS using the bridge, like task submission; it does not use
+Chrome’s external-app confirmation.
+
+Submitting a task, preparing a draft, or failing an assessment does not create
+an analysed mark. Completed negative fit assessments do. The records survive
+bridge restarts and page reloads. Opening an analysis requires the bridge to be
+running; existing marks remain visible while it is offline. Earlier chats
+without a completion callback are not automatically marked.
+
+Analysed marks are green for **use as-is**, yellow for **edit the CV**, and red
+for **do not apply yet**. Other verdicts and earlier records without a verdict
+are blue. Hover over a mark to see its recorded verdict.

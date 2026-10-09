@@ -13,7 +13,7 @@ test("settings use account registrations, save preferences, and clear only block
   t.after(() => dom.window.close());
   const { window } = dom;
   let state = {
-    settings: { enabled: false, model: "test", accountFallback: false, reasoningEffort: "medium" },
+    settings: { enabled: false, model: "test", indexModel: null, accountFallback: false, reasoningEffort: "medium" },
     pausedReason: null,
     connectionStatus: {
       planUsageEnabled: true,
@@ -35,7 +35,7 @@ test("settings use account registrations, save preferences, and clear only block
       async sendMessage(message) {
         requests.push(message);
         if (message.action === "models")
-          return { ok: true, models: [{ slug: "test", name: "Test model" }, { slug: "gpt-6-luna", name: "GPT-6 Luna" }] };
+          return { ok: true, models: [{ slug: "test", name: "Test model" }, { slug: "gpt-6-luna", name: "GPT-6 Luna" }, { slug: "gpt-6-sol", name: "GPT-6 Sol" }] };
         if (message.action === "settings")
           state = { ...state, settings: { ...state.settings, ...message.body } };
         return { ok: true, ...structuredClone(state) };
@@ -66,6 +66,8 @@ test("settings use account registrations, save preferences, and clear only block
   assert.equal(element("checkerReasoning").disabled, false);
   assert.equal(element("reasoningHint").hidden, true);
   assert.match(element("checkerSpeed").textContent, /Fast requested.*unconfirmed/);
+  element("indexModel").value = "gpt-6-sol";
+  element("indexModel").dispatchEvent(new window.Event("change"));
   element("checkerReasoning").value = "low";
   element("checkerReasoning").dispatchEvent(new window.Event("change"));
   element("checksEnabled").checked = true;
@@ -75,6 +77,8 @@ test("settings use account registrations, save preferences, and clear only block
   assert.equal(requests.find((request) => request.action === "settings").body.enabled, true);
   assert.equal(requests.find((request) => request.action === "settings").body.reasoningEffort, "low");
   assert.equal(element("checkerReasoning").value, "low");
+  assert.equal(requests.find((request) => request.action === "settings").body.indexModel, "gpt-6-sol");
+  assert.equal(element("indexModel").value, "gpt-6-sol");
   await waitUntil(() => !element("saveSettings").disabled || element("saveSettings").textContent === "Saved");
   element("clearFindings").click();
   await waitUntil(() => element("feedback").textContent === "Saved findings cleared.");

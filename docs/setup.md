@@ -14,7 +14,8 @@
 - A local Codex workspace with a skill named `cv-fit-advisor` available. This
   repository does not bundle that skill or any CV files. The bridge prepares
   `$cv-fit-advisor` followed by the selected job URL; the skill supplies the CV
-  assessment instructions. Configure its documents and instructions separately
+  assessment instructions. Each prompt also includes the completion helper to save
+  the analysed mark and current Codex chat ID. Configure its documents and instructions separately
   before using CV analysis.
 
 Clone the repository into a stable folder of your choice, then run the commands

@@ -6,6 +6,7 @@ import { config } from "./config.js";
 import { createRequestHandler } from "./request-handler.js";
 import { createFileLogger } from "./logger.js";
 import { openCvFitSubmissionStore } from "./cv-fit-submission-store.js";
+import { openAnalysisStore } from "./analysis-store.js";
 
 import { openChatGPTAccountManager } from "./blockers/chatgpt-accounts.js";
 import { openBlockerChecker } from "./blockers/checker.js";
@@ -27,6 +28,7 @@ const server = createServer((req, res) => {
 server.listen(config.bridge.port, config.bridge.host, async () => {
   try {
     const submissionStore = await openCvFitSubmissionStore(config.storage.submissionsPath);
+    const analysisStore = await openAnalysisStore(config.storage.analysesPath);
     const chatgpt = await openChatGPTAccountManager({ path: join(config.blockers.directory, "chatgpt.json") });
     checker = await openBlockerChecker({ ...config.blockers, chatgpt });
     requestHandler = createRequestHandler({
@@ -37,6 +39,7 @@ server.listen(config.bridge.port, config.bridge.host, async () => {
       readHelperHealth: readAccessibilityHelperHealth,
       submitTask: submitCvFitTask,
       submissionStore,
+      analysisStore,
     });
     logger.info(`Job Search Companion service listening on http://${config.bridge.host}:${config.bridge.port}`);
     logger.info(`Workspace: ${config.cvFit.workspacePath}`);

@@ -170,7 +170,8 @@ The observer preserves fetch observation across ordinary page reassignment.
 In `bridge/blockers/`, `checker.js` owns scheduling, `result-cache.js` owns
 persisted result retention, `account-fallback.js` owns account rotation,
 `profile.js` parses explicitly named application and verified profile sources,
-and `inference.js` validates streamed findings against supplied evidence.
+`cv-index.js` fingerprints current source CVs and maintains a private compact index of exact excerpts,
+and `inference.js` validates a streamed requirement inventory and derives findings from necessity/evidence classifications. Preferred requirements are excluded; missing evidence stays uncertain. Checker version 2 invalidates findings made before this contract.
 `chatgpt-accounts.js` exposes `openChatGPTAccountManager()` for persisted registrations, active-account selection, OAuth, and authenticated requests. `fallbackAccountIds()` returns eligible registration IDs. The checker has separate endpoints and status from CV Fit submissions.
 `extension/contracts/blockers.js` defines result labels, version, retention,
 record bounds, and retention eligibility for both runtimes.
@@ -217,3 +218,33 @@ Conflicting fields fail without changing credentials; runtime code uses only
 uninstall can restore pre-install configuration. See
 [installation identity migration](setup.md#installation-identity-migration)
 for migration and rollback instructions.
+
+## Analysis completion and chat opening
+
+`analysis-store.js` persists analysis requests separately from the bounded
+submission history in private `analyses.json` storage. Each submission creates
+a random completion token; only its hash is saved. The generated Codex prompt
+contains a shell-quoted invocation of `scripts/complete-analysis.js`, which
+reads the current `CODEX_THREAD_ID` and posts to that request’s completion
+endpoint. This credential can complete only that job request and cannot read
+records, open chats, or control the rest of the bridge. Repeating a successful
+callback is idempotent; changing its chat ID is rejected.
+
+`GET /analyses` returns the latest completed record for each platform job ID,
+without callback credentials. A service-worker alarm synchronizes records
+every 30 seconds, and visible pages request a sync on load or visibility
+changes. Saved records use `analyzed-job:<platform>:<job-id>` storage keys.
+`job-analyses.js` renders the card badge and detail action from these records.
+An unfinished reanalysis preserves the existing completed result.
+
+`POST /analyses/open` accepts a job URL, looks up its stored chat, and invokes
+macOS `open` with `codex://threads/<thread-id>?hostId=local`. It never accepts
+an arbitrary destination from a page. Listing and opening retain the normal
+extension-origin and bridge-token checks; completion uses its scoped token
+and the same origin restriction.
+
+Completion callbacks require an exact CV-fit verdict. The completion helper
+accepts it as a quoted third argument. It is validated, saved, and synchronized
+with the analysis record. Repeating a callback with a different verdict is
+rejected. Existing records without verdict metadata retain their links and
+neutral blue appearance. Verdict colours use the shared analysis contract.

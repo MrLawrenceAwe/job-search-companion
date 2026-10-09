@@ -56,7 +56,8 @@ const updateSave = () => {
     $("checksEnabled").checked !== settingsState.settings.enabled ||
     $("accountFallback").checked !== settingsState.settings.accountFallback ||
     $("checkerReasoning").value !== settingsState.settings.reasoningEffort ||
-    ($("checkerModel").value || null) !== settingsState.settings.model;
+    ($("checkerModel").value || null) !== settingsState.settings.model ||
+    ($("indexModel").value || null) !== (settingsState.settings.indexModel || null);
   const resume = Boolean(settingsState.pausedReason && $("checksEnabled").checked);
   $("saveHint").textContent = saving
     ? "Saving your preferences…"
@@ -111,7 +112,10 @@ const render = (state) => {
   $("accountFallback").checked = state.settings.accountFallback;
   $("checkerReasoning").value = state.settings.reasoningEffort;
   renderFallbacks();
-  if (modelsLoaded) $("checkerModel").value = state.settings.model || "";
+  if (modelsLoaded) {
+    $("checkerModel").value = state.settings.model || "";
+    $("indexModel").value = state.settings.indexModel || "";
+  }
   renderInferenceSettings();
   $("connectChatGPT").disabled = state.connectionStatus.pending;
   $("connectChatGPT").hidden = state.connectionStatus.planUsageEnabled && !state.connectionStatus.pending;
@@ -127,6 +131,7 @@ const load = async () => render(await request("status"));
 const loadModels = async () => {
   if (!settingsState?.connectionStatus.planUsageEnabled) {
     $("checkerModel").replaceChildren(option("", "Connect ChatGPT plan usage first"));
+    $("indexModel").replaceChildren(option("", "Use checker model"));
     modelsLoaded = true;
     renderInferenceSettings();
     updateSave();
@@ -138,6 +143,8 @@ const loadModels = async () => {
     ...models.map((model) => option(model.slug, model.name)),
   );
   $("checkerModel").value = settingsState.settings.model || "";
+  $("indexModel").replaceChildren(option("", "Use checker model"), ...models.map((model) => option(model.slug, model.name)));
+  $("indexModel").value = settingsState.settings.indexModel || "";
   renderInferenceSettings();
   modelsLoaded = true;
   updateSave();
@@ -186,6 +193,7 @@ for (const [id, work] of Object.entries({
       enabled: $("checksEnabled").checked,
       accountFallback: $("accountFallback").checked,
       reasoningEffort: $("checkerReasoning").value,
+      indexModel: $("indexModel").value || null,
     };
     if ($("checkerModel").value) body.model = $("checkerModel").value;
     const resuming = Boolean(settingsState.pausedReason && body.enabled);
@@ -213,7 +221,7 @@ $("currentAccount").addEventListener(
       await loadModels();
     }),
 );
-for (const id of ["checksEnabled", "checkerModel", "checkerReasoning", "accountFallback"])
+for (const id of ["checksEnabled", "checkerModel", "indexModel", "checkerReasoning", "accountFallback"])
   $(id).addEventListener("change", () => {
     feedback(settingsState?.pausedReason || "", "error");
     updateSave();
