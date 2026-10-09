@@ -140,6 +140,29 @@ test("history can return to the URL captured before keyboard navigation", async 
   assert.deepEqual(hidden, ["visiblejob3"]);
 });
 
+test("history without a URL job ID replaces keyboard selection with the displayed job", async () => {
+  const { companion, windowListeners } = await createJobFixture({ href: "https://uk.indeed.com/jobs?q=support" });
+  const hidden = [], clicked = [];
+  const jobs = ["visiblejob1", "visiblejob2", "visiblejob3"].map((id) => ({
+    jobUrl: `https://uk.indeed.com/viewjob?jk=${id}`,
+    element: {
+      matches: () => true, click: () => clicked.push(id), focus() {}, scrollIntoView() {},
+      closest: () => ({ classList: { add: () => hidden.push(id) } }),
+    },
+  }));
+  companion.jobs.collectJobCarriers = () => jobs;
+  companion.jobs.navigateJob(1);
+  companion.jobs.navigateJob(1);
+  companion.jobs.resolvePageJobUrl = () => jobs[0].jobUrl;
+  for (const listener of windowListeners.popstate) listener();
+  assert.equal(companion.jobs.resolveSelectedJobUrl(), jobs[0].jobUrl);
+  assert.equal(companion.jobs.navigateJob(1), true);
+  assert.equal(clicked.at(-1), "visiblejob2");
+  for (const listener of windowListeners.popstate) listener();
+  assert.equal(companion.jobs.hideCurrentJob(), true);
+  assert.deepEqual(hidden, ["visiblejob1"]);
+});
+
 test("rendered-job navigation starts at the top after page load", async () => {
   const { companion, document } = await createJobFixture({
     href: "https://uk.indeed.com/jobs?q=support&vjk=visiblejob2",

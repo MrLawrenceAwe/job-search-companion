@@ -16,7 +16,7 @@ const makeRecord = (jobId, checkedAt = new Date().toISOString()) => ({
   checkedAt,
 });
 
-const createStoreFixture = async (initialStorage = {}, readStorage) => {
+const createStoreFixture = async (initialStorage = {}, readStorage, { maximumStoredRecords = Infinity } = {}) => {
   const storage = { ...initialStorage };
   const listeners = [];
   const notify = (changes, area = "local") => {
@@ -28,6 +28,8 @@ const createStoreFixture = async (initialStorage = {}, readStorage) => {
         local: {
           async get() { return readStorage ? readStorage() : { ...storage }; },
           async set(values) {
+            if (Object.keys({ ...storage, ...values }).length > maximumStoredRecords)
+              throw new Error("Storage quota exceeded");
             Object.assign(storage, values);
             notify(Object.fromEntries(Object.entries(values).map(([key, newValue]) => [key, { newValue }])));
           },
@@ -118,4 +120,20 @@ test("saving results prunes surplus records while retaining the newest findings"
   assert.equal(store.get("job299"), undefined);
   assert.equal(fixture.storage["blocker-result:job299"], undefined);
   assert.equal(store.get("newest111").jobId, "newest111");
+});
+
+test("saving removes persisted expired findings before a quota-limited write", async () => {
+  const expired = Object.fromEntries(Array.from({ length: 301 }, (_, index) => [
+    `blocker-result:expired${index}`, makeRecord(`expired${index}`, "2000-01-01"),
+  ]));
+  const fixture = await createStoreFixture({
+    ...expired,
+    "applied-job:indeed:first111": { appliedAt: "2026-10-01" },
+  }, undefined, { maximumStoredRecords: 2 });
+  const store = fixture.createStore();
+  await store.ready;
+  await store.saveResult(makeRecord("newest111"));
+  assert.deepEqual(Object.keys(fixture.storage).sort(), [
+    "applied-job:indeed:first111", "blocker-result:newest111",
+  ]);
 });

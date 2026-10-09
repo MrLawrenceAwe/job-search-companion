@@ -5,6 +5,7 @@
   const hiddenJobUrls = new Set();
   let lastNavigatedJobUrl = null;
   let pageJobUrlAtSelection = null;
+  let selectionNeedsHistoryResolution = false;
   let hiddenJobObserver = null;
 
   const uniqueJobs = (jobEntries) => {
@@ -63,6 +64,7 @@
     clickable.click();
     lastNavigatedJobUrl = job.jobUrl;
     pageJobUrlAtSelection = previousPageJobUrl;
+    selectionNeedsHistoryResolution = false;
     return true;
   };
 
@@ -83,6 +85,14 @@
   };
 
   const resolveSelectedJobUrl = (jobs = null) => {
+    if (selectionNeedsHistoryResolution) {
+      // History may restore a pane without a job ID in the results URL.
+      // Keep resolution pending if the displayed job is still ambiguous.
+      lastNavigatedJobUrl = companion.jobs.resolvePageJobUrl();
+      pageJobUrlAtSelection = companion.jobs.jobUrlFromPageUrl(window.location.href);
+      selectionNeedsHistoryResolution = false;
+      return lastNavigatedJobUrl;
+    }
     if (
       lastNavigatedJobUrl !== null &&
       (jobs || renderedJobs()).some(({ jobUrl }) => jobUrl === lastNavigatedJobUrl)
@@ -125,6 +135,7 @@
     if (interactedJob) {
       lastNavigatedJobUrl = interactedJob.jobUrl;
       pageJobUrlAtSelection = companion.jobs.jobUrlFromPageUrl(window.location.href);
+      selectionNeedsHistoryResolution = false;
     }
   };
 
@@ -132,6 +143,7 @@
   window.addEventListener?.("popstate", () => {
     // A history change is distinct from the stale URL during a pending card click.
     pageJobUrlAtSelection = null;
+    selectionNeedsHistoryResolution = true;
   });
 
   const navigateJob = (direction) => {

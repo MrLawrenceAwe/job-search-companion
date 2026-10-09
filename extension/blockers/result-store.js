@@ -44,16 +44,21 @@
       },
       async saveResult(result) {
         await ready;
-        records.set(result.jobId, result);
-        await chrome.storage.local.set({ [`${storagePrefix}${result.jobId}`]: result });
-        const expired = [...records]
-          .filter(([, record]) => !isRetainableResult(record))
-          .map(([jobId]) => jobId);
-        const surplus = [...records]
+        const key = storagePrefix + result.jobId;
+        // The in-memory map excludes expired records. Prune the persisted
+        // snapshot before writing so old findings cannot fill the storage quota.
+        const stored = await chrome.storage.local.get(null);
+        const retainedKeys = new Set(Object.entries({ ...stored, [key]: result })
+          .filter(([key, record]) => key.startsWith(storagePrefix) && isRetainableResult(record))
           .sort(([, left], [, right]) => Date.parse(right.checkedAt) - Date.parse(left.checkedAt))
-          .slice(maximumRecords)
-          .map(([jobId]) => jobId);
-        await removeResults([...new Set([...expired, ...surplus])]);
+          .slice(0, maximumRecords)
+          .map(([key]) => key));
+        await removeResults(Object.keys(stored)
+          .filter((key) => key.startsWith(storagePrefix) && !retainedKeys.has(key))
+          .map((key) => key.slice(storagePrefix.length)));
+        if (!retainedKeys.has(key)) return;
+        await chrome.storage.local.set({ [key]: result });
+        records.set(result.jobId, result);
       },
       async clear() {
         await ready;
