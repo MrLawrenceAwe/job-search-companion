@@ -102,7 +102,12 @@
   };
 
   const rememberInteractedJob = (event) => {
-    if (lastNavigatedJobUrl === null || event.isTrusted === false) {
+    // Analysis buttons open Codex without selecting their card. This capture
+    // listener runs before the button's handler can stop propagation.
+    if (
+      lastNavigatedJobUrl === null || event.isTrusted === false ||
+      event.target?.closest?.(".jsc-analysis-button")
+    ) {
       return;
     }
 

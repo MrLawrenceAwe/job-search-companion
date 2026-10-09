@@ -6,6 +6,59 @@ import { createJobFixture } from "../../test-support/job-fixture.js";
 import { runScriptsInDom } from "../../test-support/extension-scripts.js";
 import { waitUntil } from "../../test-support/async.js";
 
+for (const platform of ["indeed", "linkedin"]) {
+  test(`${platform}: opening another card's analysis preserves the displayed job selection`, async () => {
+    const firstUrl = platform === "indeed"
+      ? "https://uk.indeed.com/viewjob?jk=visiblejob1"
+      : "https://www.linkedin.com/jobs/view/4447780789/";
+    const secondUrl = platform === "indeed"
+      ? "https://uk.indeed.com/viewjob?jk=visiblejob2"
+      : "https://www.linkedin.com/jobs/view/4447780790/";
+    const pageUrl = platform === "indeed"
+      ? "https://uk.indeed.com/jobs?vjk=visiblejob1"
+      : "https://www.linkedin.com/jobs/search-results/?currentJobId=4447780789";
+    const dom = new JSDOM(`<ul>
+      <li><a href="${firstUrl}">First job</a></li>
+      <li><a href="${secondUrl}">Second job</a>
+        <button class="jsc-analysis-button"><span>Analysed · Open analysis</span></button>
+      </li>
+    </ul>`, { url: pageUrl, runScripts: "outside-only" });
+    try {
+      const { window } = dom;
+      const captureListeners = [];
+      const addListener = window.document.addEventListener.bind(window.document);
+      window.document.addEventListener = (type, listener, options) => {
+        if (type === "click" && options === true) captureListeners.push(listener);
+        addListener(type, listener, options);
+      };
+      for (const link of window.document.querySelectorAll("a"))
+        link.addEventListener("click", (event) => event.preventDefault());
+      await runScriptsInDom(window, [
+        "contracts/job-urls.js", "contracts/blockers.js", "extension-context.js",
+        "dom-visibility.js", "job-url.js", "job-resolution.js", "job-navigation.js",
+      ]);
+      const { jobs, dom: visibility } = window.jobSearchCompanion;
+      visibility.getRenderedRect = () => ({ width: 500, height: 100 });
+      assert.equal(jobs.navigateJob(1), true);
+      assert.equal(jobs.resolveSelectedJobUrl(), firstUrl);
+
+      // JSDOM cannot create trusted clicks; invoke the registered capture handler
+      // with the real nested button target, before its propagation-stopping action.
+      const target = window.document.querySelector(".jsc-analysis-button span");
+      for (const listener of captureListeners) listener({ isTrusted: true, target });
+      assert.equal(jobs.resolveSelectedJobUrl(), firstUrl);
+      assert.equal(window.location.href, pageUrl);
+
+      const secondLink = window.document.querySelectorAll("a")[1];
+      for (const listener of captureListeners)
+        listener({ isTrusted: true, target: secondLink });
+      assert.equal(jobs.resolveSelectedJobUrl(), secondUrl);
+    } finally {
+      dom.window.close();
+    }
+  });
+}
+
 test("a hidden card reused for another job becomes visible after an identity-only change", async () => {
   const dom = new JSDOM('<ul><li><a href="/viewjob?jk=visiblejob1">Job</a></li></ul>', {
     url: "https://uk.indeed.com/jobs?q=support",
@@ -189,7 +242,8 @@ test("mouse selection replaces stale keyboard navigation state", async () => {
       children: [],
       click: () => clicked.push(jobKey),
       closest: (selector) => (
-        selector === companion.selectors.jobUrlCarrier ? link : card
+        selector === companion.selectors.jobUrlCarrier ? link
+          : selector === companion.selectors.jobCard ? card : null
       ),
       contains: () => false,
       focus() {},
