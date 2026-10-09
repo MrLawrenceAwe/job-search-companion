@@ -26,6 +26,16 @@
         "https://indeed.co.uk/*",
         "https://*.indeed.co.uk/*"
       ],
+      "js": ["indeed-layout.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://indeed.com/*",
+        "https://*.indeed.com/*",
+        "https://indeed.co.uk/*",
+        "https://*.indeed.co.uk/*"
+      ],
       "js": [
         "indeed-main.js"
       ],

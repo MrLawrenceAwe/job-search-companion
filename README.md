@@ -58,6 +58,12 @@ marking and browsing shortcuts. Blocker checking needs the local Node bridge and
 
 After updating, run `npm run build`, reload the unpacked extension in Chrome and refresh job pages.
 
+On Indeed, the extension separates the server job-panel stylesheet from React
+Native's client stylesheet at page startup. This works around Indeed clearing
+the shared stylesheet during rendering, which otherwise clips the Apply button
+and stacks the job-panel icons. It only removes the ID from Indeed's explicitly
+marked server style element; Indeed generates the client CSS itself.
+
 Follow [setup, configuration and removal](docs/setup.md) for the bridge, extension
 identity, token, workspace and permissions. This is an independent personal
 project, not affiliated with Indeed, LinkedIn or OpenAI.
