@@ -53,15 +53,33 @@ export const openBlockerChecker = async ({
   let cancellationGeneration = 0;
   let pausedReason = null;
   let disposed = false;
+  const cacheKeyFor = ({ jobId, descriptionHash, profile, model, reasoningEffort }) => hashJson({
+    jobId, descriptionHash, profileHash: profile.hash,
+    checkerVersion: CHECKER_VERSION, model, reasoningEffort,
+  });
+  const isCheckCurrent = (checkJob) =>
+    checkJob.cancellationGeneration === cancellationGeneration &&
+    checkJob.accountId === chatgpt.connectionStatus().activeId &&
+    !disposed && !checkJob.controller?.signal.aborted;
   const pruneChecks = () => {
     for (const [id, checkJob] of checksById) {
       if (checksById.size <= 100) break;
       if (!["checking", "queued"].includes(checkJob.publicState.status)) checksById.delete(id);
     }
   };
-  const releaseCheckInputs = (checkJob) => {
+  const releaseCheck = (checkJob) => {
+    if (checksByCacheKey.get(checkJob.key) === checkJob) checksByCacheKey.delete(checkJob.key);
     delete checkJob.description;
     delete checkJob.profile;
+  };
+  const cancelQueuedCheck = (checkJob, error) => {
+    checkJob.publicState.status = "cancelled";
+    if (error) checkJob.publicState.error = error;
+    releaseCheck(checkJob);
+  };
+  const cancelQueuedChecks = (error) => {
+    for (const checkJob of queue) cancelQueuedCheck(checkJob, error);
+    queue = [];
   };
   const status = async () => {
     let profile = null;
@@ -98,19 +116,13 @@ export const openBlockerChecker = async ({
     const timer = setTimeout(() => controller.abort(), 90_000);
     let pendingRecord = null;
     let previousRecord = cache.get(checkJob.key);
-    const isCurrent = () =>
-      checkJob.cancellationGeneration === cancellationGeneration &&
-      checkJob.accountId === chatgpt.connectionStatus().activeId &&
-      !disposed &&
-      !controller.signal.aborted;
+    const isCurrent = () => isCheckCurrent(checkJob);
     try {
       if (cvIndex) {
         checkJob.profile = await readProfile();
         if (!isCurrent()) throw new Error("Check interrupted while preparing CV evidence.");
         checksByCacheKey.delete(checkJob.key);
-        checkJob.key = hashJson({ jobId: checkJob.jobId, descriptionHash: checkJob.descriptionHash,
-          profileHash: checkJob.profile.hash, checkerVersion: CHECKER_VERSION,
-          model: checkJob.model, reasoningEffort: checkJob.reasoningEffort });
+        checkJob.key = cacheKeyFor(checkJob);
         checksByCacheKey.set(checkJob.key, checkJob);
         previousRecord = cache.get(checkJob.key);
         if (!checkJob.force && previousRecord) {
@@ -127,12 +139,7 @@ export const openBlockerChecker = async ({
         isCurrent,
         enabled: () => settings.value.accountFallback,
       });
-      if (
-        checkJob.cancellationGeneration !== cancellationGeneration ||
-        checkJob.accountId !== chatgpt.connectionStatus().activeId ||
-        disposed ||
-        controller.signal.aborted
-      ) {
+      if (!isCurrent()) {
         checkJob.publicState.status = "cancelled";
         return;
       }
@@ -148,11 +155,7 @@ export const openBlockerChecker = async ({
       };
       pendingRecord = record;
       await cache.put(checkJob.key, record);
-      if (
-        checkJob.cancellationGeneration !== cancellationGeneration ||
-        controller.signal.aborted ||
-        disposed
-      ) {
+      if (!isCurrent()) {
         checkJob.publicState.status = "cancelled";
         return;
       }
@@ -172,18 +175,11 @@ export const openBlockerChecker = async ({
           error.code === "subscription_sharing_unsupported_capability")
       ) {
         pausedReason = error.message;
-        for (const pending of queue) {
-          pending.publicState.status = "cancelled";
-          pending.publicState.error = pausedReason;
-          checksByCacheKey.delete(pending.key);
-          releaseCheckInputs(pending);
-        }
-        queue = [];
+        cancelQueuedChecks(pausedReason);
       }
     } finally {
       clearTimeout(timer);
-      checksByCacheKey.delete(checkJob.key);
-      releaseCheckInputs(checkJob);
+      releaseCheck(checkJob);
       runningCheck = null;
       pruneChecks();
       void runNextCheck();
@@ -192,12 +188,7 @@ export const openBlockerChecker = async ({
   const cancelAllChecks = () => {
     cancellationGeneration += 1;
     indexController.abort();
-    for (const checkJob of queue) {
-      checkJob.publicState.status = "cancelled";
-      checksByCacheKey.delete(checkJob.key);
-      releaseCheckInputs(checkJob);
-    }
-    queue = [];
+    cancelQueuedChecks();
     runningCheck?.controller.abort();
   };
   return {
@@ -251,37 +242,25 @@ export const openBlockerChecker = async ({
         throw new Error(pausedReason || "Blocker checks are off. Enable them in settings.");
       if (!chatgpt.connectionStatus().planUsageEnabled || !settings.value.model)
         throw new Error("Connect ChatGPT plan usage and choose a model in settings");
-      const generation = cancellationGeneration;
-      const activeId = chatgpt.connectionStatus().activeId;
+      const context = { cancellationGeneration, accountId: chatgpt.connectionStatus().activeId };
       const profile = await readProfile({ refreshCvIndex: false });
-      if (disposed || generation !== cancellationGeneration || activeId !== chatgpt.connectionStatus().activeId)
+      if (!isCheckCurrent(context))
         throw new Error("Check interrupted while preparing CV evidence. Try again.");
       const jobId = parsed.searchParams.get("jk");
       const descriptionHash = sha256(description);
       const model = settings.value.model;
       const reasoningEffort = blockerContract.reasoningForModel(model, settings.value.reasoningEffort);
-      const key = hashJson({
-        jobId,
-        descriptionHash,
-        profileHash: profile.hash,
-        checkerVersion: CHECKER_VERSION,
-        model,
-        reasoningEffort,
-      });
+      const inputs = { jobId, descriptionHash, profile, model, reasoningEffort };
+      const key = cacheKeyFor(inputs);
       if (checksByCacheKey.has(key)) return checksByCacheKey.get(key).publicState;
       const cached = cache.get(key);
       if (!force && cached) return { status: "completed", cached: true, result: cached };
       const checkJob = {
         key,
         force,
-        jobId,
-        model,
-        reasoningEffort,
+        ...inputs,
         description,
-        descriptionHash,
-        profile,
-        cancellationGeneration,
-        accountId: chatgpt.connectionStatus().activeId,
+        ...context,
         publicState: { id: randomUUID(), status: "queued" },
       };
       checksById.set(checkJob.publicState.id, checkJob);
@@ -289,10 +268,7 @@ export const openBlockerChecker = async ({
       // Current selections get ahead of older unstarted checks. Never interrupt a completed-input request just because selection changed.
       queue.unshift(checkJob);
       if (queue.length > 10) {
-        const dropped = queue.pop();
-        dropped.publicState.status = "cancelled";
-        checksByCacheKey.delete(dropped.key);
-        releaseCheckInputs(dropped);
+        cancelQueuedCheck(queue.pop());
       }
       pruneChecks();
       void runNextCheck();

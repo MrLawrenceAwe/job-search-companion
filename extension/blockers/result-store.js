@@ -14,12 +14,20 @@
       else records.set(jobId, value);
       return { jobId, removed };
     };
+    const ready = chrome.storage.local.get(null).then((stored) => {
+      for (const [key, value] of Object.entries(stored)) {
+        if (key.startsWith(storagePrefix)) applyRecord(key, value);
+      }
+    });
     const onStorageChanged = (changes, area) => {
       if (area !== "local") return;
-      const recordChanges = Object.entries(changes)
-        .filter(([key]) => key.startsWith(storagePrefix))
-        .map(([key, { newValue }]) => applyRecord(key, newValue));
-      if (recordChanges.length) notify(recordChanges);
+      // Apply newer notifications after the initial snapshot, including removals.
+      void ready.then(() => {
+        const recordChanges = Object.entries(changes)
+          .filter(([key]) => key.startsWith(storagePrefix))
+          .map(([key, { newValue }]) => applyRecord(key, newValue));
+        if (recordChanges.length) notify(recordChanges);
+      }).catch((error) => console.debug("Blocker record update failed:", error));
     };
     chrome.storage.onChanged.addListener(onStorageChanged);
 
@@ -28,18 +36,14 @@
       if (jobIds.length) await chrome.storage.local.remove(jobIds.map((jobId) => storagePrefix + jobId));
     };
     return {
+      ready,
       get: (jobId) => records.get(jobId),
       subscribe(listener) {
         listeners.add(listener);
         return () => listeners.delete(listener);
       },
-      async loadResults() {
-        const stored = await chrome.storage.local.get(null);
-        for (const [key, value] of Object.entries(stored)) {
-          if (key.startsWith(storagePrefix)) applyRecord(key, value);
-        }
-      },
       async saveResult(result) {
+        await ready;
         records.set(result.jobId, result);
         await chrome.storage.local.set({ [`${storagePrefix}${result.jobId}`]: result });
         const expired = [...records]
@@ -52,6 +56,7 @@
         await removeResults([...new Set([...expired, ...surplus])]);
       },
       async clear() {
+        await ready;
         const stored = await chrome.storage.local.get(null);
         const keys = Object.keys(stored).filter((key) => key.startsWith(storagePrefix));
         records.clear();

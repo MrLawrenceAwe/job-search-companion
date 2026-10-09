@@ -26,6 +26,13 @@ test("CV index persists once, shares concurrent refreshes, and rebuilds on edits
     calls++;
     const request = JSON.parse(options.body);
     assert.ok(["gpt-6-luna", "gpt-6-sol"].includes(request.model));
+    if (request.model === "gpt-6-luna") {
+      assert.equal(request.service_tier, "priority");
+      assert.deepEqual(request.reasoning, { effort: "medium" });
+    } else {
+      assert.equal(request.service_tier, undefined);
+      assert.equal(request.reasoning, undefined);
+    }
     const docs = JSON.parse(request.input[0].content).passages;
     return response({ passageIds: docs.map((document) => document.id) });
   } };

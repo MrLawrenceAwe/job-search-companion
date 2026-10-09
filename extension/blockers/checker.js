@@ -114,11 +114,12 @@
     // Indeed currently has classic and React Native detail layouts. A complete
     // embedded/response description must match an entire rendered subtree.
     const candidates = container ? [container, ...container.querySelectorAll("div, section")] : [];
+    const compactDescription = text && compact(text);
     const descriptionElement =
       text &&
       candidates.find(
         (node) =>
-          compact(node.innerText || node.textContent || "") === compact(text) &&
+          compact(node.innerText || node.textContent || "") === compactDescription &&
           companion.dom.getRenderedRect(node),
       );
     if (!descriptionElement || text.length < 40 || text.length > 80_000) {
@@ -156,7 +157,7 @@
     getContext: () => ({ selection, checkerState }),
   });
   const initialize = async () => {
-    await recordStore.loadResults();
+    await recordStore.ready;
     await refreshState();
     window.postMessage({ type: globalThis.jobSearchContracts.messages.requestInitialDescription }, location.origin);
     schedule();
@@ -172,32 +173,12 @@
     }
     render();
   });
-  new MutationObserver((mutations) => {
-    if (
-      mutations.every(
-        (mutation) =>
-          mutation.target.closest?.(".jsc-detail-controls, .jsc-blocker-panel, .jsc-blocker-badge") ||
-          [...mutation.addedNodes, ...mutation.removedNodes].every(
-            (node) => node.nodeType === 1 && node.matches?.(".jsc-detail-controls, .jsc-blocker-panel, .jsc-blocker-badge"),
-          ),
-      )
-    )
-      return;
-    schedule();
-  }).observe(document.documentElement, {
-    subtree: true,
-    childList: true,
-    characterData: true,
-    attributes: true,
-    attributeFilter: ["href", "data-jk", "data-vjk"],
-  });
+  companion.pageDecorations.subscribe(schedule);
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) {
       void refreshState().then(schedule);
     } else clearTimeout(dwellTimer);
   });
-  window.addEventListener("popstate", schedule);
-  document.addEventListener("click", schedule, true);
   setInterval(() => {
     if (!document.hidden && Date.now() - lastStatusReceivedAt > 15_000) void refreshState().then(schedule);
   }, 5000);

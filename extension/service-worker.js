@@ -118,12 +118,12 @@ const BLOCKER_ACTIONS = new Map([
   ["check", ["POST", "/checks"]],
   ["poll", ["GET", "/checks/"]],
 ]);
-const isIndeedSender = (sender) => {
+const isJobSiteSender = (sender, platforms) => {
   try {
     const url = new URL(sender.url);
-    return (
-      url.protocol === "https:" && globalThis.jobSearchContracts.jobUrls.isIndeedHost(url.hostname)
-    );
+    const { isIndeedHost, isLinkedInHost } = globalThis.jobSearchContracts.jobUrls;
+    return url.protocol === "https:" && platforms.some((platform) =>
+      platform === "indeed" ? isIndeedHost(url.hostname) : isLinkedInHost(url.hostname));
   } catch {
     return false;
   }
@@ -135,7 +135,7 @@ const handleBlockerMessage = (message, sender, sendResponse) => {
   if (
     !action ||
     (!isSettings &&
-      (!isIndeedSender(sender) || !["status", "check", "poll"].includes(message.action)))
+      (!isJobSiteSender(sender, ["indeed"]) || !["status", "check", "poll"].includes(message.action)))
   ) {
     sendResponse({ ok: false, error: "Blocker request is not allowed" });
     return false;
@@ -176,26 +176,25 @@ const handleBlockerMessage = (message, sender, sendResponse) => {
     );
   return true;
 };
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if ([messages.syncJobAnalyses, messages.openJobAnalysis].includes(message?.type)) {
-    let allowed = false;
-    try {
-      const url = new URL(sender.url);
-      const hosts = globalThis.jobSearchContracts.jobUrls;
-      allowed = url.protocol === "https:" && (hosts.isIndeedHost(url.hostname) || hosts.isLinkedInHost(url.hostname));
-    } catch { /* Reject unknown senders. */ }
-    if (!allowed) { sendResponse({ ok: false, error: "Analysis request is not allowed" }); return false; }
-    const action = message.type === messages.syncJobAnalyses ? syncJobAnalyses()
-      : requestBridgeJson(`${bridgeConfig.bridgeOrigin}/analyses/open`, {
-        method: "POST", body: { jobUrl: message.jobUrl },
-      }).then(({ response, body }) => {
-        if (!response.ok || !body?.ok) throw new Error(body?.error || "Couldn’t open the analysis");
-        return { ok: true };
-      });
-    action.then(sendResponse, (error) => sendResponse({ ok: false, error: error.message }));
-    return true;
+const handleAnalysisMessage = (message, sender, sendResponse) => {
+  if (![messages.syncJobAnalyses, messages.openJobAnalysis].includes(message?.type)) return false;
+  if (!isJobSiteSender(sender, ["indeed", "linkedin"])) {
+    sendResponse({ ok: false, error: "Analysis request is not allowed" });
+    return false;
   }
+  const action = message.type === messages.syncJobAnalyses ? syncJobAnalyses()
+    : requestBridgeJson(`${bridgeConfig.bridgeOrigin}/analyses/open`, {
+      method: "POST", body: { jobUrl: message.jobUrl },
+    }).then(({ response, body }) => {
+      if (!response.ok || !body?.ok) throw new Error(body?.error || "Couldn’t open the analysis");
+      return { ok: true };
+    });
+  action.then(sendResponse, (error) => sendResponse({ ok: false, error: error.message }));
+  return true;
+};
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return (
+    handleAnalysisMessage(message, sender, sendResponse) ||
     handleCvFitMessage(message, sender, sendResponse) ||
     handleBlockerMessage(message, sender, sendResponse)
   );

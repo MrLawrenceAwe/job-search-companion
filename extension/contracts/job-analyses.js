@@ -9,15 +9,11 @@
   }[verdict] || "blue");
   const keyFor = (jobUrl) => {
     const url = new URL(jobUrl);
-    const urls = globalThis.jobSearchContracts.jobUrls;
-    const linkedin = urls.isLinkedInHost(url.hostname);
-    const id = linkedin ? url.pathname.match(/^\/jobs\/view\/(\d+)\/?$/)?.[1]
-      : url.searchParams.get("jk") || url.searchParams.get("vjk");
-    if (url.protocol !== "https:" || (!linkedin && !urls.isIndeedHost(url.hostname))
-      || !(linkedin ? urls.linkedInJobIdPattern : urls.indeedJobKeyPattern).test(id || "")) {
+    const identity = globalThis.jobSearchContracts.jobUrls.identityFromUrl(url);
+    if (url.protocol !== "https:" || !identity) {
       throw new Error("Couldn’t identify this job.");
     }
-    return `analyzed-job:${linkedin ? "linkedin" : "indeed"}:${id}`;
+    return `analyzed-job:${identity.platform}:${identity.id}`;
   };
   const isRecord = (record) => Boolean(record && isUuid(record.threadId)
     && typeof record.analyzedAt === "string" && Number.isFinite(Date.parse(record.analyzedAt))

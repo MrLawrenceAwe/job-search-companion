@@ -7,6 +7,7 @@
     isLinkedInHost,
     indeedJobUrl,
     linkedInJobUrl,
+    identityFromUrl,
   } = globalThis.jobSearchContracts.jobUrls;
 
   const indeedJobUrlFromKey = (jobKey) => {
@@ -28,12 +29,8 @@
         return null;
       }
 
-      const jobKey = parsed.searchParams.get("jk") || parsed.searchParams.get("vjk");
-      if (!jobKey || !indeedJobKeyPattern.test(jobKey)) {
-        return null;
-      }
-
-      return indeedJobUrl(parsed.origin, jobKey);
+      const identity = identityFromUrl(parsed);
+      return identity ? indeedJobUrl(parsed.origin, identity.id) : null;
     } catch {
       return null;
     }
@@ -46,8 +43,7 @@
         return null;
       }
 
-      const pathJobId = parsed.pathname.match(/^\/jobs\/view\/(\d+)(?:\/|$)/)?.[1];
-      const jobId = pathJobId || parsed.searchParams.get("currentJobId");
+      const jobId = identityFromUrl(parsed)?.id || parsed.searchParams.get("currentJobId");
       if (!jobId || !LINKEDIN_JOB_ID_PATTERN.test(jobId)) {
         return null;
       }

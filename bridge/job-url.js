@@ -1,27 +1,6 @@
 import { jobUrlContract } from "../shared/contracts.js";
 
-const { isIndeedHost, isLinkedInHost, indeedJobKeyPattern, linkedInJobIdPattern,
-  indeedJobUrl, linkedInJobUrl } = jobUrlContract;
-
-const normalizeIndeedJobUrl = (parsed) => {
-  if (parsed.pathname !== "/viewjob") {
-    return null;
-  }
-
-  const jobKey = parsed.searchParams.get("jk") || parsed.searchParams.get("vjk");
-  if (!jobKey || !indeedJobKeyPattern.test(jobKey)) {
-    return null;
-  }
-  return indeedJobUrl(parsed.origin, jobKey);
-};
-
-const normalizeLinkedInJobUrl = (parsed) => {
-  const jobId = parsed.pathname.match(/^\/jobs\/view\/(\d+)(?:\/|$)/)?.[1];
-  if (!jobId || !linkedInJobIdPattern.test(jobId)) {
-    return null;
-  }
-  return linkedInJobUrl(parsed.origin, jobId);
-};
+const { identityFromUrl, indeedJobUrl, linkedInJobUrl } = jobUrlContract;
 
 export const normalizeJobUrl = (value) => {
   if (typeof value !== "string" || value.trim().length === 0) {
@@ -39,15 +18,11 @@ export const normalizeJobUrl = (value) => {
     throw new Error("Only http(s) URLs are allowed");
   }
 
-  const host = parsed.hostname.toLowerCase();
-  const normalizedUrl = isIndeedHost(host)
-    ? normalizeIndeedJobUrl(parsed)
-    : isLinkedInHost(host)
-      ? normalizeLinkedInJobUrl(parsed)
-      : null;
-
-  if (!normalizedUrl) {
+  const identity = identityFromUrl(parsed);
+  if (!identity || (identity.platform === "indeed" && parsed.pathname !== "/viewjob")) {
     throw new Error("Only Indeed and LinkedIn job URLs are allowed");
   }
-  return normalizedUrl;
+  return identity.platform === "indeed"
+    ? indeedJobUrl(parsed.origin, identity.id)
+    : linkedInJobUrl(parsed.origin, identity.id);
 };

@@ -95,3 +95,20 @@ test('selection changes retarget controls and heading replacement moves all feat
   heading.remove();
   await waitUntil(() => !window.document.querySelector('.jsc-detail-controls'));
 });
+
+test('page-change subscribers share DOM and navigation events and ignore extension rendering', async (t) => {
+  const { window, companion, scheduleFindings } = await fixture(t);
+  let changes = 0;
+  const unsubscribe = companion.pageDecorations.subscribe(() => changes++);
+  scheduleFindings();
+  await new Promise((resolve) => window.setTimeout(resolve, 220));
+  assert.equal(changes, 0, 'rendering must not trigger a checker scan');
+  window.document.querySelector('a').firstChild.nodeValue = 'Updated job';
+  await waitUntil(() => changes === 1);
+  window.dispatchEvent(new window.PopStateEvent('popstate'));
+  window.document.querySelector('a').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  assert.equal(changes, 3);
+  unsubscribe();
+  window.dispatchEvent(new window.PopStateEvent('popstate'));
+  assert.equal(changes, 3);
+});

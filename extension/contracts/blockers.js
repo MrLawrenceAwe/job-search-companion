@@ -5,15 +5,23 @@
     uncertain_requirement: "Uncertain requirement",
     no_blockers_found: "No blockers found",
   });
+  const defaultReasoningEffort = "medium";
+  const supportsReasoningSelection = (model) => model === "gpt-6-luna";
   const contract = {
     version: 4,
     retentionMs: 30 * 86400_000,
     maximumRecords: 300,
     storagePrefix: "blocker-result:",
     labels,
-    defaultReasoningEffort: "medium",
+    defaultReasoningEffort,
+    supportsReasoningSelection,
     reasoningForModel(model, effort) {
-      return model === "gpt-6-luna" ? effort : null;
+      return supportsReasoningSelection(model) ? effort : null;
+    },
+    inferenceOptions(model, effort = defaultReasoningEffort) {
+      return supportsReasoningSelection(model)
+        ? { service_tier: "priority", reasoning: { effort: effort || defaultReasoningEffort } }
+        : {};
     },
     isRetainableResult(record, now = Date.now()) {
       return Boolean(

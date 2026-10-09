@@ -10,9 +10,8 @@
     const keyFor = (jobUrl, kind) => {
       const normalized = companion.jobs.jobUrlFromPageUrl(jobUrl);
       if (!normalized) throw new Error("Couldn’t identify this job.");
-      const url = new URL(normalized);
-      const id = url.searchParams.get("jk") || url.pathname.match(/\/jobs\/view\/(\d+)/)?.[1];
-      return `${kind}-job:${url.hostname.includes("linkedin") ? "linkedin" : "indeed"}:${id}`;
+      const { platform, id } = globalThis.jobSearchContracts.jobUrls.identityFromUrl(new URL(normalized));
+      return `${kind}-job:${platform}:${id}`;
     };
     const readRecord = (key, value) => {
       const kind = Object.keys(timestamps).find((kind) => key.startsWith(`${kind}-job:`));

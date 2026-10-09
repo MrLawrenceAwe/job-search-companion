@@ -63,7 +63,7 @@ The content scripts are ordered by dependency in the manifest:
 - `feedback.js` provides shared toast feedback independently of CV submission;
 - `cv-fit-submission.js` owns bridge messaging, completion polling, and submission feedback;
 - `job-mark-store.js` owns manual mark identity, persistence, pending writes, and storage synchronization;
-- `page-decorations.js` batches page observation, scans cards and the selected heading once per render, and owns stable action/findings containers;
+- `page-decorations.js` batches page observation, scans cards and the selected heading once per render, owns stable action/findings containers, and lets the blocker checker subscribe to page changes through the same observer and navigation listeners;
 - `job-marks.js` decorates cards, job headers, and menu actions using that store;
 - `shortcuts.js` dispatches the N/J/K/H/U keyboard actions and ignores editable targets, modifier keys, repeated key events and composition;
 - `job-menu.js` creates and inserts the CV fit and job-record actions;
@@ -82,6 +82,13 @@ contract.
 
 Helpers that are used only inside one content script remain file-local. The
 shared object contains only operations required by another script.
+
+`contracts/job-urls.js` owns platform/job-ID extraction through `identityFromUrl()`.
+The content-page adapters accept supported results-page selections; the bridge
+submission endpoint requires a job-detail URL. Mark and analysis storage keys
+retain their existing prefixes and platform/job IDs so saved records survive
+refactoring. Service-worker analysis and blocker handlers share sender URL checks
+while retaining their separate allowed sites and actions.
 
 ## Indeed layout workaround
 
@@ -167,6 +174,9 @@ the selected description, waits for selection dwell, and polls check completion.
 notifications, and clearing through `jobSearchBlockerResults.createStore()`;
 settings and the checker share that API. `blockers/renderer.js` reads results
 through the store and presents findings without changing manual marks.
+Each result store exposes a `ready` promise for its initial snapshot. Storage
+notifications apply after that snapshot so a late read cannot replace newer
+findings or resurrect a removed result. Saves and clearing also await readiness.
 
 The selected full description must match the captured embedded or `/viewjob`
 response description before checking. Initial selections use Indeed's
@@ -184,7 +194,9 @@ persisted result retention, `account-fallback.js` owns account rotation,
 `chatgpt-response.js` parses completed JSON streams shared by checking and indexing. `inference.js` validates a streamed requirement inventory and derives findings from necessity/evidence classifications. Preferred requirements are excluded; missing evidence stays uncertain. Checker version 4 invalidates findings made while evaluating the prompt reductions. Specialist examples and candidate-requirement guidance are retained; only the repeated missing-evidence sentence was removed.
 `chatgpt-accounts.js` exposes `openChatGPTAccountManager()` for persisted registrations, active-account selection, OAuth, and authenticated requests. `fallbackAccountIds()` returns eligible registration IDs. The checker has separate endpoints and status from CV Fit submissions.
 `extension/contracts/blockers.js` defines result labels, version, retention,
-record bounds, and retention eligibility for both runtimes.
+record bounds, and retention eligibility for both runtimes. It also owns model
+reasoning-selection capability and inference request options, shared by the
+settings page, requirement inference, and CV indexing.
 
 OAuth attempts use fresh state, nonce and PKCE values, a loopback callback,
 and ID-token signature, issuer, audience, expiry and nonce validation. Refreshes

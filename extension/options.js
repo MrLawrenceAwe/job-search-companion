@@ -6,7 +6,7 @@ let saving = false;
 let modelsLoaded = false;
 const { request } = globalThis.jobSearchBlockerClient;
 const renderInferenceSettings = () => {
-  const supportsReasoningSelection = byId("checkerModel").value === "gpt-6-luna";
+  const supportsReasoningSelection = globalThis.jobSearchContracts.blockers.supportsReasoningSelection(byId("checkerModel").value);
   byId("checkerReasoning").disabled = !supportsReasoningSelection;
   byId("reasoningHint").hidden = supportsReasoningSelection;
   byId("reasoningHint").textContent = supportsReasoningSelection
@@ -229,6 +229,7 @@ for (const id of ["checksEnabled", "checkerModel", "indexModel", "checkerReasoni
 byId("checkerModel").addEventListener("change", renderInferenceSettings);
 byId("accountFallback").addEventListener("change", renderFallbacks);
 void perform(async () => {
+  await recordStore.ready;
   await load();
   await loadModels();
 });

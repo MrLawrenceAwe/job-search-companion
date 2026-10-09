@@ -5,6 +5,7 @@ import { join, extname, basename } from "node:path";
 import { hashJson, sha256 } from "../../shared/sha256.js";
 import { openPrivateStore } from "./private-store.js";
 import { readCompletedJsonResponse } from "./chatgpt-response.js";
+import { blockerContract } from "../../shared/contracts.js";
 
 const runCommand = promisify(execFile);
 const normalize = (text) => text.replace(/\s+/g, " ").trim();
@@ -108,7 +109,7 @@ export const openCvIndex = async ({ directory, cvDirectory, chatgpt, extract = e
       method: "POST", headers: { "Content-Type": "application/json" },
       signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(90_000)]) : AbortSignal.timeout(90_000),
       body: JSON.stringify({ model, store: false, stream: true,
-        ...(model === "gpt-6-luna" ? { service_tier: "priority", reasoning: { effort: reasoningEffort || "medium" } } : {}), instructions: cvIndexInstructions,
+        ...blockerContract.inferenceOptions(model, reasoningEffort), instructions: cvIndexInstructions,
         input: [{ role: "user", content: JSON.stringify({ passages }) }],
         text: { format: { type: "json_schema", name: "cv_evidence_index", strict: true, schema: indexSchema } },
       }),

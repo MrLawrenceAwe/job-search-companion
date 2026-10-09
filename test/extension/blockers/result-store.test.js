@@ -16,7 +16,7 @@ const makeRecord = (jobId, checkedAt = new Date().toISOString()) => ({
   checkedAt,
 });
 
-const createStoreFixture = async (initialStorage = {}) => {
+const createStoreFixture = async (initialStorage = {}, readStorage) => {
   const storage = { ...initialStorage };
   const listeners = [];
   const notify = (changes, area = "local") => {
@@ -26,7 +26,7 @@ const createStoreFixture = async (initialStorage = {}) => {
     chrome: {
       storage: {
         local: {
-          async get() { return { ...storage }; },
+          async get() { return readStorage ? readStorage() : { ...storage }; },
           async set(values) {
             Object.assign(storage, values);
             notify(Object.fromEntries(Object.entries(values).map(([key, newValue]) => [key, { newValue }])));
@@ -53,7 +53,7 @@ test("record stores synchronize saved findings and clearing preserves manual mar
   const settingsStore = fixture.createStore();
   const changes = [];
   checkerStore.subscribe((batch) => changes.push(...batch));
-  await checkerStore.loadResults();
+  await Promise.all([checkerStore.ready, settingsStore.ready]);
   assert.equal(checkerStore.get("expired111"), undefined);
 
   await checkerStore.saveResult(makeRecord("first111"));
@@ -63,6 +63,27 @@ test("record stores synchronize saved findings and clearing preserves manual mar
   assert.ok(fixture.storage["applied-job:indeed:first111"]);
   assert.deepEqual(Object.keys(fixture.storage), ["applied-job:indeed:first111"]);
   assert.ok(changes.some(({ jobId, removed }) => jobId === "first111" && removed));
+});
+
+test("initial storage reads cannot overwrite newer results or resurrect removed findings", async () => {
+  let resolveRead;
+  const fixture = await createStoreFixture({}, () => new Promise((resolve) => { resolveRead = resolve; }));
+  const store = fixture.createStore();
+  const changes = [];
+  store.subscribe((batch) => changes.push(...batch));
+  const latest = { ...makeRecord("first111"), outcome: "clear_blocker" };
+  fixture.notify({ "blocker-result:first111": { newValue: latest } });
+  fixture.notify({ "blocker-result:second111": {} });
+  resolveRead({
+    "blocker-result:first111": makeRecord("first111"),
+    "blocker-result:second111": makeRecord("second111"),
+  });
+  await store.ready;
+  assert.equal(store.get("first111").outcome, "clear_blocker");
+  assert.equal(store.get("second111"), undefined);
+  assert.deepEqual(changes.map(({ jobId, removed }) => ({ jobId, removed })), [
+    { jobId: "first111", removed: false }, { jobId: "second111", removed: true },
+  ]);
 });
 
 test("record-store notifications ignore unrelated storage and can be unsubscribed", async () => {
@@ -75,9 +96,11 @@ test("record-store notifications ignore unrelated storage and can be unsubscribe
   assert.equal(notifications, 0);
   assert.equal(store.get("first111"), undefined);
   fixture.notify({ "blocker-result:first111": { newValue: makeRecord("first111") } });
+  await store.ready;
   assert.equal(notifications, 1);
   unsubscribe();
   fixture.notify({ "blocker-result:first111": {} });
+  await store.ready;
   assert.equal(notifications, 1);
   assert.equal(store.get("first111"), undefined);
 });
@@ -89,7 +112,7 @@ test("saving results prunes surplus records while retaining the newest findings"
   }));
   const fixture = await createStoreFixture(stored);
   const store = fixture.createStore();
-  await store.loadResults();
+  await store.ready;
   await store.saveResult(makeRecord("newest111"));
   assert.equal(Object.keys(fixture.storage).length, 300);
   assert.equal(store.get("job299"), undefined);

@@ -1,6 +1,7 @@
 (() => {
   const companion = globalThis.jobSearchCompanion;
   const renderers = new Set();
+  const pageChangeListeners = new Set();
   const ownedElements = '.jsc-detail-controls, .jsc-job-mark-badge, .jsc-blocker-badge, .jsc-menu-item';
   let renderTimer = null;
   let detailHeading = null;
@@ -54,20 +55,28 @@
   const isOwned = (node) => Boolean(
     (node.nodeType === 1 ? node : node.parentElement)?.closest?.(ownedElements),
   );
+  const pageChanged = () => {
+    schedule();
+    for (const listener of pageChangeListeners) listener();
+  };
   new MutationObserver((mutations) => {
     if (mutations.some((mutation) => {
       if (isOwned(mutation.target)) return false;
       const changedNodes = [...mutation.addedNodes, ...mutation.removedNodes];
       return !changedNodes.length || changedNodes.some((node) => !isOwned(node));
-    })) schedule();
+    })) pageChanged();
   }).observe(document.documentElement || document, {
     childList: true, subtree: true, characterData: true, attributes: true,
     attributeFilter: ['href', 'data-jk', 'data-vjk', 'data-jobkey', 'componentkey'],
   });
-  window.addEventListener('popstate', schedule);
-  document.addEventListener('click', schedule, true);
+  window.addEventListener('popstate', pageChanged);
+  document.addEventListener('click', pageChanged, true);
   companion.pageDecorations = Object.freeze({
     schedule,
+    subscribe(listener) {
+      pageChangeListeners.add(listener);
+      return () => pageChangeListeners.delete(listener);
+    },
     register(render, ready = Promise.resolve()) {
       void ready.then(() => { renderers.add(render); schedule(); })
         .catch((error) => console.debug('Job decoration data unavailable:', error));
