@@ -64,6 +64,7 @@ test("settings use account registrations, save preferences, and clear only block
   element("checkerModel").value = "gpt-6-luna";
   element("checkerModel").dispatchEvent(new window.Event("change"));
   assert.equal(element("checkerReasoning").disabled, false);
+  assert.equal(element("reasoningHint").hidden, true);
   assert.match(element("checkerSpeed").textContent, /Fast requested.*unconfirmed/);
   element("checkerReasoning").value = "low";
   element("checkerReasoning").dispatchEvent(new window.Event("change"));

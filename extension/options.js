@@ -8,8 +8,9 @@ const { request } = globalThis.jobSearchBlockerClient;
 const renderInferenceSettings = () => {
   const luna = $("checkerModel").value === "gpt-6-luna";
   $("checkerReasoning").disabled = !luna;
+  $("reasoningHint").hidden = luna;
   $("reasoningHint").textContent = luna
-    ? "Light uses less reasoning; Medium allows more deliberation. This choice is saved for GPT-6 Luna."
+    ? ""
     : "Other models use their default reasoning level. Select GPT-6 Luna to choose Light or Medium.";
   $("checkerSpeed").textContent = luna
     ? "Processing speed: Fast requested (priority). The delivered speed tier is unconfirmed."
