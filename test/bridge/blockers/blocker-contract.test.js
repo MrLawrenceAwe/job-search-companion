@@ -15,6 +15,7 @@ const record = {
 test("shared blocker validation rejects expired, unknown and incomplete records", () => {
   assert.equal(blockerContract.isRetainableResult(record), true);
   for (const patch of [
+    { checkerVersion: blockerContract.version - 1 },
     { checkerVersion: -1 },
     { outcome: "toString" },
     { checkedAt: "invalid" },
