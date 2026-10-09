@@ -10,10 +10,8 @@
       icon: "✕",
     },
   };
-  const ACTIONS_CLASS = "jsc-job-actions";
   const store = companion.jobMarks.createStore();
   const { ready, isMarked } = store;
-  let renderTimer = null;
 
   const updateButton = (button, jobUrl, kind) => {
     button.dataset.jobUrl = jobUrl;
@@ -61,15 +59,12 @@
     return button;
   };
 
-  const render = () => {
-    if (!document.body) return;
-    const jobs = companion.jobs.collectJobCarriers(companion.dom.getRenderedRect);
+  const render = ({ cards, jobUrl, actions }) => {
     for (const kind of Object.keys(marks)) {
       const badgeClass = `jsc-${kind}-badge`;
       const targets = new Map();
-      for (const { element, jobUrl } of jobs) {
-        const card = element.closest(companion.selectors.jobCard);
-        if (card && isMarked(jobUrl, kind)) targets.set(card, jobUrl);
+      for (const [card, cardJobUrl] of cards) {
+        if (isMarked(cardJobUrl, kind)) targets.set(card, cardJobUrl);
       }
       for (const badge of document.querySelectorAll(`.${badgeClass}`)) {
         if (targets.get(badge.parentElement) !== badge.dataset.jobUrl) badge.remove();
@@ -85,44 +80,20 @@
       }
     }
 
-    const heading = [...document.querySelectorAll(companion.selectors.jobDetailTitle)].find(
-      (element) => companion.dom.getRenderedRect(element),
-    );
-    let jobUrl = null;
-    if (heading) {
-      try {
-        jobUrl = companion.jobs.resolveSelectedJobUrl();
-      } catch {
-        /* Ambiguous selection: omit controls. */
-      }
-    }
-    for (const actions of document.querySelectorAll(`.${ACTIONS_CLASS}`)) {
-      if (!jobUrl || actions.previousElementSibling !== heading) actions.remove();
-    }
-    if (jobUrl) {
-      let actions = heading.nextElementSibling;
-      if (!actions?.classList.contains(ACTIONS_CLASS)) {
-        actions = document.createElement("div");
-        actions.className = ACTIONS_CLASS;
-        for (const kind of Object.keys(marks)) actions.append(createButton(jobUrl, kind));
-        heading.after(actions);
-      }
-      for (const button of actions.querySelectorAll(".jsc-job-mark-action")) {
-        updateButton(button, jobUrl, button.dataset.markKind);
+    if (!jobUrl) {
+      for (const button of actions?.querySelectorAll('.jsc-job-mark-action') || []) button.remove();
+    } else if (actions) {
+      for (const kind of Object.keys(marks)) {
+        let button = actions.querySelector(`.jsc-${kind}-action`);
+        if (!button) { button = createButton(jobUrl, kind); actions.append(button); }
+        updateButton(button, jobUrl, kind);
       }
     }
     for (const button of document.querySelectorAll('.jsc-job-mark-action[role="menuitem"]')) {
       updateButton(button, button.dataset.jobUrl, button.dataset.markKind);
     }
   };
-  const scheduleRender = () => {
-    if (renderTimer !== null) return;
-    renderTimer = window.setTimeout(() => {
-      renderTimer = null;
-      void ready.then(render).catch((error) => console.debug("Job records unavailable:", error));
-    }, 100);
-  };
-  store.subscribe(scheduleRender);
+  store.subscribe(companion.pageDecorations.schedule);
   const toggle = async (jobUrl, kind, button = null) => {
     try {
       if (store.isPending(jobUrl, kind)) return false;
@@ -134,7 +105,7 @@
     try {
       const marked = await store.toggle(jobUrl, kind);
       if (marked === null) return false;
-      render();
+      companion.pageDecorations.schedule();
       companion.showToast(
         marked
           ? `Marked as ${kind}.`
@@ -154,13 +125,5 @@
     }
   };
   Object.assign(companion.jobMarks, { createButton });
-  new MutationObserver(scheduleRender).observe(document.documentElement, {
-    childList: true,
-    subtree: true,
-    attributes: true,
-    attributeFilter: ["href", "data-jk", "data-vjk", "data-jobkey", "componentkey"],
-  });
-  window.addEventListener("popstate", scheduleRender);
-  document.addEventListener("click", scheduleRender, true);
-  scheduleRender();
+  companion.pageDecorations.register(render, ready);
 })();

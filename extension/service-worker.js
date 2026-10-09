@@ -1,4 +1,4 @@
-importScripts("contracts/job-urls.js", "contracts/job-analyses.js", "contracts/messages.js", "bridge-config.js");
+importScripts("contracts/job-urls.js", "contracts/identifiers.js", "contracts/job-analyses.js", "contracts/messages.js", "bridge-config.js");
 try {
   importScripts("local-config.js");
 } catch {
@@ -194,11 +194,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       });
     action.then(sendResponse, (error) => sendResponse({ ok: false, error: error.message }));
     return true;
-  }
-  if (message?.type === messages.openBlockerSettings && isIndeedSender(sender)) {
-    chrome.runtime.openOptionsPage();
-    sendResponse({ ok: true });
-    return false;
   }
   return (
     handleCvFitMessage(message, sender, sendResponse) ||

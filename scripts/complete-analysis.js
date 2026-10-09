@@ -1,11 +1,11 @@
 import { bridgeAddress } from "../bridge/address.js";
-import { jobAnalysisContract } from "../shared/contracts.js";
+import { jobAnalysisContract, identifierContract } from "../shared/contracts.js";
 
 // This callback has authority over one analysis only; it never reads the bridge token.
 const [id, token, verdict] = process.argv.slice(2);
 try {
   const threadId = process.env.CODEX_THREAD_ID;
-  if (!jobAnalysisContract.isThreadId(id) || !jobAnalysisContract.isThreadId(threadId)
+  if (!identifierContract.isUuid(id) || !identifierContract.isUuid(threadId)
     || !/^[a-f0-9]{64}$/.test(token || "")) throw new Error("Missing valid analysis context or CODEX_THREAD_ID");
   if (!jobAnalysisContract.isVerdict(verdict)) throw new Error("A valid CV-fit verdict is required");
   const response = await fetch(`${bridgeAddress.origin}/analyses/${id}/complete`, {

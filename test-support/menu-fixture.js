@@ -47,7 +47,7 @@ const loadMenuScripts = (context) =>
     "cv-fit-submission.js",
     "job-url.js",
     "job-mark-store.js",
-    "job-marks.js",
+    "page-decorations.js", "job-marks.js",
     "job-menu.js",
   ]);
 
@@ -133,7 +133,7 @@ export const createMenuFixture = async ({
   ]);
   Object.assign(context.jobSearchCompanion.dom, {
     getViewportRect: () => ({ width: 200, height: 40 }),
-    queryIncludingRoot: (root) => [root],
+    queryIncludingRoot: (root, selector) => selector === ".jsc-menu-item" ? [] : [root],
   });
   context.jobSearchCompanion.jobs.consumeMenuJobUrl = () => jobUrl;
   context.jobSearchCompanion.jobs.collectJobCarriers = () => [];

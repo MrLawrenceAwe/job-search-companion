@@ -37,7 +37,7 @@
 
       <section class="card" aria-labelledby="checkingHeading">
         <div class="section-heading"><div><span class="eyebrow">Preferences</span><h2 id="checkingHeading">Blocker checks</h2></div><span id="checkingBadge" class="badge">Loading</span></div>
-        <p class="description">Check selected Indeed job descriptions against your profile and an automatically refreshed CV experience index.</p>
+        <p class="description">Check selected Indeed job descriptions against your profile and CV evidence.</p>
         <label class="field-label" for="checkerModel">Checker model</label>
         <div class="model-row"><select id="checkerModel" aria-label="Checker model"></select><button id="refreshModels" class="icon-button" aria-label="Refresh models" title="Refresh models"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 7a7 7 0 0 1 11.5-1L20 9M4 15l2.4 3A7 7 0 0 0 17.9 17"/></svg></button></div>
         <label class="field-label" for="indexModel">CV indexing model</label>
@@ -71,8 +71,8 @@
   </main>
   <script src="contracts/blockers.js"></script>
   <script src="contracts/messages.js"></script>
-  <script src="blocker-client.js"></script>
-  <script src="blocker-records.js"></script>
+  <script src="blockers/client.js"></script>
+  <script src="blockers/result-store.js"></script>
   <script src="options.js"></script>
 </body>
 </html>

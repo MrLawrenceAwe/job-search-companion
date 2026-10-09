@@ -52,8 +52,9 @@ task because submission may have happened before confirmation was saved.
 The content scripts are ordered by dependency in the manifest:
 
 - `contracts/job-urls.js`, `contracts/blockers.js`, and `contracts/cv-fit-submissions.js` define shared URL, blocker-result, and CV task-status contracts, also consumed by Node through `shared/contracts.js`;
+- `contracts/identifiers.js` supplies UUID validation for request and chat IDs;
 - `contracts/shortcuts.js` defines keyboard bindings used by dispatch and menu hints;
-- `contracts/messages.js` owns extension message names, and `blocker-client.js` sends checker requests for content scripts and settings;
+- `contracts/messages.js` owns extension message names, and `blockers/client.js` sends checker requests for content scripts and settings;
 - `extension-context.js` creates the content-page cross-script API, selectors, and UI configuration;
 - `dom-visibility.js` provides rendered-element and viewport visibility checks, plus queries that include the root element;
 - `job-url.js` parses and normalizes Indeed and LinkedIn page and job URLs;
@@ -62,24 +63,33 @@ The content scripts are ordered by dependency in the manifest:
 - `feedback.js` provides shared toast feedback independently of CV submission;
 - `cv-fit-submission.js` owns bridge messaging, completion polling, and submission feedback;
 - `job-mark-store.js` owns manual mark identity, persistence, pending writes, and storage synchronization;
+- `page-decorations.js` batches page observation, scans cards and the selected heading once per render, and owns stable action/findings containers;
 - `job-marks.js` decorates cards, job headers, and menu actions using that store;
 - `shortcuts.js` dispatches the N/J/K/H/U keyboard actions and ignores editable targets, modifier keys, repeated key events and composition;
 - `job-menu.js` creates and inserts the CV fit and job-record actions;
 - `job-menu-observer.js` detects newly opened job menus;
-- `blocker-descriptions.js` observes captured descriptions and extracts inert text;
-- `blocker-records.js` owns local findings and storage-change notifications;
-- `blocker-renderer.js` presents badges, findings, and checker controls; and
-- `blocker-checker.js` coordinates selection verification, dwell timing, and request polling.
+- `blockers/indeed-description-store.js` observes captured descriptions and extracts inert text;
+- `blockers/result-store.js` owns local findings and storage-change notifications;
+- `blockers/renderer.js` presents badges, findings, and checker controls; and
+- `blockers/checker.js` coordinates selection verification, dwell timing, and request polling.
 
-The separate `indeed-description-capture.js` MAIN-world script observes descriptions before the isolated content scripts start. `service-worker.js` loads `bridge-config.js` and the installer-generated `local-config.js` for private bridge settings. Its shared JSON transport owns request headers and timeouts; CV and blocker handlers own authorization, endpoint selection, and response filtering. `options.html`, `options.js`, and `options.css` implement settings.
+The separate `blockers/indeed-description-capture.js` MAIN-world script observes descriptions before the isolated content scripts start. `service-worker.js` loads `bridge-config.js` and the installer-generated `local-config.js` for private bridge settings. Its shared JSON transport owns request headers and timeouts; CV and blocker handlers own authorization, endpoint selection, and response filtering. `options.html`, `options.js`, and `options.css` implement settings.
 
 `cvFitSubmissions` is the content-page API for sending Codex tasks. The bridge's
-`cv-fit-submission-store.js` persists their statuses. The native helper publishes
+`cv-fit-submission-store.js` persists their statuses; `cv-fit-submission-service.js` owns locking, execution and completed-history pruning. `analysis-routes.js` owns completion, listing and chat opening, with scoped completion dispatched before general-token authentication. The native helper publishes
 its result enum in metadata; automated tests compare it with the shared status
 contract.
 
 Helpers that are used only inside one content script remain file-local. The
 shared object contains only operations required by another script.
+
+## Indeed layout workaround
+
+On Indeed, the extension separates the server job-panel stylesheet from React
+Native's client stylesheet at page startup. This works around Indeed clearing
+the shared stylesheet during rendering, which otherwise clips the Apply button
+and stacks the job-panel icons. It only removes the ID from Indeed's explicitly
+marked server style element; Indeed generates the client CSS itself.
 
 ## Job resolution
 
@@ -149,13 +159,13 @@ the user's pre-install content before dropping those artifacts.
 
 ## Blocker-checking internals
 
-The Indeed-only MAIN-world `indeed-description-capture.js` observes descriptions
+The Indeed-only MAIN-world `blockers/indeed-description-capture.js` observes descriptions
 before the isolated scripts start. Both worlds load `contracts/job-urls.js` and `contracts/messages.js` so
-job IDs and description messages use the same contracts. The isolated `blocker-checker.js` verifies
+job IDs and description messages use the same contracts. The isolated `blockers/checker.js` verifies
 the selected description, waits for selection dwell, and polls check completion.
-`blocker-records.js` owns extension-local result access, pruning, storage-change
-notifications, and clearing through `jobSearchBlockerRecords.createStore()`;
-settings and the checker share that API. `blocker-renderer.js` reads results
+`blockers/result-store.js` owns extension-local result access, pruning, storage-change
+notifications, and clearing through `jobSearchBlockerResults.createStore()`;
+settings and the checker share that API. `blockers/renderer.js` reads results
 through the store and presents findings without changing manual marks.
 
 The selected full description must match the captured embedded or `/viewjob`
@@ -170,8 +180,8 @@ The observer preserves fetch observation across ordinary page reassignment.
 In `bridge/blockers/`, `checker.js` owns scheduling, `result-cache.js` owns
 persisted result retention, `account-fallback.js` owns account rotation,
 `profile.js` parses explicitly named application and verified profile sources,
-`cv-index.js` fingerprints current source CVs and maintains a private compact index of exact excerpts,
-and `inference.js` validates a streamed requirement inventory and derives findings from necessity/evidence classifications. Preferred requirements are excluded; missing evidence stays uncertain. Checker version 2 invalidates findings made before this contract.
+`cv-index.js` fingerprints current source CVs and maintains a private compact index of exact excerpts. Its `ensureCurrent()` method may extract files and call the model; `readCurrent()` reads a matching saved index without inference.
+`chatgpt-response.js` parses completed JSON streams shared by checking and indexing. `inference.js` validates a streamed requirement inventory and derives findings from necessity/evidence classifications. Preferred requirements are excluded; missing evidence stays uncertain. Checker version 4 invalidates findings made while evaluating the prompt reductions. Specialist examples and candidate-requirement guidance are retained; only the repeated missing-evidence sentence was removed.
 `chatgpt-accounts.js` exposes `openChatGPTAccountManager()` for persisted registrations, active-account selection, OAuth, and authenticated requests. `fallbackAccountIds()` returns eligible registration IDs. The checker has separate endpoints and status from CV Fit submissions.
 `extension/contracts/blockers.js` defines result labels, version, retention,
 record bounds, and retention eligibility for both runtimes.

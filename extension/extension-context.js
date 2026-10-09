@@ -33,6 +33,7 @@
     },
     jobs: {},
     jobMarks: {},
+    pageDecorations: {},
     blockers: {},
     jobMenu: {},
     showToast: null,

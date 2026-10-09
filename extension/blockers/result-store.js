@@ -33,7 +33,7 @@
         listeners.add(listener);
         return () => listeners.delete(listener);
       },
-      async loadRecords() {
+      async loadResults() {
         const stored = await chrome.storage.local.get(null);
         for (const [key, value] of Object.entries(stored)) {
           if (key.startsWith(storagePrefix)) applyRecord(key, value);
@@ -60,5 +60,5 @@
     };
   };
 
-  globalThis.jobSearchBlockerRecords = Object.freeze({ createStore });
+  globalThis.jobSearchBlockerResults = Object.freeze({ createStore });
 })();

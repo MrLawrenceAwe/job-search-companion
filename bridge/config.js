@@ -2,6 +2,7 @@ import { createRequire } from "node:module";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 
+import { blockerSources } from "../shared/blocker-sources.js";
 import { dataDirectory } from "../shared/data-directory.js";
 import { cvFitSettings } from "../shared/cv-fit-settings.js";
 import { bridgeAddress } from "./address.js";
@@ -35,14 +36,7 @@ export const config = Object.freeze({
     workspacePath,
     settings: cvFitSettings,
   }),
-  blockers: Object.freeze({
-    directory: join(supportDirectory, "blockers"),
-    cvDirectory: join(homedir(), "Job Hunting"),
-    profileSources: [
-      { kind: "application", path: join(homedir(), "Job Hunting/profile.md") },
-      { kind: "verified", path: join(homedir(), ".codex/skills/apply-to-jobs/references/profile.md") },
-    ],
-  }),
+  blockers: Object.freeze(blockerSources()),
   codex: Object.freeze({
     bundleId: "com.openai.codex",
     accessibilityProtocolVersion: helperContract.protocolVersion,

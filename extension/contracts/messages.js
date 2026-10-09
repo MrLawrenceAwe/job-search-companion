@@ -8,6 +8,5 @@
     indeedDescription: "jsc-indeed-description-v1",
     requestInitialDescription: "jsc-request-initial-description-v1",
     blockerRequest: "BLOCKER_REQUEST",
-    openBlockerSettings: "OPEN_BLOCKER_SETTINGS",
   });
 })();

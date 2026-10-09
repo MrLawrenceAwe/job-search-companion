@@ -71,10 +71,7 @@
 
   const hasVisibleItem = (root) => {
     const selector = `.${companion.ui.menuItemClass}`;
-    const items = [
-      ...(root?.matches?.(selector) ? [root] : []),
-      ...(root?.querySelectorAll?.(selector) || []),
-    ];
+    const items = companion.dom.queryIncludingRoot(root, selector);
     return items.some((item) => companion.dom.getViewportRect(item));
   };
 

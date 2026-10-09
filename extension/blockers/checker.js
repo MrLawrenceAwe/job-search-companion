@@ -2,7 +2,7 @@
   const companion = globalThis.jobSearchCompanion;
   if (companion.platform !== "indeed") return;
   const { isRetainableResult, reasoningForModel } = globalThis.jobSearchContracts.blockers;
-  const recordStore = globalThis.jobSearchBlockerRecords.createStore();
+  const recordStore = globalThis.jobSearchBlockerResults.createStore();
   const checks = new Map();
   let checkerState = null;
   let selection = null;
@@ -156,7 +156,7 @@
     getContext: () => ({ selection, checkerState }),
   });
   const initialize = async () => {
-    await recordStore.loadRecords();
+    await recordStore.loadResults();
     await refreshState();
     window.postMessage({ type: globalThis.jobSearchContracts.messages.requestInitialDescription }, location.origin);
     schedule();
@@ -175,10 +175,10 @@
   new MutationObserver((mutations) => {
     if (
       mutations.every(
-        (m) =>
-          m.target.closest?.(".jsc-blocker-panel, .jsc-blocker-badge") ||
-          [...m.addedNodes, ...m.removedNodes].every(
-            (n) => n.nodeType === 1 && n.matches?.(".jsc-blocker-panel, .jsc-blocker-badge"),
+        (mutation) =>
+          mutation.target.closest?.(".jsc-detail-controls, .jsc-blocker-panel, .jsc-blocker-badge") ||
+          [...mutation.addedNodes, ...mutation.removedNodes].every(
+            (node) => node.nodeType === 1 && node.matches?.(".jsc-detail-controls, .jsc-blocker-panel, .jsc-blocker-badge"),
           ),
       )
     )

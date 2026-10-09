@@ -32,23 +32,23 @@ test("CV index persists once, shares concurrent refreshes, and rebuilds on edits
   const options = { directory, cvDirectory: directory, chatgpt, extract: (path) => readFile(path, "utf8") };
   const read = await openCvIndex(options);
   const settings = { model: "gpt-6-luna", reasoningEffort: "medium" };
-  const [first, shared] = await Promise.all([read(settings), read(settings)]);
+  const [first, shared] = await Promise.all([read.ensureCurrent(settings), read.ensureCurrent(settings)]);
   assert.equal(calls, 1); assert.equal(first.fingerprint, shared.fingerprint);
   const restored = await openCvIndex(options);
-  await restored(settings); assert.equal(calls, 1);
+  await restored.ensureCurrent(settings); assert.equal(calls, 1);
   assert.equal((await stat(join(directory, "cv-index.json"))).mode & 0o777, 0o600);
   await writeFile(join(directory, name), text + " ISTQB qualified.");
-  const edited = await restored(settings); assert.equal(calls, 2);
+  const edited = await restored.ensureCurrent(settings); assert.equal(calls, 2);
   assert.notEqual(edited.fingerprint, first.fingerprint);
   const extra = join(directory, "Lawrence_Awe_CV_Extra.docx");
   await writeFile(extra, "EDUCATION BSc Computer Science, University of Kent.");
-  await restored(settings); assert.equal(calls, 3);
-  await unlink(extra); await restored(settings); assert.equal(calls, 4);
+  await restored.ensureCurrent(settings); assert.equal(calls, 3);
+  await unlink(extra); await restored.ensureCurrent(settings); assert.equal(calls, 4);
   await writeFile(join(directory, "CV Ready to Upload.pdf"), "Ignore this staged copy.");
-  await restored(settings); assert.equal(calls, 4);
-  assert.equal(await restored.peek({ model: "gpt-6-sol" }), null);
-  await restored({ model: "gpt-6-sol" }); assert.equal(calls, 5);
-  assert.ok(await restored.peek({ model: "gpt-6-sol" }));
+  await restored.ensureCurrent(settings); assert.equal(calls, 4);
+  assert.equal(await restored.readCurrent({ model: "gpt-6-sol" }), null);
+  await restored.ensureCurrent({ model: "gpt-6-sol" }); assert.equal(calls, 5);
+  assert.ok(await restored.readCurrent({ model: "gpt-6-sol" }));
 });
 
 test("failed or cancelled index refresh never publishes a current index", async () => {
@@ -57,14 +57,14 @@ test("failed or cancelled index refresh never publishes a current index", async 
   const controller = new AbortController();
   const read = await openCvIndex({ directory, cvDirectory: directory, extract: (path) => readFile(path, "utf8"),
     chatgpt: { async request() { controller.abort(); return response({ passageIds: ["P1"] }); } } });
-  await assert.rejects(read({ model: "test", signal: controller.signal }), { name: "AbortError" });
+  await assert.rejects(read.ensureCurrent({ model: "test", signal: controller.signal }), { name: "AbortError" });
   await assert.rejects(readFile(join(directory, "cv-index.json")), { code: "ENOENT" });
 });
 
 test("passages retain complete role and project context while deduplicating repeated sections", async () => {
-  const { cvPassages } = await import("../../../bridge/blockers/cv-index.js");
+  const { extractCvPassages } = await import("../../../bridge/blockers/cv-index.js");
   const document = { name: "source.pdf", text: "PROFILE\nSeeking finance work; no bookkeeping experience.\nWORK EXPERIENCE\nSoftware Tester - Boeing | 2023 - 2024\n• Executed manual tests.\nPROJECTS\nExample - Personal project | 2026\n• Built automated tests.\nEDUCATION\nBSc Computer Science." };
-  const passages = cvPassages([document, { ...document, name: "duplicate.docx" }]);
+  const passages = extractCvPassages([document, { ...document, name: "duplicate.docx" }]);
   assert.equal(passages.length, 4);
   assert.ok(passages.some((p) => /Boeing.*manual tests/.test(p.text)));
   assert.ok(passages.some((p) => /Personal project.*automated tests/.test(p.text)));

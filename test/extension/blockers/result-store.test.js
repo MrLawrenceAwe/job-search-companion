@@ -1,9 +1,9 @@
-import { blockerContract } from "../../shared/contracts.js";
+import { blockerContract } from "../../../shared/contracts.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import vm from "node:vm";
 
-import { runScriptsInVm } from "../../test-support/extension-scripts.js";
+import { runScriptsInVm } from "../../../test-support/extension-scripts.js";
 
 const makeRecord = (jobId, checkedAt = new Date().toISOString()) => ({
   jobId,
@@ -40,8 +40,8 @@ const createStoreFixture = async (initialStorage = {}) => {
       },
     },
   });
-  await runScriptsInVm(context, ["contracts/blockers.js", "blocker-records.js"]);
-  return { storage, notify, createStore: context.jobSearchBlockerRecords.createStore };
+  await runScriptsInVm(context, ["contracts/blockers.js", "blockers/result-store.js"]);
+  return { storage, notify, createStore: context.jobSearchBlockerResults.createStore };
 };
 
 test("record stores synchronize saved findings and clearing preserves manual marks", async () => {
@@ -53,7 +53,7 @@ test("record stores synchronize saved findings and clearing preserves manual mar
   const settingsStore = fixture.createStore();
   const changes = [];
   checkerStore.subscribe((batch) => changes.push(...batch));
-  await checkerStore.loadRecords();
+  await checkerStore.loadResults();
   assert.equal(checkerStore.get("expired111"), undefined);
 
   await checkerStore.saveResult(makeRecord("first111"));
@@ -89,7 +89,7 @@ test("saving results prunes surplus records while retaining the newest findings"
   }));
   const fixture = await createStoreFixture(stored);
   const store = fixture.createStore();
-  await store.loadRecords();
+  await store.loadResults();
   await store.saveResult(makeRecord("newest111"));
   assert.equal(Object.keys(fixture.storage).length, 300);
   assert.equal(store.get("job299"), undefined);

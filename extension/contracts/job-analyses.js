@@ -1,5 +1,5 @@
 (() => {
-  const threadIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const { isUuid } = globalThis.jobSearchContracts.identifiers;
   const verdicts = Object.freeze([
     "use as-is", "edit the CV", "tailor into a role-specific CV", "create a new CV",
     "no suitable base CV", "not enough information", "do not apply yet",
@@ -19,16 +19,15 @@
     }
     return `analyzed-job:${linkedin ? "linkedin" : "indeed"}:${id}`;
   };
-  const isRecord = (record) => Boolean(record && threadIdPattern.test(record.threadId)
+  const isRecord = (record) => Boolean(record && isUuid(record.threadId)
     && typeof record.analyzedAt === "string" && Number.isFinite(Date.parse(record.analyzedAt))
     && (record.verdict === undefined || verdicts.includes(record.verdict)));
   globalThis.jobSearchContracts ??= {};
   globalThis.jobSearchContracts.jobAnalyses = Object.freeze({
     keyFor, isRecord, verdicts, colorFor,
     isVerdict: (verdict) => verdicts.includes(verdict),
-    isThreadId: (id) => typeof id === "string" && threadIdPattern.test(id),
     linkFor: (id) => {
-      if (typeof id !== "string" || !threadIdPattern.test(id)) throw new Error("Invalid Codex chat ID");
+      if (!isUuid(id)) throw new Error("Invalid Codex chat ID");
       return `codex://threads/${id}?hostId=local`;
     },
   });

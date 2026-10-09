@@ -1,8 +1,8 @@
-import { blockerContract } from "../../shared/contracts.js";
+import { blockerContract } from "../../../shared/contracts.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { waitUntil } from "../../test-support/async.js";
-import { runScriptsInDom } from "../../test-support/extension-scripts.js";
+import { waitUntil } from "../../../test-support/async.js";
+import { runScriptsInDom } from "../../../test-support/extension-scripts.js";
 import { webcrypto } from "node:crypto";
 import { JSDOM } from "jsdom";
 
@@ -108,9 +108,9 @@ const createBlockerFixture = async (initialStorage = {}) => {
   }));
   const realTimeout = window.setTimeout.bind(window);
   window.setTimeout = (callback, milliseconds) =>
-    realTimeout(callback, [120, 1200, 1500].includes(milliseconds) ? 10 : milliseconds);
+    realTimeout(callback, milliseconds === 100 ? 1 : [120, 1200, 1500].includes(milliseconds) ? 10 : milliseconds);
   const mocks = installChromeMocks(window, initialStorage);
-  await runScriptsInDom(window, ["contracts/job-urls.js", "contracts/blockers.js", "contracts/messages.js", "blocker-client.js", "extension-context.js"]);
+  await runScriptsInDom(window, ["contracts/job-urls.js", "contracts/blockers.js", "contracts/messages.js", "blockers/client.js", "extension-context.js"]);
   Object.assign(window.jobSearchCompanion.dom, {
     getRenderedRect: () => ({ width: 200, height: 100 }),
   });
@@ -132,11 +132,11 @@ const createBlockerFixture = async (initialStorage = {}) => {
     },
   };
   await runScriptsInDom(window, [
-    "indeed-description-capture.js",
-    "blocker-descriptions.js",
-    "blocker-records.js",
-    "blocker-renderer.js",
-    "blocker-checker.js",
+    "blockers/indeed-description-capture.js",
+    "blockers/indeed-description-store.js",
+    "blockers/result-store.js",
+    "page-decorations.js", "blockers/renderer.js",
+    "blockers/checker.js",
   ]);
   return {
     window,

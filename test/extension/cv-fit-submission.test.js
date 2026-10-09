@@ -159,7 +159,7 @@ test("a visible action in another menu does not suppress insertion into this men
   };
 
   context.document.querySelectorAll = () => [existingButton];
-  context.jobSearchCompanion.dom.queryIncludingRoot = (root) => [root];
+  context.jobSearchCompanion.dom.queryIncludingRoot = (root, selector) => selector === ".jsc-menu-item" ? [] : [root];
 
   assert.equal(context.jobSearchCompanion.jobMenu.insertJobMenuActions(newMenuRow), true);
   assert.ok(insertedButton);

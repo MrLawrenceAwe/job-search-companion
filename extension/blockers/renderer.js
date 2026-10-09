@@ -25,18 +25,13 @@
       });
       return node;
     };
-    return () => {
+    const render = ({ cards, findings }) => {
       const { selection, checkerState } = getContext();
       for (const badge of document.querySelectorAll(".jsc-blocker-badge")) badge.remove();
-      const decorated = new Set();
-      for (const { element: carrier, jobUrl } of companion.jobs.collectJobCarriers(
-        companion.dom.getRenderedRect,
-      )) {
+      for (const [card, jobUrl] of cards) {
         const jobId = keyFromUrl(jobUrl);
         const record = recordStore.get(jobId);
-        const card = carrier.closest(companion.selectors.jobCard);
-        if (!card || decorated.has(card) || !isRetainableResult(record)) continue;
-        decorated.add(card);
+        if (!isRetainableResult(record)) continue;
         const verified = selection?.jobId === jobId && getCurrentResult() === record;
         const badge = element(
           "span",
@@ -46,14 +41,8 @@
         badge.title = `Checked ${new Date(record.checkedAt).toLocaleString()}. Open this job to verify its description against the current profile.`;
         card.append(badge);
       }
-      let panel = document.querySelector(".jsc-blocker-panel");
-      const heading = [...document.querySelectorAll(companion.selectors.jobDetailTitle)].find(
-        (node) => companion.dom.getRenderedRect(node),
-      );
-      if (!heading) {
-        panel?.remove();
-        return;
-      }
+      if (!findings) return;
+      let panel = findings.querySelector('.jsc-blocker-panel');
       if (!selection) {
         if (panel?.dataset.signature === "unavailable") return;
         panel?.remove();
@@ -63,7 +52,7 @@
           element("strong", "Not checked · waiting for a full description"),
           element("p", "The job and its complete description must match before checking."),
         );
-        heading.after(panel);
+        findings.append(panel);
         return;
       }
       const renderSignature = `${selection.jobId}:${selection.descriptionHash}:${JSON.stringify(checks.get(selection.signature))}:${getCurrentResult()?.checkedAt}:${checkerState?.settings.enabled}:${checkerState?.pausedReason}:${checkerState?.error}`;
@@ -126,7 +115,9 @@
         ["checking", "queued"].includes(check?.status);
       controls.append(checkButton);
       panel.append(controls);
-      heading.after(panel);
+      findings.append(panel);
     };
+    companion.pageDecorations.register(render);
+    return companion.pageDecorations.schedule;
   };
 })();

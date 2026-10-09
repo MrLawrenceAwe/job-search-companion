@@ -32,15 +32,15 @@ export const openBlockerChecker = async ({
   settings.value.accountFallback ??= false;
   settings.value.reasoningEffort ??= blockerContract.defaultReasoningEffort;
   const cache = await openResultCache(directory);
-  const readCvIndex = cvDirectory ? await openCvIndex({ directory, cvDirectory, chatgpt }) : null;
+  const cvIndex = cvDirectory ? await openCvIndex({ directory, cvDirectory, chatgpt }) : null;
   let indexController = new AbortController();
-  const readProfile = suppliedReadProfile || (async ({ includeCv = true } = {}) => {
+  const readProfile = suppliedReadProfile || (async ({ refreshCvIndex = true } = {}) => {
     const profile = await readVerifiedProfile(profileSources);
-    if (!readCvIndex) return profile;
+    if (!cvIndex) return profile;
     if (indexController.signal.aborted) indexController = new AbortController();
-    const index = includeCv
-      ? await readCvIndex({ signal: indexController.signal, model: settings.value.indexModel || settings.value.model, reasoningEffort: "medium" })
-      : await readCvIndex.peek({ model: settings.value.indexModel || settings.value.model });
+    const index = refreshCvIndex
+      ? await cvIndex.ensureCurrent({ signal: indexController.signal, model: settings.value.indexModel || settings.value.model, reasoningEffort: "medium" })
+      : await cvIndex.readCurrent({ model: settings.value.indexModel || settings.value.model });
     if (!index) return { ...profile, hash: hashJson({ facts: profile.facts, cvFingerprint: null, indexModel: settings.value.indexModel || settings.value.model }) };
     const facts = [...profile.facts, ...index.facts.map((fact, i) => ({ ...fact, id: `CV${i + 1}` }))];
     return { facts, sources: [...profile.sources, { name: "CV experience index", path: join(directory, "cv-index.json") }],
@@ -67,7 +67,7 @@ export const openBlockerChecker = async ({
     let profile = null;
     let profileError = null;
     try {
-      profile = await readProfile({ includeCv: false });
+      profile = await readProfile({ refreshCvIndex: false });
     } catch {
       profileError = "Verified profile unavailable. Check the local profile files.";
     }
@@ -104,7 +104,7 @@ export const openBlockerChecker = async ({
       !disposed &&
       !controller.signal.aborted;
     try {
-      if (readCvIndex) {
+      if (cvIndex) {
         checkJob.profile = await readProfile();
         if (!isCurrent()) throw new Error("Check interrupted while preparing CV evidence.");
         checksByCacheKey.delete(checkJob.key);
@@ -218,7 +218,7 @@ export const openBlockerChecker = async ({
       }
       if (patch.enabled && (!chatgpt.connectionStatus().planUsageEnabled || !(patch.model || settings.value.model)))
         throw new Error("Connect ChatGPT plan usage and choose a model first");
-      if (patch.enabled && !(await readProfile({ includeCv: false })).facts.length)
+      if (patch.enabled && !(await readProfile({ refreshCvIndex: false })).facts.length)
         throw new Error("Verified profile unavailable");
       if (
         patch.enabled === false ||
@@ -253,7 +253,7 @@ export const openBlockerChecker = async ({
         throw new Error("Connect ChatGPT plan usage and choose a model in settings");
       const generation = cancellationGeneration;
       const activeId = chatgpt.connectionStatus().activeId;
-      const profile = await readProfile({ includeCv: false });
+      const profile = await readProfile({ refreshCvIndex: false });
       if (disposed || generation !== cancellationGeneration || activeId !== chatgpt.connectionStatus().activeId)
         throw new Error("Check interrupted while preparing CV evidence. Try again.");
       const jobId = parsed.searchParams.get("jk");

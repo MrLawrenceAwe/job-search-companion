@@ -10,7 +10,7 @@ const loadWorker = async (fetch) => {
   let timeoutCallback;
   let clearedTimer;
   const sources = new Map(await Promise.all(
-    ["contracts/job-urls.js", "contracts/job-analyses.js", "contracts/messages.js", "bridge-config.js"].map(async (filename) =>
+    ["contracts/job-urls.js", "contracts/identifiers.js", "contracts/job-analyses.js", "contracts/messages.js", "bridge-config.js"].map(async (filename) =>
       [filename, await readExtensionScript(filename)]),
   ));
   const context = vm.createContext({

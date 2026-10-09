@@ -27,7 +27,9 @@
         "https://indeed.co.uk/*",
         "https://*.indeed.co.uk/*"
       ],
-      "js": ["indeed-layout.js"],
+      "js": [
+        "indeed-layout.js"
+      ],
       "run_at": "document_start"
     },
     {
@@ -38,7 +40,7 @@
         "https://*.indeed.co.uk/*"
       ],
       "js": [
-        "indeed-main.js"
+        "indeed-description-capture.bundle.js"
       ],
       "world": "MAIN",
       "run_at": "document_start"
@@ -54,12 +56,13 @@
       ],
       "js": [
         "contracts/job-urls.js",
+        "contracts/identifiers.js",
         "contracts/job-analyses.js",
         "contracts/blockers.js",
         "contracts/messages.js",
         "contracts/cv-fit-submissions.js",
         "contracts/shortcuts.js",
-        "blocker-client.js",
+        "blockers/client.js",
         "extension-context.js",
         "dom-visibility.js",
         "job-url.js",
@@ -68,15 +71,16 @@
         "feedback.js",
         "cv-fit-submission.js",
         "job-mark-store.js",
+        "page-decorations.js",
         "job-marks.js",
         "job-analyses.js",
         "shortcuts.js",
         "job-menu.js",
         "job-menu-observer.js",
-        "blocker-descriptions.js",
-        "blocker-records.js",
-        "blocker-renderer.js",
-        "blocker-checker.js"
+        "blockers/indeed-description-store.js",
+        "blockers/result-store.js",
+        "blockers/renderer.js",
+        "blockers/checker.js"
       ],
       "css": [
         "content.css"

@@ -53,7 +53,7 @@ test("settings use account registrations, save preferences, and clear only block
       },
     },
   };
-  await runScriptsInDom(window, ["contracts/blockers.js", "contracts/messages.js", "blocker-client.js", "blocker-records.js", "options.js"]);
+  await runScriptsInDom(window, ["contracts/blockers.js", "contracts/messages.js", "blockers/client.js", "blockers/result-store.js", "options.js"]);
   const element = (id) => window.document.getElementById(id);
   await waitUntil(() => element("saveSettings").textContent === "Saved");
   assert.equal(element("currentAccount").value, "a");

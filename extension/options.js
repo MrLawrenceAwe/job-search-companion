@@ -1,24 +1,24 @@
-const recordStore = globalThis.jobSearchBlockerRecords.createStore();
-const $ = (id) => document.getElementById(id);
+const recordStore = globalThis.jobSearchBlockerResults.createStore();
+const byId = (id) => document.getElementById(id);
 let settingsState = null;
 let busy = false;
 let saving = false;
 let modelsLoaded = false;
 const { request } = globalThis.jobSearchBlockerClient;
 const renderInferenceSettings = () => {
-  const luna = $("checkerModel").value === "gpt-6-luna";
-  $("checkerReasoning").disabled = !luna;
-  $("reasoningHint").hidden = luna;
-  $("reasoningHint").textContent = luna
+  const supportsReasoningSelection = byId("checkerModel").value === "gpt-6-luna";
+  byId("checkerReasoning").disabled = !supportsReasoningSelection;
+  byId("reasoningHint").hidden = supportsReasoningSelection;
+  byId("reasoningHint").textContent = supportsReasoningSelection
     ? ""
     : "Other models use their default reasoning level. Select GPT-6 Luna to choose Light or Medium.";
-  $("checkerSpeed").textContent = luna
+  byId("checkerSpeed").textContent = supportsReasoningSelection
     ? "Processing speed: Fast requested (priority). The delivered speed tier is unconfirmed."
     : "Processing speed: model default. Fast processing is requested only for GPT-6 Luna.";
 };
 const feedback = (text, state = "success") => {
-  $("feedback").textContent = text;
-  $("feedback").dataset.state = state;
+  byId("feedback").textContent = text;
+  byId("feedback").dataset.state = state;
 };
 const option = (value, label) => {
   const element = document.createElement("option");
@@ -33,33 +33,33 @@ const renderFallbacks = () => {
   const lines = accounts.map((account, index) => {
     const row = document.createElement("p");
     const label = document.createElement("strong");
-    label.textContent = `Fallback${accounts.length > 1 ? ` ${index + 1}` : ""}${$("accountFallback").checked ? "" : " (off)"}: `;
+    label.textContent = `Fallback${accounts.length > 1 ? ` ${index + 1}` : ""}${byId("accountFallback").checked ? "" : " (off)"}: `;
     row.append(label, account.email || account.label);
     return row;
   });
-  $("fallbackStatus").replaceChildren(
+  byId("fallbackStatus").replaceChildren(
     ...(lines.length ? lines : ["No fallback connected. Add another account."]),
   );
 };
 const updateSave = () => {
-  const button = $("saveSettings");
+  const button = byId("saveSettings");
   if (!settingsState || !modelsLoaded) {
-    const failed = $("feedback").dataset.state === "error" && $("feedback").textContent;
+    const failed = byId("feedback").dataset.state === "error" && byId("feedback").textContent;
     button.textContent = failed ? "Settings unavailable" : "Loading settings…";
-    $("saveHint").textContent = failed
+    byId("saveHint").textContent = failed
       ? "Check the local service, then reload this page to try again."
       : "Loading your preferences…";
     button.disabled = true;
     return;
   }
   const changed =
-    $("checksEnabled").checked !== settingsState.settings.enabled ||
-    $("accountFallback").checked !== settingsState.settings.accountFallback ||
-    $("checkerReasoning").value !== settingsState.settings.reasoningEffort ||
-    ($("checkerModel").value || null) !== settingsState.settings.model ||
-    ($("indexModel").value || null) !== (settingsState.settings.indexModel || null);
-  const resume = Boolean(settingsState.pausedReason && $("checksEnabled").checked);
-  $("saveHint").textContent = saving
+    byId("checksEnabled").checked !== settingsState.settings.enabled ||
+    byId("accountFallback").checked !== settingsState.settings.accountFallback ||
+    byId("checkerReasoning").value !== settingsState.settings.reasoningEffort ||
+    (byId("checkerModel").value || null) !== settingsState.settings.model ||
+    (byId("indexModel").value || null) !== (settingsState.settings.indexModel || null);
+  const resume = Boolean(settingsState.pausedReason && byId("checksEnabled").checked);
+  byId("saveHint").textContent = saving
     ? "Saving your preferences…"
     : changed
       ? "You have unsaved changes."
@@ -79,50 +79,50 @@ const updateSave = () => {
 };
 const render = (state) => {
   settingsState = state;
-  $("connection").textContent = state.connectionStatus.pending
+  byId("connection").textContent = state.connectionStatus.pending
     ? "Finish signing in in your browser."
     : state.connectionStatus.planUsageEnabled
       ? "Connected · Using ChatGPT plan"
       : state.connectionStatus.connected
         ? "Plan usage is off. Continue with ChatGPT to enable it."
         : "Connect ChatGPT to start checking.";
-  $("connectionBadge").textContent = state.connectionStatus.pending
+  byId("connectionBadge").textContent = state.connectionStatus.pending
     ? "Signing in"
     : state.connectionStatus.planUsageEnabled
       ? "Connected"
       : "Not connected";
-  $("connectionBadge").dataset.state = state.connectionStatus.pending
+  byId("connectionBadge").dataset.state = state.connectionStatus.pending
     ? "attention"
     : state.connectionStatus.planUsageEnabled
       ? "active"
       : "inactive";
-  $("checkingBadge").textContent = state.pausedReason
+  byId("checkingBadge").textContent = state.pausedReason
     ? "Paused"
     : state.settings.enabled
       ? "Enabled"
       : "Off";
-  $("checkingBadge").dataset.state = state.pausedReason
+  byId("checkingBadge").dataset.state = state.pausedReason
     ? "attention"
     : state.settings.enabled
       ? "active"
       : "inactive";
-  $("currentAccount").replaceChildren(...state.connectionStatus.accounts.map((account) => option(account.id, account.label)));
-  $("currentAccount").value = state.connectionStatus.activeId || "";
-  $("checksEnabled").checked = state.settings.enabled;
-  $("accountFallback").checked = state.settings.accountFallback;
-  $("checkerReasoning").value = state.settings.reasoningEffort;
+  byId("currentAccount").replaceChildren(...state.connectionStatus.accounts.map((account) => option(account.id, account.label)));
+  byId("currentAccount").value = state.connectionStatus.activeId || "";
+  byId("checksEnabled").checked = state.settings.enabled;
+  byId("accountFallback").checked = state.settings.accountFallback;
+  byId("checkerReasoning").value = state.settings.reasoningEffort;
   renderFallbacks();
   if (modelsLoaded) {
-    $("checkerModel").value = state.settings.model || "";
-    $("indexModel").value = state.settings.indexModel || "";
+    byId("checkerModel").value = state.settings.model || "";
+    byId("indexModel").value = state.settings.indexModel || "";
   }
   renderInferenceSettings();
-  $("connectChatGPT").disabled = state.connectionStatus.pending;
-  $("connectChatGPT").hidden = state.connectionStatus.planUsageEnabled && !state.connectionStatus.pending;
-  $("cancelSignIn").hidden = !state.connectionStatus.pending;
-  $("signOut").disabled = !state.connectionStatus.connected;
-  $("profile").textContent = state.profile ? "Verified profile ready." : state.profileError;
-  $("profile").dataset.state = state.profile ? "ready" : "error";
+  byId("connectChatGPT").disabled = state.connectionStatus.pending;
+  byId("connectChatGPT").hidden = state.connectionStatus.planUsageEnabled && !state.connectionStatus.pending;
+  byId("cancelSignIn").hidden = !state.connectionStatus.pending;
+  byId("signOut").disabled = !state.connectionStatus.connected;
+  byId("profile").textContent = state.profile ? "Verified profile ready." : state.profileError;
+  byId("profile").dataset.state = state.profile ? "ready" : "error";
   if (state.pausedReason || state.connectionStatus.error)
     feedback(state.pausedReason || state.connectionStatus.error, "error");
   updateSave();
@@ -130,21 +130,21 @@ const render = (state) => {
 const load = async () => render(await request("status"));
 const loadModels = async () => {
   if (!settingsState?.connectionStatus.planUsageEnabled) {
-    $("checkerModel").replaceChildren(option("", "Connect ChatGPT plan usage first"));
-    $("indexModel").replaceChildren(option("", "Use checker model"));
+    byId("checkerModel").replaceChildren(option("", "Connect ChatGPT plan usage first"));
+    byId("indexModel").replaceChildren(option("", "Use checker model"));
     modelsLoaded = true;
     renderInferenceSettings();
     updateSave();
     return;
   }
   const { models } = await request("models");
-  $("checkerModel").replaceChildren(
+  byId("checkerModel").replaceChildren(
     option("", "Choose a model"),
     ...models.map((model) => option(model.slug, model.name)),
   );
-  $("checkerModel").value = settingsState.settings.model || "";
-  $("indexModel").replaceChildren(option("", "Use checker model"), ...models.map((model) => option(model.slug, model.name)));
-  $("indexModel").value = settingsState.settings.indexModel || "";
+  byId("checkerModel").value = settingsState.settings.model || "";
+  byId("indexModel").replaceChildren(option("", "Use checker model"), ...models.map((model) => option(model.slug, model.name)));
+  byId("indexModel").value = settingsState.settings.indexModel || "";
   renderInferenceSettings();
   modelsLoaded = true;
   updateSave();
@@ -190,12 +190,12 @@ for (const [id, work] of Object.entries({
     saving = true;
     updateSave();
     const body = {
-      enabled: $("checksEnabled").checked,
-      accountFallback: $("accountFallback").checked,
-      reasoningEffort: $("checkerReasoning").value,
-      indexModel: $("indexModel").value || null,
+      enabled: byId("checksEnabled").checked,
+      accountFallback: byId("accountFallback").checked,
+      reasoningEffort: byId("checkerReasoning").value,
+      indexModel: byId("indexModel").value || null,
     };
-    if ($("checkerModel").value) body.model = $("checkerModel").value;
+    if (byId("checkerModel").value) body.model = byId("checkerModel").value;
     const resuming = Boolean(settingsState.pausedReason && body.enabled);
     try {
       render(await request("settings", body));
@@ -211,23 +211,23 @@ for (const [id, work] of Object.entries({
     feedback("Saved findings cleared.");
   },
 }))
-  $(id).addEventListener("click", () => void perform(work));
-$("currentAccount").addEventListener(
+  byId(id).addEventListener("click", () => void perform(work));
+byId("currentAccount").addEventListener(
   "change",
   () =>
     void perform(async () => {
-      await request("account", { id: $("currentAccount").value });
+      await request("account", { id: byId("currentAccount").value });
       await load();
       await loadModels();
     }),
 );
 for (const id of ["checksEnabled", "checkerModel", "indexModel", "checkerReasoning", "accountFallback"])
-  $(id).addEventListener("change", () => {
+  byId(id).addEventListener("change", () => {
     feedback(settingsState?.pausedReason || "", "error");
     updateSave();
   });
-$("checkerModel").addEventListener("change", renderInferenceSettings);
-$("accountFallback").addEventListener("change", renderFallbacks);
+byId("checkerModel").addEventListener("change", renderInferenceSettings);
+byId("accountFallback").addEventListener("change", renderFallbacks);
 void perform(async () => {
   await load();
   await loadModels();

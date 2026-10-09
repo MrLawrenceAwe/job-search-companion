@@ -3,8 +3,8 @@ import { randomBytes, randomUUID, createHash } from "node:crypto";
 import { createRemoteJWKSet, jwtVerify, customFetch } from "jose";
 import { openPrivateStore } from "./private-store.js";
 
-const AUTH = "https://auth.openai.com";
-const RESOURCE = "https://api.openai.com/v1";
+const AUTH_ORIGIN = "https://auth.openai.com";
+const API_BASE_URL = "https://api.openai.com/v1";
 const SCOPES = "openid profile email offline_access resource.invoke chatgpt.tokens.use.direct";
 const createOAuthSecret = () => randomBytes(32).toString("base64url");
 const terminalRefreshErrors = new Set([
@@ -38,14 +38,14 @@ export const openChatGPTAccountManager = async ({ path, fetchImpl = fetch, verif
   }
   await store.save();
   const data = store.value;
-  const jwks = createRemoteJWKSet(new URL(`${AUTH}/.well-known/jwks.json`), {
+  const jwks = createRemoteJWKSet(new URL(`${AUTH_ORIGIN}/.well-known/jwks.json`), {
     [customFetch]: fetchImpl,
   });
   const verify =
     verifyIdentity ||
     (async (token, clientId, nonce) => {
       const { payload } = await jwtVerify(token, jwks, {
-        issuer: AUTH,
+        issuer: AUTH_ORIGIN,
         audience: clientId,
         algorithms: ["RS256"],
         requiredClaims: ["sub", "exp", "nonce"],
@@ -94,7 +94,7 @@ export const openChatGPTAccountManager = async ({ path, fetchImpl = fetch, verif
     };
   };
   const tokenRequest = async (params) => {
-    const response = await fetchImpl(`${AUTH}/api/accounts/oauth/token`, {
+    const response = await fetchImpl(`${AUTH_ORIGIN}/api/accounts/oauth/token`, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams(params),
@@ -181,7 +181,7 @@ export const openChatGPTAccountManager = async ({ path, fetchImpl = fetch, verif
           code,
           code_verifier: attempt.verifier,
           redirect_uri: attempt.redirectUri,
-          resource: RESOURCE,
+          resource: API_BASE_URL,
         });
         stage = "identity verification";
         const identity = await verify(body.id_token, clientId, attempt.nonce);
@@ -240,7 +240,7 @@ export const openChatGPTAccountManager = async ({ path, fetchImpl = fetch, verif
       response_type: "code",
       redirect_uri: attempt.redirectUri,
       scope: SCOPES,
-      resource: RESOURCE,
+      resource: API_BASE_URL,
       state: attempt.state,
       nonce: attempt.nonce,
       code_challenge_method: "S256",
@@ -250,7 +250,7 @@ export const openChatGPTAccountManager = async ({ path, fetchImpl = fetch, verif
     if (account?.idToken) params.set("id_token_hint", account.idToken);
     if (account?.email) params.set("login_hint", account.email);
     if (consent) params.set("prompt", "consent");
-    return { authUrl: `${AUTH}/api/accounts/authorize?${params}` };
+    return { authUrl: `${AUTH_ORIGIN}/api/accounts/authorize?${params}` };
   };
   const accessToken = async () => {
     const account = active();
@@ -275,7 +275,7 @@ export const openChatGPTAccountManager = async ({ path, fetchImpl = fetch, verif
               grant_type: "refresh_token",
               client_id: account.clientId,
               refresh_token: account.refreshToken,
-              resource: RESOURCE,
+              resource: API_BASE_URL,
             });
             Object.assign(account, credentials(body, account));
             await store.save();
@@ -300,7 +300,7 @@ export const openChatGPTAccountManager = async ({ path, fetchImpl = fetch, verif
   };
   const request = async (endpoint, options = {}) => {
     const token = await accessToken();
-    const response = await fetchImpl(`${RESOURCE}/${endpoint}`, {
+    const response = await fetchImpl(`${API_BASE_URL}/${endpoint}`, {
       ...options,
       headers: { ...options.headers, Authorization: `Bearer ${token}` },
       signal: options.signal || AbortSignal.timeout(30_000),
@@ -350,7 +350,7 @@ export const openChatGPTAccountManager = async ({ path, fetchImpl = fetch, verif
       let revoked = !account?.refreshToken;
       if (account?.refreshToken) {
         try {
-          const r = await fetchImpl(`${AUTH}/api/accounts/oauth/revoke`, {
+          const revokeResponse = await fetchImpl(`${AUTH_ORIGIN}/api/accounts/oauth/revoke`, {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
             body: new URLSearchParams({
@@ -360,7 +360,7 @@ export const openChatGPTAccountManager = async ({ path, fetchImpl = fetch, verif
             }),
             signal: AbortSignal.timeout(10_000),
           });
-          revoked = r.ok;
+          revoked = revokeResponse.ok;
         } catch {
           /* Local logout still completes. */
         }
@@ -382,8 +382,8 @@ export const openChatGPTAccountManager = async ({ path, fetchImpl = fetch, verif
       if (!Array.isArray(body.models))
         throw new ChatGPTError("ChatGPT returned an invalid model catalog");
       return body.models
-        .filter((m) => m.visibility === "list")
-        .map((m) => ({ slug: m.slug, name: m.display_name }));
+        .filter((model) => model.visibility === "list")
+        .map((model) => ({ slug: model.slug, name: model.display_name }));
     },
     close: cancelSignIn,
   };

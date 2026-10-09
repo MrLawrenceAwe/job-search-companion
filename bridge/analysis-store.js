@@ -1,6 +1,6 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { assertNoSymbolicLinkPaths, atomicWrite, readOptionalFile } from "../shared/filesystem.js";
-import { jobAnalysisContract } from "../shared/contracts.js";
+import { jobAnalysisContract, identifierContract } from "../shared/contracts.js";
 import { sha256 } from "../shared/sha256.js";
 
 export const openAnalysisStore = async (path) => {
@@ -8,7 +8,7 @@ export const openAnalysisStore = async (path) => {
   const contents = await readOptionalFile(path);
   const state = contents === null ? { version: 1, requests: [] } : JSON.parse(contents);
   if (state.version !== 1 || !Array.isArray(state.requests) || state.requests.some((record) =>
-    !jobAnalysisContract.isThreadId(record.id) || typeof record.tokenHash !== "string"
+    !identifierContract.isUuid(record.id) || typeof record.tokenHash !== "string"
     || !/^[a-f0-9]{64}$/.test(record.tokenHash) || typeof record.jobUrl !== "string"
     || (record.threadId !== undefined && !jobAnalysisContract.isRecord(record)))) {
     throw new Error(`Invalid analysis state: ${path}`);
@@ -28,7 +28,7 @@ export const openAnalysisStore = async (path) => {
   };
   return {
     create: ({ id, jobUrl }) => {
-      if (!jobAnalysisContract.isThreadId(id)) throw new Error("Invalid analysis ID");
+      if (!identifierContract.isUuid(id)) throw new Error("Invalid analysis ID");
       jobAnalysisContract.keyFor(jobUrl);
       const token = randomBytes(32).toString("hex");
       return transaction((next) => {
@@ -43,7 +43,7 @@ export const openAnalysisStore = async (path) => {
         || !timingSafeEqual(Buffer.from(request.tokenHash, "hex"), Buffer.from(sha256(token), "hex"))) {
         throw new Error("Invalid analysis completion token");
       }
-      if (!jobAnalysisContract.isThreadId(threadId)) throw new Error("Invalid Codex chat ID");
+      if (!identifierContract.isUuid(threadId)) throw new Error("Invalid Codex chat ID");
       if (!jobAnalysisContract.isVerdict(verdict)) throw new Error("Invalid CV-fit verdict");
       if (request.threadId && request.threadId !== threadId) throw new Error("Analysis already completed for another chat");
       if (request.verdict && request.verdict !== verdict) throw new Error("Analysis already completed with another verdict");

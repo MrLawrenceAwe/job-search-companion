@@ -137,7 +137,7 @@ test("discovers a menu that becomes visible without a child-list mutation", asyn
     jobSearchCompanion: {
       dom: {
         getViewportRect: () => ({ width: 100, height: 100 }),
-        queryIncludingRoot: (root) => [root],
+        queryIncludingRoot: (root, selector) => selector === ".jsc-menu-item" ? [] : [root],
       },
       jobs: { captureMenuContext: () => {}, consumeMenuJobUrl: () => "https://uk.indeed.com/viewjob?jk=fixture111" },
       jobMarks: { createButton() { return new Element(); } },

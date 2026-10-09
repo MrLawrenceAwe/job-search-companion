@@ -50,16 +50,8 @@ GPT-6 Luna requests Fast processing (`service_tier: "priority"`), but the delive
 
 For GPT-6 Luna, **Reasoning level** selects **Light (low)** or **Medium** and sends an explicit `reasoning.effort`. Medium remains the default. Saving a different level cancels pending checks and keeps results from the previous level from being reused as current findings. Account fallback retains the chosen level.
 
-Before requirement inventory and CV indexing were added, on 9 October 2026, 12 live requests compared low and medium using the same verified profile, three sample descriptions and Fast processing. Two rounds alternated request order. Median completion time was **2.59 seconds for Light** and **2.44 seconds for Medium**: Light was 6.2% slower in this small sample, so no automatic switch was made. The switch threshold was a 20% reduction with all fixture outcomes passing. Low passed all six outcomes; medium passed five, missing the uncertain DBS requirement once in an advert containing an instruction injection. These synthetic cases are a limited check, not a comprehensive accuracy evaluation or a promise of future latency. Full inputs, timings and outcomes are in [the benchmark report](blocker-benchmark.json).
-
-Run `node scripts/benchmark-blockers.js` to compare reasoning levels using the currently connected account and verified profile. The historical report above does not measure the new requirement inventory or CV index; timings must be remeasured for that path. It uses ChatGPT plan usage, requires a fresh access token, and does not change checker settings, saved findings, accounts or credentials.
+Evaluation commands, methodology and historical measurements are documented in [evaluations](evaluations/README.md).
 
 See [checker internals and validation notes](design.md#blocker-checking-internals) for description capture, storage contracts, and automated coverage.
 
 Official documentation: [Sign-in](https://developers.openai.com/siwc/token-sharing-open-source/sign-in), [models/inference](https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference), [preview limitations](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations), [recovery](https://developers.openai.com/siwc/token-sharing-open-source/errors-and-recovery).
-
-## CV evidence regression verification
-
-Run `node scripts/verify-cv-blockers.js medium gpt-6-sol` to rebuild/reuse a Sol index and check the renewables advert, evidenced testing qualifications and mandatory driving. This uses ChatGPT plan usage and saves the local index plus a verification report. It does not change checker settings or credentials. The live reports are limited samples, not guarantees of completeness or latency.
-
-With a Sol-built CV index on 9 October 2026, the three live regression outcomes passed: renewables/compliance uncertainty, evidenced degree/ISTQB/manual testing, and mandatory driving. The index build took 24.2 seconds; Luna Medium checks took 10.4, 6.2 and 3.4 seconds respectively. These are single-run measurements. The separate low/medium comparison using a Luna-built index did not show a consistent Light speed advantage, so Medium was retained. See [the Sol index verification report](cv-blocker-verification-gpt-6-sol-medium.json).
