@@ -1,14 +1,14 @@
 // Shared by classic Chrome scripts and the Node bridge via shared/contracts.js.
 (() => {
   const labels = Object.freeze({
-    clear_blocker: "Confirmed blocker",
+    clear_blocker: "Blocker",
     uncertain_requirement: "Uncertain requirement",
     no_blockers_found: "No blockers found",
   });
   const defaultReasoningEffort = "medium";
   const supportsReasoningSelection = (model) => model === "gpt-6-luna";
   const contract = {
-    version: 4,
+    version: 6,
     retentionMs: 30 * 86400_000,
     maximumRecords: 300,
     storagePrefix: "blocker-result:",

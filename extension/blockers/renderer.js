@@ -15,6 +15,20 @@
       if (className) node.className = className;
       return node;
     };
+    const ordinaryWords = new Set(
+      "a an and are as at be because been being but by can candidate candidates could essential equivalent for from have having in including is it its job must need needed needs of on or our appropriate relevant required requirement requirements role should that the their them these they this to using we will with work working you your".split(" "),
+    );
+    const appendExplanation = (summary, finding) => {
+      const words = (text) => text.match(/[\p{L}\p{N}]+/gu) || [];
+      const keywords = new Set(words(finding.requirementQuote).map((word) => word.toLowerCase())
+        .filter((word) => !ordinaryWords.has(word) && (word.length >= 3 || /\d/.test(word))));
+      // Keep evidence caveats prominent even when they differ from the advert's wording.
+      for (const word of ["no", "not", "only", "provisional", "missing", "without"]) keywords.add(word);
+      for (const part of finding.explanation.split(/([\p{L}\p{N}]+)/u))
+        summary.append(keywords.has(part.toLowerCase())
+          ? element("strong", part)
+          : document.createTextNode(part));
+    };
     const button = (label, click) => {
       const node = element("button", label);
       node.type = "button";
@@ -65,7 +79,7 @@
       if (result) panel.classList.add(`jsc-${result.outcome}`);
       const check = checks.get(selection.signature);
       let label = result
-        ? LABELS[result.outcome]
+        ? "Requirements check"
         : check?.status === "checking"
           ? "Checking requirements…"
           : check?.status === "queued"
@@ -89,15 +103,21 @@
               "No blockers found in this description against your current profile. This check does not establish overall fit.",
             ),
           );
-        for (const finding of result.findings) {
+        const orderedFindings = [...result.findings].sort(
+          (a, b) => Number(b.kind === "clear_blocker") - Number(a.kind === "clear_blocker"),
+        );
+        for (const finding of orderedFindings) {
           const details = element("details");
-          details.append(
-            element(
-              "summary",
-              `${LABELS[finding.kind]}: ${finding.explanation}`,
-            ),
+          const summary = element("summary");
+          summary.append(
+            element("strong", LABELS[finding.kind]),
+            document.createTextNode(" — "),
+            element("strong", `Job requirement: “${finding.requirementQuote}”`),
+            element("br"),
+            document.createTextNode("Your evidence: "),
           );
-          details.append(element("blockquote", finding.requirementQuote));
+          appendExplanation(summary, finding);
+          details.append(summary);
           for (const fact of finding.profileFacts || [])
             details.append(element("p", `${fact.source}: ${fact.text}`));
           if (!finding.profileFacts?.length)

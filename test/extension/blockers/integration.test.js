@@ -239,7 +239,7 @@ test("cached profile mismatches never display a current clean result", async () 
   });
   try {
     await waitUntil(() => fixture.window.document.querySelector(".jsc-blocker-badge")?.textContent.includes("Previously checked"));
-    assert.ok(!fixture.window.document.querySelector(".jsc-blocker-panel")?.textContent.includes("Confirmed blocker"));
+    assert.ok(!fixture.window.document.querySelector(".jsc-blocker-panel")?.textContent.includes("Blocker"));
     await waitUntil(() => fixture.window.document.querySelector(".jsc-blocker-panel")?.textContent.includes("No blockers found"));
     assert.equal(fixture.calls.length, 1);
   } finally {
@@ -278,6 +278,33 @@ test("cancelled checks retry the current job automatically", async () => {
     await waitUntil(() => fixture.storage["blocker-result:first1111"]);
     await waitUntil(() => fixture.window.document.querySelector(".jsc-blocker-panel")?.textContent.includes("No blockers found"));
     assert.equal(starts, 2);
+  } finally {
+    fixture.close();
+  }
+});
+
+
+test("an essential evidence gap shows Blocker on the card and prioritises it above uncertain requirements", async () => {
+  const fixture = await createBlockerFixture({}, { initiallyHidden: true });
+  try {
+    const original = fixture.window.chrome.runtime.sendMessage;
+    fixture.window.chrome.runtime.sendMessage = async (message) => {
+      if (message.action !== "check") return original(message);
+      const check = await createCompletedCheck(message.body);
+      check.result.outcome = "clear_blocker";
+      check.result.findings = [
+        { kind: "uncertain_requirement", requirementQuote: "Commute to Hertford", explanation: "Commute is unknown.", profileFacts: [] },
+        { kind: "clear_blocker", requirementQuote: "Three years repairing iPhones and Android devices is essential", explanation: "Your evidence does not establish three years repairing both device types.", profileFacts: [] },
+      ];
+      return { ok: true, check };
+    };
+    fixture.setHidden(false);
+    await waitUntil(() => fixture.window.document.querySelector(".jsc-blocker-panel.jsc-clear_blocker"));
+    assert.equal(fixture.window.document.querySelector(".jsc-blocker-badge").textContent, "Blocker");
+    const summaries = [...fixture.window.document.querySelectorAll(".jsc-blocker-panel summary")];
+    assert.equal(summaries[0].querySelector("strong").textContent, "Blocker");
+    assert.match(summaries[0].textContent, /Your evidence does not establish three years/);
+    assert.equal(summaries[1].querySelector("strong").textContent, "Uncertain requirement");
   } finally {
     fixture.close();
   }

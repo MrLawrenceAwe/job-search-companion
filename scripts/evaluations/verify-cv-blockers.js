@@ -17,7 +17,7 @@ const indexingMs = Math.round(performance.now() - started);
 const base = await readEvaluationProfile();
 const profile = { ...base, facts: [...base.facts, ...index.facts.map((fact, i) => ({ ...fact, id: `CV${i + 1}` }))] };
 const cases = [
-  { name: "renewables-specialist", description: await readFile(new URL("../../test-support/renewables-administrator.txt", import.meta.url), "utf8"), expected: "uncertain_requirement" },
+  { name: "renewables-specialist", description: await readFile(new URL("../../test-support/renewables-administrator.txt", import.meta.url), "utf8"), expected: "clear_blocker" },
   { name: "documented-qualification", description: "Remote software tester. You must have a BSc Computer Science degree and ISTQB Foundation certification. Manual testing experience is essential. Commercial automation experience is desirable but not required. No driving or travel required.", expected: "no_blockers_found" },
   { name: "mandatory-driving", description: "Customer support coordinator. You must hold a full UK driving licence and drive to customer sites every day. This is an essential requirement. The position involves handling customer enquiries and updating CRM records.", expected: "clear_blocker" },
 ];
