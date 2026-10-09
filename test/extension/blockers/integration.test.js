@@ -84,7 +84,7 @@ const installChromeMocks = (window, initialStorage) => {
   return { calls, storage, listeners };
 };
 
-const createBlockerFixture = async (initialStorage = {}) => {
+const createBlockerFixture = async (initialStorage = {}, { initiallyHidden = false, dwellDelayMs = 10 } = {}) => {
   const dom = new JSDOM(`
     <h2 data-testid="vj-job-title">Sales Advisor</h2>
     <div data-testid="viewjob-job-content">
@@ -98,6 +98,9 @@ const createBlockerFixture = async (initialStorage = {}) => {
   });
   const { window } = dom;
   let currentJobId = "first1111";
+  let hidden = initiallyHidden;
+  Object.defineProperty(window.document, "hidden", { get: () => hidden });
+  Object.defineProperty(window.document, "visibilityState", { get: () => hidden ? "hidden" : "visible" });
   Object.defineProperty(window.crypto, "subtle", { value: webcrypto.subtle });
   window.TextEncoder = TextEncoder;
   window.fetch = async (url) => createDescriptionResponse(url);
@@ -108,7 +111,7 @@ const createBlockerFixture = async (initialStorage = {}) => {
   }));
   const realTimeout = window.setTimeout.bind(window);
   window.setTimeout = (callback, milliseconds) =>
-    realTimeout(callback, milliseconds === 100 ? 1 : [120, 1200, 1500].includes(milliseconds) ? 10 : milliseconds);
+    realTimeout(callback, milliseconds === 1500 ? dwellDelayMs : milliseconds === 100 ? 1 : [120, 1200].includes(milliseconds) ? 10 : milliseconds);
   const mocks = installChromeMocks(window, initialStorage);
   await runScriptsInDom(window, ["contracts/job-urls.js", "contracts/blockers.js", "contracts/messages.js", "blockers/client.js", "extension-context.js"]);
   Object.assign(window.jobSearchCompanion.dom, {
@@ -141,6 +144,10 @@ const createBlockerFixture = async (initialStorage = {}) => {
   return {
     window,
     ...mocks,
+    setHidden(value) {
+      hidden = value;
+      window.document.dispatchEvent(new window.Event("visibilitychange"));
+    },
     select(jobId) {
       currentJobId = jobId;
       window.document.querySelector("h2").textContent = jobId;
@@ -158,6 +165,38 @@ test("initial embedded descriptions produce one check and a visible result witho
     assert.equal(fixture.calls[0].description, drivingRequiredDescription);
     assert.ok(fixture.window.document.querySelector(".jsc-blocker-badge"));
     assert.equal(fixture.window.document.querySelector(".jsc-blocker-badge").textContent, "No blockers found");
+  } finally {
+    fixture.close();
+  }
+});
+
+test("returning to the same job restarts a cancelled dwell without duplicate checks", async () => {
+  const fixture = await createBlockerFixture({}, { dwellDelayMs: 100 });
+  try {
+    await waitUntil(() => fixture.window.document.querySelector(".jsc-blocker-panel")?.textContent.includes("Not checked yet"));
+    fixture.setHidden(true);
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    assert.equal(fixture.calls.length, 0);
+    fixture.setHidden(false);
+    await waitUntil(() => fixture.storage["blocker-result:first1111"]);
+    assert.equal(fixture.calls.length, 1);
+    fixture.setHidden(true);
+    fixture.setHidden(false);
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    assert.equal(fixture.calls.length, 1);
+  } finally {
+    fixture.close();
+  }
+});
+
+test("a job first loaded in a hidden tab checks when it becomes visible", async () => {
+  const fixture = await createBlockerFixture({}, { initiallyHidden: true });
+  try {
+    await waitUntil(() => fixture.window.document.querySelector(".jsc-blocker-panel")?.textContent.includes("Not checked yet"));
+    assert.equal(fixture.calls.length, 0);
+    fixture.setHidden(false);
+    await waitUntil(() => fixture.storage["blocker-result:first1111"]);
+    assert.equal(fixture.calls.length, 1);
   } finally {
     fixture.close();
   }

@@ -63,6 +63,22 @@
       render();
     }
   };
+  const cancelDwell = () => {
+    clearTimeout(dwellTimer);
+    dwellTimer = null;
+  };
+  const scheduleDwell = () => {
+    if (
+      dwellTimer !== null || !selection || document.hidden ||
+      !checkerState?.settings.enabled ||
+      !checkerState?.connectionStatus.planUsageEnabled ||
+      getCurrentResult() || checks.has(selection.signature)
+    ) return;
+    dwellTimer = setTimeout(() => {
+      dwellTimer = null;
+      void startCheck();
+    }, 1500);
+  };
   const refreshState = async () => {
     if (statusRequestInProgress) return;
     statusRequestInProgress = true;
@@ -97,7 +113,7 @@
       jobUrl = companion.jobs.resolveSelectedJobUrl();
     } catch {
       selection = null;
-      clearTimeout(dwellTimer);
+      cancelDwell();
       render();
       return;
     }
@@ -124,22 +140,19 @@
       );
     if (!descriptionElement || text.length < 40 || text.length > 80_000) {
       selection = null;
-      clearTimeout(dwellTimer);
+      cancelDwell();
       render();
       return;
     }
     const descriptionHash = await digest(text);
     if (generation !== scanGeneration) return;
     const signature = `${jobId}:${descriptionHash}:${profileHash}:${checkerState?.settings.model}:${reasoningForModel(checkerState?.settings.model, checkerState?.settings.reasoningEffort)}`;
-    if (selection?.signature === signature) {
-      render();
-      return;
+    if (selection?.signature !== signature) {
+      cancelDwell();
+      selection = { jobId, jobUrl, text, descriptionHash, signature };
     }
-    selection = { jobId, jobUrl, text, descriptionHash, signature };
-    clearTimeout(dwellTimer);
     render();
-    if (checkerState?.settings.enabled && !document.hidden && !getCurrentResult())
-      dwellTimer = setTimeout(() => void startCheck(), 1500);
+    scheduleDwell();
   };
   const schedule = () => {
     if (scanTimer !== null) return;
@@ -177,7 +190,7 @@
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) {
       void refreshState().then(schedule);
-    } else clearTimeout(dwellTimer);
+    } else cancelDwell();
   });
   setInterval(() => {
     if (!document.hidden && Date.now() - lastStatusReceivedAt > 15_000) void refreshState().then(schedule);
