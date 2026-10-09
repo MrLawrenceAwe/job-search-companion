@@ -1,7 +1,49 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { JSDOM } from "jsdom";
 
 import { createJobFixture } from "../../test-support/job-fixture.js";
+import { runScriptsInDom } from "../../test-support/extension-scripts.js";
+import { waitUntil } from "../../test-support/async.js";
+
+test("a hidden card reused for another job becomes visible after an identity-only change", async () => {
+  const dom = new JSDOM('<ul><li><a href="/viewjob?jk=visiblejob1">Job</a></li></ul>', {
+    url: "https://uk.indeed.com/jobs?q=support",
+    runScripts: "outside-only",
+  });
+  try {
+    const { window } = dom;
+    const card = window.document.querySelector("li");
+    const link = card.querySelector("a");
+    link.addEventListener("click", (event) => event.preventDefault());
+    await runScriptsInDom(window, [
+      "contracts/job-urls.js", "contracts/blockers.js", "extension-context.js",
+      "dom-visibility.js", "job-url.js", "job-resolution.js", "job-navigation.js",
+    ]);
+    const companion = window.jobSearchCompanion;
+    companion.dom.getRenderedRect = () => card.classList.contains("jsc-hidden-job")
+      ? null : { width: 500, height: 100 };
+
+    assert.equal(companion.jobs.navigateJob(1), true);
+    assert.equal(companion.jobs.hideCurrentJob(), true);
+    assert.equal(card.classList.contains("jsc-hidden-job"), true);
+
+    link.href = "/viewjob?jk=visiblejob2";
+    await waitUntil(() => !card.classList.contains("jsc-hidden-job"));
+    assert.equal(companion.jobs.navigateJob(1), true);
+    assert.equal(companion.jobs.resolveSelectedJobUrl(), "https://uk.indeed.com/viewjob?jk=visiblejob2");
+
+    // The original job remains hidden when the same card is reused again.
+    link.href = "/viewjob?jk=visiblejob1";
+    await waitUntil(() => card.classList.contains("jsc-hidden-job"));
+    assert.equal(companion.jobs.navigateJob(1), false);
+    assert.equal(companion.jobs.undoLastJobAction(), true);
+    assert.equal(companion.jobs.undoLastJobAction(), true);
+    assert.equal(card.classList.contains("jsc-hidden-job"), false);
+  } finally {
+    dom.window.close();
+  }
+});
 
 for (const action of ["hide", "navigate"]) {
   test(`${action} reconciles keyboard selection after the page selects another job`, async () => {

@@ -24,25 +24,28 @@
       ({ jobUrl }) => !hiddenJobUrls.has(jobUrl),
     );
 
-  const hideRenderedJobCards = () => {
-    for (const { element, jobUrl } of uniqueJobs(
-      companion.jobs.collectJobCarriers(companion.dom.getRenderedRect),
-    )) {
-      if (hiddenJobUrls.has(jobUrl)) {
-        (element.closest?.(companion.selectors.jobCard) || element).classList?.add(
-          "jsc-hidden-job",
-        );
-      }
+  const reconcileHiddenJobCards = () => {
+    const cards = new Map();
+    // Include hidden carriers so a card reused for another job becomes visible.
+    for (const { element, jobUrl } of companion.jobs.collectJobCarriers()) {
+      const card = element.closest?.(companion.selectors.jobCard) || element;
+      cards.set(card, cards.get(card) || hiddenJobUrls.has(jobUrl));
+    }
+    for (const [card, hidden] of cards) {
+      if (hidden) card.classList?.add("jsc-hidden-job");
+      else card.classList?.remove("jsc-hidden-job");
     }
   };
 
   const observeHiddenJobs = () => {
     if (!hiddenJobObserver) {
-      hiddenJobObserver = new MutationObserver(hideRenderedJobCards);
+      hiddenJobObserver = new MutationObserver(reconcileHiddenJobCards);
     }
     hiddenJobObserver.observe(document.documentElement || document, {
       childList: true,
       subtree: true,
+      attributes: true,
+      attributeFilter: ["href", "data-jk", "data-vjk", "data-jobkey", "id", "componentkey"],
     });
   };
 
