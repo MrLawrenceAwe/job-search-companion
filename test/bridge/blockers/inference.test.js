@@ -44,6 +44,46 @@ test("specialist experience without evidence cannot collapse into a clean result
   assert.deepEqual(result.findings.map((finding) => finding.kind), ["clear_blocker", "uncertain_requirement"]);
 });
 
+test("personal qualities produce no findings even under essential requirements", async () => {
+  const qualities = [
+    "Self-driven – You're motivated by a sales environment where achieving the right customer outcomes is key and always in line with FCA requirements.",
+    "Empathetic and an active listener – Understanding customers' needs is crucial when recommending suitable products and building trust.",
+    "Resilient and adaptable – Sales can be challenging and regulations evolve.",
+    "Curious with a growth mindset – You're eager to learn about new products, compliance updates and customer perspectives.",
+    "A clear communicator – You explain products confidently, transparently and in a way customers can easily understand.",
+    "Independent – You are ambitious, innovative and comfortable working autonomously from home.",
+  ];
+  const description = `Essential requirements:\n${qualities.join("\n")}`;
+  let captured;
+  const requirements = qualities.map((requirementQuote) => ({
+    necessity: "excluded", evidence: "missing", requirementQuote,
+    explanation: "Personal quality rather than an eligibility prerequisite.", profileFactIds: [],
+  }));
+  const result = await runBlockerInference({ chatgpt: { async request(endpoint, options) {
+    captured = JSON.parse(options.body);
+    return sse(completed(JSON.stringify({ requirements })));
+  } }, model: "test", description, profile });
+  assert.deepEqual(result, noBlockers);
+  assert.ok(captured.text.format.schema.properties.requirements.items.properties.necessity.enum.includes("excluded"));
+  assert.match(captured.instructions, /even when called essential or required/);
+  assert.match(captured.instructions, /Do not turn the explanatory duties attached to a trait/);
+});
+
+test("excluding a personal quality preserves a separately stated sales prerequisite and work constraint", () => {
+  const description = "Self-driven; two years of outbound sales experience required. Must attend the office three days a week.";
+  const requirement = (necessity, requirementQuote) => ({ necessity, requirementQuote,
+    evidence: "missing", explanation: "Evidence is not established.", profileFactIds: [] });
+  const findings = deriveValidatedFindings({ requirements: [
+    requirement("excluded", "Self-driven"),
+    requirement("mandatory", "two years of outbound sales experience required"),
+    requirement("mandatory", "Must attend the office three days a week."),
+  ] }, description, profile);
+  assert.deepEqual(findings.map(({ kind, requirementQuote }) => ({ kind, requirementQuote })), [
+    { kind: "clear_blocker", requirementQuote: "two years of outbound sales experience required" },
+    { kind: "clear_blocker", requirementQuote: "Must attend the office three days a week." },
+  ]);
+});
+
 test("CV evidence can satisfy a requirement; essential conflicts block and uncertain necessity stays uncertain", () => {
   const description = "Proven office experience. Commercial automation experience required.";
   const cvProfile = { facts: [{ id: "CV1", text: "Office administration - Employer | 2025", source: "CV: source.pdf" }] };

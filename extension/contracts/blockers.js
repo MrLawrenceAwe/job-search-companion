@@ -8,7 +8,7 @@
   const defaultReasoningEffort = "medium";
   const supportsReasoningSelection = (model) => model === "gpt-6-luna";
   const contract = {
-    version: 6,
+    version: 7,
     retentionMs: 30 * 86400_000,
     maximumRecords: 300,
     storagePrefix: "blocker-result:",
