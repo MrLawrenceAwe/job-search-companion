@@ -36,7 +36,7 @@ test("specialist experience without evidence cannot collapse into a clean result
   const requirements = [
     { category: "eligibility", necessity: "mandatory", evidence: "missing", requirementQuote: "with experience in the renewal energy sector", explanation: "Sector experience is requested, but is not evidenced.", profileFactIds: [] },
     { category: "eligibility", necessity: "uncertain", evidence: "missing", requirementQuote: "Experience with compliance documentation including MCS records, Building regulations, insurance backed guarantees, electrical certificates and heat loss designs.", explanation: "Specialist compliance experience is not established by general administration skills.", profileFactIds: [] },
-    { category: "eligibility", necessity: "preferred", evidence: "missing", requirementQuote: "Familiarity with basic accounting or bookkeeping is a plus but not required.", explanation: "Explicitly optional.", profileFactIds: [] },
+    { category: "eligibility", necessity: "preferred", evidence: "missing", requirementQuote: "Familiarity with basic accounting or bookkeeping is a plus but not required.", explanation: null, profileFactIds: [] },
   ];
   const result = await runBlockerInference({ chatgpt: { request: async () => sse(completed(JSON.stringify({ requirements }))) }, model: "test", description, profile });
   assert.equal(result.outcome, "clear_blocker");
@@ -57,14 +57,14 @@ test("personal qualities produce no findings even under essential requirements",
   let captured;
   const requirements = qualities.map((requirementQuote) => ({
     category: "eligibility", necessity: "excluded", evidence: "missing", requirementQuote,
-    explanation: "Personal quality rather than an eligibility prerequisite.", profileFactIds: [],
+    explanation: null, profileFactIds: [],
   }));
   const result = await runBlockerInference({ chatgpt: { async request(endpoint, options) {
     captured = JSON.parse(options.body);
     return sse(completed(JSON.stringify({ requirements })));
   } }, model: "test", description, profile });
   assert.deepEqual(result, noBlockers);
-  assert.ok(captured.text.format.schema.properties.requirements.items.properties.necessity.enum.includes("excluded"));
+  assert.ok(captured.text.format.schema.properties.requirements.items.anyOf.some((schema) => schema.properties.necessity.enum.includes("excluded")));
   assert.match(captured.instructions, /even when called essential or required/);
   assert.match(captured.instructions, /Do not turn the explanatory duties attached to a trait/);
 });
@@ -72,7 +72,7 @@ test("personal qualities produce no findings even under essential requirements",
 test("excluding a personal quality preserves a separately stated sales prerequisite and work constraint", () => {
   const description = "Self-driven; two years of outbound sales experience required. Must attend the office three days a week.";
   const requirement = (necessity, requirementQuote) => ({ category: requirementQuote.startsWith("Must attend") ? "work_arrangement" : "eligibility", necessity, requirementQuote,
-    evidence: "missing", explanation: "Evidence is not established.", profileFactIds: [] });
+    evidence: "missing", explanation: necessity === "excluded" ? null : "Evidence is not established.", profileFactIds: [] });
   const findings = deriveValidatedFindings({ requirements: [
     requirement("excluded", "Self-driven"),
     requirement("mandatory", "two years of outbound sales experience required"),
@@ -87,11 +87,11 @@ test("excluding a personal quality preserves a separately stated sales prerequis
 test("CV evidence can satisfy a requirement; essential conflicts block and uncertain necessity stays uncertain", () => {
   const description = "Proven office experience. Commercial automation experience required.";
   const cvProfile = { facts: [{ id: "CV1", text: "Office administration - Employer | 2025", source: "CV: source.pdf" }] };
-  const requirement = { category: "eligibility", necessity: "mandatory", evidence: "supported", requirementQuote: "Proven office experience.", explanation: "Documented office administration.", profileFactIds: ["CV1"] };
+  const requirement = { category: "eligibility", necessity: "mandatory", evidence: "supported", requirementQuote: "Proven office experience.", explanation: null, profileFactIds: ["CV1"] };
   assert.deepEqual(deriveValidatedFindings({ requirements: [requirement] }, description, cvProfile), []);
   assert.throws(() => deriveValidatedFindings({ requirements: [{ ...requirement, profileFactIds: [] }] }, description, cvProfile));
-  assert.equal(deriveValidatedFindings({ requirements: [{ ...requirement, evidence: "conflicting" }] }, description, cvProfile)[0].kind, "clear_blocker");
-  assert.equal(deriveValidatedFindings({ requirements: [{ ...requirement, necessity: "uncertain", evidence: "incompatible" }] }, description, cvProfile)[0].kind, "uncertain_requirement");
+  assert.equal(deriveValidatedFindings({ requirements: [{ ...requirement, explanation: "Conflicting evidence.", evidence: "conflicting" }] }, description, cvProfile)[0].kind, "clear_blocker");
+  assert.equal(deriveValidatedFindings({ requirements: [{ ...requirement, explanation: "Incompatible evidence.", necessity: "uncertain", evidence: "incompatible" }] }, description, cvProfile)[0].kind, "uncertain_requirement");
   assert.throws(() => deriveValidatedFindings({ findings: [] }, description, cvProfile));
 });
 
@@ -174,7 +174,7 @@ test("essential phone repair experience blocks when missing, incompatible or con
   for (const evidence of ["missing", "incompatible", "conflicting", "supported"]) {
     const repairProfile = { facts: [{ id: "R1", text: evidence === "supported" ? "Three years repairing both iPhones and Android devices." : "One year repairing iPhones only.", source: "Verified profile" }] };
     const requirement = { category: "eligibility", necessity: "mandatory", evidence, requirementQuote: description,
-      explanation: evidence === "missing" ? "Your evidence does not establish three years of repairs covering both iPhones and Android devices." : "Repair evidence assessed against the essential requirement.",
+      explanation: evidence === "supported" ? null : evidence === "missing" ? "Your evidence does not establish three years of repairs covering both iPhones and Android devices." : "Repair evidence assessed against the essential requirement.",
       profileFactIds: evidence === "missing" ? [] : ["R1"] };
     const result = await runBlockerInference({ chatgpt: { request: async () => sse(completed(JSON.stringify({ requirements: [requirement] }))) }, model: "test", description, profile: repairProfile });
     assert.equal(result.outcome, evidence === "supported" ? "no_blockers_found" : "clear_blocker", evidence);
@@ -195,7 +195,7 @@ test("mandatory onsite hours need clarification unless availability is explicitl
     ] };
     const arrangement = { category: "work_arrangement", necessity: "mandatory", evidence,
       requirementQuote: "Full-Time on-site, Monday to Friday with occasional hybrid working",
-      explanation: "Availability assessed against the stated onsite schedule.",
+      explanation: evidence === "supported" ? null : "Availability assessed against the stated onsite schedule.",
       profileFactIds: evidence === "missing" ? [] : evidence === "conflicting" ? ["A1", "A2"] : ["A1"] };
     const chatgpt = { request: async () => sse(completed(JSON.stringify({ requirements: [arrangement] }))) };
     const result = await runBlockerInference({ chatgpt, model: "test", description, profile: availabilityProfile });
@@ -216,4 +216,31 @@ test("requirement categories are required and validated", () => {
   }
   const { category, ...withoutCategory } = requirement;
   assert.throws(() => deriveValidatedFindings({ requirements: [withoutCategory] }, job().description, profile));
+});
+
+test("null explanations keep non-finding quotes and evidence validated; findings still require explanations", () => {
+  const requirement = { category: "eligibility", necessity: "mandatory", evidence: "supported",
+    requirementQuote: "full UK driving licence", explanation: null, profileFactIds: ["F1"] };
+  const validate = (patch) => deriveValidatedFindings({ requirements: [{ ...requirement, ...patch }] }, job().description, profile);
+  assert.deepEqual(validate({}), []);
+  assert.throws(() => validate({ requirementQuote: "Invented prerequisite" }), { code: "requirement_quote_mismatch" });
+  assert.throws(() => validate({ profileFactIds: ["F99"] }), /supplied evidence/);
+  assert.throws(() => validate({ profileFactIds: [] }), /supplied evidence/);
+  assert.throws(() => validate({ explanation: "Unused explanation" }), /supplied evidence/);
+  for (const necessity of ["mandatory", "uncertain"]) {
+    for (const explanation of [null, "", "   "]) {
+      assert.throws(() => validate({ necessity, evidence: "missing", profileFactIds: [], explanation }), /supplied evidence/);
+    }
+  }
+  assert.equal(validate({ evidence: "missing", profileFactIds: [], explanation: "Licence evidence is missing." })[0].explanation,
+    "Licence evidence is missing.");
+});
+
+test("quote validation retains whitespace normalization across a full inventory", () => {
+  const description = "Essential requirements:\nFull UK\t driving licence.\nOnsite\nMonday to Friday.";
+  const requirements = ["Full UK driving licence.", "Onsite Monday to Friday."].map((requirementQuote) => ({
+    category: "eligibility", necessity: "mandatory", evidence: "missing", requirementQuote,
+    explanation: "Evidence is missing.", profileFactIds: [],
+  }));
+  assert.equal(deriveValidatedFindings({ requirements }, description, profile).length, 2);
 });
