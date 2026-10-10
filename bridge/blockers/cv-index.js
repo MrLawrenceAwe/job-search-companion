@@ -79,6 +79,7 @@ export const extractCvText = async (path, { signal } = {}) => {
 
 export const openCvIndex = async ({ directory, cvDirectory, chatgpt, extract = extractCvText }) => {
   const store = await openPrivateStore(join(directory, "cv-index.json"), {});
+  const extractedSources = new Map();
   let pending;
   const snapshotCvSources = async (model, signal) => {
     signal?.throwIfAborted();
@@ -97,13 +98,29 @@ export const openCvIndex = async ({ directory, cvDirectory, chatgpt, extract = e
   const refresh = async ({ signal, model, reasoningEffort }) => {
     signal?.throwIfAborted();
     const { snapshots, fingerprint } = await snapshotCvSources(model, signal);
+    const paths = new Set(snapshots.map((snapshot) => snapshot.path));
+    for (const path of extractedSources.keys()) {
+      if (!paths.has(path)) extractedSources.delete(path);
+    }
     if (store.value.fingerprint === fingerprint && store.value.facts?.length) return store.value;
     // Read both Word and PDF variants: an edited Word file must not be hidden by a stale paired PDF.
     const documents = [];
     const seen = new Set();
     for (const snapshot of snapshots) {
       signal?.throwIfAborted();
-      const text = await extract(snapshot.path, { signal });
+      const cached = extractedSources.get(snapshot.path);
+      let text;
+      if (cached?.hash === snapshot.hash) {
+        text = cached.text;
+      } else {
+        extractedSources.delete(snapshot.path);
+        text = await extract(snapshot.path, { signal });
+        signal?.throwIfAborted();
+        // Associate extracted text only with bytes verified after conversion.
+        if (sha256(await readFile(snapshot.path, { signal })) !== snapshot.hash)
+          throw new Error("A CV changed during indexing. Retry the check.");
+        extractedSources.set(snapshot.path, { hash: snapshot.hash, text });
+      }
       signal?.throwIfAborted();
       if (!seen.has(text)) {
         seen.add(text);
@@ -124,11 +141,6 @@ export const openCvIndex = async ({ directory, cvDirectory, chatgpt, extract = e
     });
     const facts = validateCvIndex(await readCompletedJsonResponse(response), passages);
     // Never publish an index for files that changed while extraction/inference was running.
-    for (const snapshot of snapshots) {
-      signal?.throwIfAborted();
-      if (sha256(await readFile(snapshot.path, { signal })) !== snapshot.hash)
-        throw new Error("A CV changed during indexing. Retry the check.");
-    }
     if ((await snapshotCvSources(model, signal)).fingerprint !== fingerprint)
       throw new Error("The CV collection changed during indexing. Retry the check.");
     signal?.throwIfAborted();

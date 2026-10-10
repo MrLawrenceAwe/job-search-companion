@@ -70,6 +70,87 @@ test("failed or cancelled index refresh never publishes a current index", async 
   await assert.rejects(readFile(join(directory, "cv-index.json")), { code: "ENOENT" });
 });
 
+test("CV refresh converts only changed sources and reuses extraction across models and request failures", async (t) => {
+  const directory = await mkdtemp(join(await realpath(tmpdir()), "jsc-cv-reuse-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const first = join(directory, "Lawrence_Awe_CV_A.txt");
+  const second = join(directory, "Lawrence_Awe_CV_B.txt");
+  await writeFile(first, text);
+  await writeFile(second, text + " ISTQB qualified.");
+  const conversions = [];
+  let fail = false;
+  const index = await openCvIndex({ directory, cvDirectory: directory,
+    extract: async (path) => { conversions.push(path); return readFile(path, "utf8"); },
+    chatgpt: { async request(endpoint, options) {
+      if (fail) throw new Error("Temporary request failure");
+      const passages = JSON.parse(JSON.parse(options.body).input[0].content).passages;
+      return response({ passageIds: passages.map((p) => p.id) });
+    } },
+  });
+  await index.ensureCurrent({ model: "first-model" });
+  assert.deepEqual(conversions, [first, second]);
+  await index.ensureCurrent({ model: "second-model" });
+  assert.equal(conversions.length, 2);
+  // A same-length edit must invalidate extraction using content, not file size.
+  await writeFile(second, text + " ISTQB certified.");
+  fail = true;
+  await assert.rejects(index.ensureCurrent({ model: "second-model" }), /Temporary request failure/);
+  assert.deepEqual(conversions, [first, second, second]);
+  assert.equal(await index.readCurrent({ model: "second-model" }), null);
+  fail = false;
+  const updated = await index.ensureCurrent({ model: "second-model" });
+  assert.equal(conversions.length, 3);
+  assert.ok(updated.facts.some((fact) => fact.text.includes("ISTQB certified.")));
+  await unlink(first);
+  await index.ensureCurrent({ model: "second-model" });
+  await writeFile(first, text);
+  await index.ensureCurrent({ model: "second-model" });
+  assert.deepEqual(conversions, [first, second, second, first]);
+});
+
+test("a CV edited during conversion is never reused under the original content hash", async (t) => {
+  const directory = await mkdtemp(join(await realpath(tmpdir()), "jsc-cv-conversion-edit-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const path = join(directory, "Lawrence_Awe_CV_A.txt");
+  await writeFile(path, text);
+  let conversions = 0;
+  let requests = 0;
+  const index = await openCvIndex({ directory, cvDirectory: directory,
+    extract: async () => {
+      conversions++;
+      if (conversions === 1) await writeFile(path, text + " Edited during conversion.");
+      return readFile(path, "utf8");
+    },
+    chatgpt: { async request() { requests++; return response({ passageIds: ["P1"] }); } },
+  });
+  await assert.rejects(index.ensureCurrent({ model: "test" }), /CV changed during indexing/);
+  assert.equal(requests, 0);
+  await writeFile(path, text);
+  const current = await index.ensureCurrent({ model: "test" });
+  assert.equal(conversions, 2);
+  assert.equal(current.facts[0].text, text);
+});
+
+test("final verification rejects CV edits, additions and removals during inference", async (t) => {
+  for (const change of ["edit", "add", "remove"]) {
+    const directory = await mkdtemp(join(await realpath(tmpdir()), "jsc-cv-inference-edit-"));
+    t.after(() => rm(directory, { recursive: true, force: true }));
+    const path = join(directory, "Lawrence_Awe_CV_A.txt");
+    await writeFile(path, text);
+    const index = await openCvIndex({ directory, cvDirectory: directory,
+      extract: (path) => readFile(path, "utf8"),
+      chatgpt: { async request() {
+        if (change === "edit") await writeFile(path, text + " Edited during inference.");
+        if (change === "add") await writeFile(join(directory, "Lawrence_Awe_CV_B.txt"), text);
+        if (change === "remove") await unlink(path);
+        return response({ passageIds: ["P1"] });
+      } },
+    });
+    await assert.rejects(index.ensureCurrent({ model: "test" }));
+    await assert.rejects(readFile(join(directory, "cv-index.json")), { code: "ENOENT" });
+  }
+});
+
 test("cancellation during extraction stops remaining CVs and permits a fresh retry", async (t) => {
   const directory = await mkdtemp(join(await realpath(tmpdir()), "jsc-cv-cancel-"));
   t.after(() => rm(directory, { recursive: true, force: true }));

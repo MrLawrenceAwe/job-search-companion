@@ -17,6 +17,12 @@ The bridge reads relevant constraint/profile facts from `~/Job Hunting/profile.m
 CV source reads and extraction honour the check's cancellation signal and 90-second
 deadline. Cancellation stops active PDF/Word converters and prevents remaining
 CVs from being extracted or submitted for indexing.
+Within a bridge session, extracted CV text is reused by source path and content
+hash. Editing a CV converts that file again; unchanged files reuse their text
+when refreshing the index, changing the indexing model, or retrying a failed
+index request. Source files are still read and hashed on each freshness check,
+and the complete collection is verified again before saving an index. This reuse
+does not change the evidence sent to the model or skip index inference.
 
 Only complete descriptions verified against the selected job are checked. Unsupported layouts wait for a matching description.
 
