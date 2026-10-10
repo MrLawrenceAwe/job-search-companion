@@ -14,6 +14,10 @@ The bridge reads relevant constraint/profile facts from `~/Job Hunting/profile.m
 
 ## Processing and findings
 
+CV source reads and extraction honour the check's cancellation signal and 90-second
+deadline. Cancellation stops active PDF/Word converters and prevents remaining
+CVs from being extracted or submitted for indexing.
+
 Only complete descriptions verified against the selected job are checked. Unsupported layouts wait for a matching description.
 
 **Enable blocker checks** controls both automatic checks and the manual **Check now** and **Recheck** actions. **Off** means checking is disabled. **Paused** means checking is enabled but needs attention before it can resume.

@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { createEvaluationClient, readEvaluationProfile, writeEvaluationReport } from "./support.js";
 import { runBlockerInference } from "../../bridge/blockers/inference.js";
+import { summarizeBlockerBenchmark } from "./benchmark-summary.js";
 
 const profile = await readEvaluationProfile();
 const cases = [
@@ -33,19 +34,11 @@ for (let round = 0; round < 2; round++) {
     }
   }
 }
-const median = (values) => {
-  const sorted = values.toSorted((a, b) => a - b);
-  return (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2;
-};
-const medians = Object.fromEntries(["low", "medium"].map((effort) =>
-  [effort, median(runs.filter((run) => run.reasoningEffort === effort).map((run) => run.durationMs))]));
-const improvement = 1 - medians.low / medians.medium;
+const summary = summarizeBlockerBenchmark(runs);
 const report = { measuredAt: new Date().toISOString(), model: "gpt-6-luna", requestedServiceTier: "priority",
-  deliveredServiceTier: "unconfirmed", rounds: 2, cases, runs, medians,
-  improvementPercent: Math.round(improvement * 1000) / 10, significantThresholdPercent: 20,
-  recommendation: improvement >= 0.2 && runs.every((run) => run.passed) ? "low" : "medium" };
+  deliveredServiceTier: "unconfirmed", rounds: 2, cases, runs, ...summary };
 const reportPath = await writeEvaluationReport("blocker-benchmark", report);
 console.log(`Report: ${fileURLToPath(reportPath)}`);
-console.log(JSON.stringify({ medians, improvementPercent: report.improvementPercent, recommendation: report.recommendation }));
+console.log(JSON.stringify(summary));
 
 if (runs.some((run) => !run.passed)) process.exitCode = 1;

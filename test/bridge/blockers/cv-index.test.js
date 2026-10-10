@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtemp, readFile, writeFile, unlink, stat, realpath } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile, unlink, stat, realpath, rm } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { openCvIndex, validateCvIndex } from "../../../bridge/blockers/cv-index.js";
+import { openCvIndex, validateCvIndex, extractCvText } from "../../../bridge/blockers/cv-index.js";
 
 const text = "WORK EXPERIENCE Software Tester - Boeing | 2023 - 2024 Executed manual tests. PROJECTS Personal Chrome extension | 2026 Built automated project tests.";
 const documents = [{ id: "P1", name: "source.pdf", text }];
@@ -66,6 +68,54 @@ test("failed or cancelled index refresh never publishes a current index", async 
     chatgpt: { async request() { controller.abort(); return response({ passageIds: ["P1"] }); } } });
   await assert.rejects(read.ensureCurrent({ model: "test", signal: controller.signal }), { name: "AbortError" });
   await assert.rejects(readFile(join(directory, "cv-index.json")), { code: "ENOENT" });
+});
+
+test("cancellation during extraction stops remaining CVs and permits a fresh retry", async (t) => {
+  const directory = await mkdtemp(join(await realpath(tmpdir()), "jsc-cv-cancel-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  for (let i = 0; i < 3; i++)
+    await writeFile(join(directory, `Lawrence_Awe_CV_${i}.txt`), text);
+  const controller = new AbortController();
+  let extracts = 0;
+  let requests = 0;
+  const index = await openCvIndex({ directory, cvDirectory: directory,
+    extract: async (path, { signal }) => {
+      extracts++;
+      if (extracts === 1) {
+        assert.equal(signal, controller.signal);
+        controller.abort();
+      }
+      return readFile(path, "utf8");
+    },
+    chatgpt: { async request() { requests++; return response({ passageIds: ["P1"] }); } },
+  });
+  await assert.rejects(index.ensureCurrent({ model: "test", signal: controller.signal }), { name: "AbortError" });
+  assert.equal(extracts, 1);
+  assert.equal(requests, 0);
+  await assert.rejects(readFile(join(directory, "cv-index.json")), { code: "ENOENT" });
+  assert.ok((await index.ensureCurrent({ model: "test", signal: new AbortController().signal })).facts.length);
+  assert.equal(extracts, 4);
+  assert.equal(requests, 1);
+});
+
+test("already cancelled extraction never opens a source file or starts a converter", async () => {
+  for (const extension of ["txt", "pdf", "docx"])
+    await assert.rejects(extractCvText(`/missing/cancelled.${extension}`, {
+      signal: AbortSignal.abort(),
+    }), { name: "AbortError" });
+});
+
+test("Word extraction cancels an active converter without waiting for its process timeout", {
+  skip: process.platform !== "darwin", timeout: 5000,
+}, async (t) => {
+  const directory = await mkdtemp(join(await realpath(tmpdir()), "jsc-cv-converter-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const path = join(directory, "waiting.docx");
+  // A pipe with no writer keeps textutil blocked reading, until cancellation kills it.
+  await promisify(execFile)("/usr/bin/mkfifo", [path]);
+  await assert.rejects(extractCvText(path, { signal: AbortSignal.timeout(100) }), {
+    name: "AbortError", code: "ABORT_ERR",
+  });
 });
 
 test("passages retain complete role and project context while deduplicating repeated sections", async () => {

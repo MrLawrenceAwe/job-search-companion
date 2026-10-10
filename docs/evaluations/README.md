@@ -17,6 +17,18 @@ and CV-index versions and both prompt hashes; existing reports are never overwri
 The historical reports below predate that metadata and retain their original contents.
 Do not compare measurements across prompt versions as if they were the same experiment.
 
+Benchmark latency medians use only case/round pairs where both Light and Medium
+completed without a request error. Completed responses with incorrect outcomes
+still count toward latency, with accuracy failures reported separately. Reports
+include completed/excluded pair counts and per-effort request-error and incorrect-outcome
+counts. With no completed pairs, medians and improvement are `null`. Light is
+recommended only with at least a 20% improvement and every outcome passing.
+
+Historical reports retain their original statistics. The 10:50 run included four
+usage-limit errors in its reported medians; recalculating from matched completed
+pairs yields 5.176 seconds for Light and 5.262 seconds for Medium (1.6% improvement,
+rather than the recorded 20.3%). Its accuracy failure still rules out recommending Light.
+
 ## Cleanup verification
 
 The reduced prompt passed the three CV regression cases, but broader benchmarking

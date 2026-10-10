@@ -54,7 +54,8 @@ export const validateCvIndex = (output, passages) => {
   return facts;
 };
 
-export const extractCvText = async (path) => {
+export const extractCvText = async (path, { signal } = {}) => {
+  signal?.throwIfAborted();
   let text;
   if (extname(path).toLowerCase() === ".pdf") {
     let binary;
@@ -62,10 +63,12 @@ export const extractCvText = async (path) => {
       try { await access(candidate); binary = candidate; break; } catch {}
     }
     if (!binary) throw new Error("CV indexing requires pdftotext. Install Poppler, then retry.");
-    ({ stdout: text } = await runCommand(binary, ["-raw", path, "-"], { timeout: 15_000, maxBuffer: 2_000_000 }));
+    signal?.throwIfAborted();
+    ({ stdout: text } = await runCommand(binary, ["-raw", path, "-"], { signal, timeout: 15_000, maxBuffer: 2_000_000 }));
   } else if (extname(path).toLowerCase() === ".docx") {
-    ({ stdout: text } = await runCommand("/usr/bin/textutil", ["-convert", "txt", "-stdout", path], { timeout: 15_000, maxBuffer: 2_000_000 }));
-  } else text = await readFile(path, "utf8");
+    ({ stdout: text } = await runCommand("/usr/bin/textutil", ["-convert", "txt", "-stdout", path], { signal, timeout: 15_000, maxBuffer: 2_000_000 }));
+  } else text = await readFile(path, { encoding: "utf8", signal });
+  signal?.throwIfAborted();
   // Drop the contact header before the first content section; retain work/project context.
   const content = text.search(/^(?:PROFILE|(?:PROFESSIONAL |WORK |RELEVANT )?EXPERIENCE|EDUCATION|KEY SKILLS|SUMMARY|PROJECTS)/im);
   if (content < 0) throw new Error(`CV content sections could not be identified: ${basename(path)}`);
@@ -77,26 +80,31 @@ export const extractCvText = async (path) => {
 export const openCvIndex = async ({ directory, cvDirectory, chatgpt, extract = extractCvText }) => {
   const store = await openPrivateStore(join(directory, "cv-index.json"), {});
   let pending;
-  const snapshotCvSources = async (model) => {
+  const snapshotCvSources = async (model, signal) => {
+    signal?.throwIfAborted();
     const names = (await readdir(cvDirectory)).filter((name) =>
       /^(?:Lawrence_Awe_.*CV.*|Folarin CV D)\.(?:pdf|docx|md|txt)$/i.test(name)).sort();
     if (!names.length) throw new Error("No source CVs found for the experience index.");
     const snapshots = [];
     for (const name of names) {
+      signal?.throwIfAborted();
       const path = join(cvDirectory, name);
-      snapshots.push({ name, path, hash: sha256(await readFile(path)) });
+      snapshots.push({ name, path, hash: sha256(await readFile(path, { signal })) });
     }
+    signal?.throwIfAborted();
     return { snapshots, fingerprint: hashJson({ version: cvIndexVersion, model, sources: snapshots }) };
   };
   const refresh = async ({ signal, model, reasoningEffort }) => {
     signal?.throwIfAborted();
-    const { snapshots, fingerprint } = await snapshotCvSources(model);
+    const { snapshots, fingerprint } = await snapshotCvSources(model, signal);
     if (store.value.fingerprint === fingerprint && store.value.facts?.length) return store.value;
     // Read both Word and PDF variants: an edited Word file must not be hidden by a stale paired PDF.
     const documents = [];
     const seen = new Set();
     for (const snapshot of snapshots) {
-      const text = await extract(snapshot.path);
+      signal?.throwIfAborted();
+      const text = await extract(snapshot.path, { signal });
+      signal?.throwIfAborted();
       if (!seen.has(text)) {
         seen.add(text);
         documents.push({ id: `C${documents.length + 1}`, name: snapshot.name, text });
@@ -116,10 +124,12 @@ export const openCvIndex = async ({ directory, cvDirectory, chatgpt, extract = e
     });
     const facts = validateCvIndex(await readCompletedJsonResponse(response), passages);
     // Never publish an index for files that changed while extraction/inference was running.
-    for (const snapshot of snapshots)
-      if (sha256(await readFile(snapshot.path)) !== snapshot.hash)
+    for (const snapshot of snapshots) {
+      signal?.throwIfAborted();
+      if (sha256(await readFile(snapshot.path, { signal })) !== snapshot.hash)
         throw new Error("A CV changed during indexing. Retry the check.");
-    if ((await snapshotCvSources(model)).fingerprint !== fingerprint)
+    }
+    if ((await snapshotCvSources(model, signal)).fingerprint !== fingerprint)
       throw new Error("The CV collection changed during indexing. Retry the check.");
     signal?.throwIfAborted();
     Object.assign(store.value, { fingerprint, model, facts, sources: snapshots, indexedAt: new Date().toISOString() });
