@@ -51,7 +51,7 @@ test("odd sample medians use the middle pair and low requires sufficient improve
 
 test("historical usage-limit failures cannot inflate the measured Light advantage", async () => {
   const report = JSON.parse(await readFile(new URL(
-    "../../docs/evaluations/2026-10-09T10-50-04-481Z-blocker-benchmark.json", import.meta.url), "utf8"));
+    "../../test-support/benchmark-usage-limit-runs.json", import.meta.url), "utf8"));
   const summary = summarizeBlockerBenchmark(report.runs);
   assert.deepEqual(summary.medians, { low: 5176, medium: 5262 });
   assert.equal(summary.improvementPercent, 1.6);

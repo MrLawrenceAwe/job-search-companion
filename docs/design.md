@@ -270,3 +270,15 @@ accepts it as a quoted third argument. It is validated, saved, and synchronized
 with the analysis record. Repeating a callback with a different verdict is
 rejected. Existing records without verdict metadata retain their links and
 neutral blue appearance. Verdict colours use the shared analysis contract.
+
+## Test organisation
+
+`npm test` builds the extension, type-checks the Swift helper and runs Node tests
+with synthetic jobs, mock browser APIs and temporary installation fixtures.
+Suites mirror source boundaries under `test/extension/`, `test/bridge/`,
+`test/installer/`, and `test/shared/`. `test-support/` owns VM/JSDOM script loaders,
+shared fixtures, and separate event-loop draining and timed-wait helpers.
+Tests cover resolution, mark persistence, navigation, HTTP authentication,
+submission recovery and installation transactions. CI runs on macOS with Node 22
+and 24. Real Accessibility permission and task submission require the
+[manual setup check](setup.md#3-verify).

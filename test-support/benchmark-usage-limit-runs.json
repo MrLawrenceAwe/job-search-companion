@@ -1,0 +1,17 @@
+{
+  "source": "https://github.com/MrLawrenceAwe/job-search-companion/blob/25ed9f0338e2741258ebbcaeb6d84efa7d75c2f6/docs/evaluations/2026-10-09T10-50-04-481Z-blocker-benchmark.json",
+  "runs": [
+    {"round": 1, "case": "mandatory-driving", "reasoningEffort": "low", "durationMs": 3210, "outcome": "clear_blocker", "passed": true},
+    {"round": 1, "case": "mandatory-driving", "reasoningEffort": "medium", "durationMs": 5526, "outcome": "clear_blocker", "passed": true},
+    {"round": 1, "case": "preferred-driving", "reasoningEffort": "medium", "durationMs": 4999, "outcome": "no_blockers_found", "passed": true},
+    {"round": 1, "case": "preferred-driving", "reasoningEffort": "low", "durationMs": 6622, "outcome": "uncertain_requirement", "passed": false},
+    {"round": 1, "case": "missing-evidence", "reasoningEffort": "low", "durationMs": 6694, "outcome": "uncertain_requirement", "passed": true},
+    {"round": 1, "case": "missing-evidence", "reasoningEffort": "medium", "durationMs": 3637, "outcome": "uncertain_requirement", "passed": true},
+    {"round": 2, "case": "mandatory-driving", "reasoningEffort": "medium", "durationMs": 5525, "outcome": "clear_blocker", "passed": true},
+    {"round": 2, "case": "mandatory-driving", "reasoningEffort": "low", "durationMs": 3730, "outcome": "clear_blocker", "passed": true},
+    {"round": 2, "case": "preferred-driving", "reasoningEffort": "low", "durationMs": 3682, "outcome": null, "passed": false, "error": "ChatGPT plan usage limit reached. Manage usage, then resume checks."},
+    {"round": 2, "case": "preferred-driving", "reasoningEffort": "medium", "durationMs": 4304, "outcome": null, "passed": false, "error": "ChatGPT plan usage limit reached. Manage usage, then resume checks."},
+    {"round": 2, "case": "missing-evidence", "reasoningEffort": "medium", "durationMs": 3315, "outcome": null, "passed": false, "error": "ChatGPT plan usage limit reached. Manage usage, then resume checks."},
+    {"round": 2, "case": "missing-evidence", "reasoningEffort": "low", "durationMs": 3312, "outcome": null, "passed": false, "error": "ChatGPT plan usage limit reached. Manage usage, then resume checks."}
+  ]
+}

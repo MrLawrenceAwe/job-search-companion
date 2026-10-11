@@ -2,8 +2,8 @@
 
 [![CI](https://github.com/MrLawrenceAwe/job-search-companion/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/MrLawrenceAwe/job-search-companion/actions/workflows/ci.yml)
 
-A Chrome extension for browsing Indeed and LinkedIn, remembering applications, marking unsuitable jobs,
-and sending selected jobs to a local Codex workspace for CV fit checks.
+Chrome extension for tracking applications on Indeed and LinkedIn, browsing job
+results, and checking job requirements and CV fit through a local bridge.
 
 **Stack:** JavaScript, Node.js, Chrome Manifest V3, Swift and macOS Accessibility.
 
@@ -11,105 +11,54 @@ and sending selected jobs to a local Codex workspace for CV fit checks.
 
 *Preview uses sample jobs and separate local demo storage. CV analysis is disabled.*
 
-## What it does
+## Features
 
-- Adds **Mark as applied** and **Unmark as applied** to supported job menus and
-  detail headers, with a green **✓ Applied** badge on result cards.
-- Adds **Mark as unsuitable** and **Unmark as unsuitable** to job menus and
-  detail headers, with an orange **✕ Unsuitable** badge. Jobs remain visible for
-  review, and existing applied records are kept.
-- Keeps applied and unsuitable marks across page refreshes and Chrome restarts, and updates
-  open tabs together. Platform job IDs identify records across tracking URLs.
-- Provides **J/K** to navigate rendered results, **H** to hide a result on the
-  current page, and **U** to undo navigation or hiding. Shortcuts ignore editable
-  fields; hidden results return after reload.
-- Checks loaded Indeed descriptions for blockers against the verified profile using ChatGPT plan usage. Connect and enable it in extension settings; see [blocker checker](docs/blocker-checker.md).
-- Adds **Analyse with CV Fit Advisor** and the **N** shortcut to prepare a CV fit
-  task through a local service and a Swift Accessibility helper.
+- Mark jobs as applied or unsuitable, with persistent badges across open tabs.
+- Browse rendered results with **J/K**, hide with **H**, and undo with **U**.
+- Check complete loaded Indeed descriptions for blockers using ChatGPT plan usage.
+- Send a selected job to Codex through **Analyse with CV Fit Advisor** or **N**,
+  then reopen its completed analysis from the job card.
 
-Application marks are manual local records. After applying on an employer's
-website, mark its listing yourself; this does not update Indeed or LinkedIn's
-application history or submit an application.
-
-## Try the synthetic preview
-
-No job-board account, CV, Codex installation or bridge is needed for the preview.
-From the repository directory:
-
-```sh
-python3 -m http.server 48974 --bind 127.0.0.1
-```
-
-Open [the local preview](http://127.0.0.1:48974/test-support/job-marks-preview.html).
-Select a sample job, open its menu and mark it as applied or unsuitable. Refresh or use
-**Re-render results** to see the saved badge restored. The preview uses the
-production content scripts with mock Chrome APIs; CV analysis stays disabled.
-Stop the server with **Ctrl+C** when finished.
-
-See [architecture and design](docs/design.md) for module boundaries, persistence,
-task automation, and installation recovery.
+Marks are manual local records. After applying on an employer's website, mark its
+listing yourself; this does not submit an application or update the job board.
+See [usage](docs/usage.md) and [blocker checking](docs/blocker-checker.md).
 
 ## Install
 
-Run `npm run build`, then load `extension/` through Chrome's **Load unpacked** control for job
-marking and browsing shortcuts. Blocker checking needs the local Node bridge and an eligible ChatGPT connection. CV analysis additionally requires macOS, Node.js
-22+, Xcode Command Line Tools, Codex, Accessibility permission and a configured
-`cv-fit-advisor` skill. The skill and CV files are not included in this repository.
+Requires Node.js 22+. Run `npm ci` and `npm run build`, then load `extension/`
+through Chrome's **Load unpacked** control for marks and shortcuts.
 
-After updating, run `npm run build`, reload the unpacked extension in Chrome and refresh job pages.
+Blocker checks additionally need the local bridge and an eligible ChatGPT
+connection. CV analysis needs macOS, Xcode Command Line Tools, Codex,
+Accessibility permission and a configured `cv-fit-advisor` skill. The skill and
+CV files are not included. Follow [setup and removal](docs/setup.md).
 
-Follow [setup, configuration and removal](docs/setup.md) for the bridge, extension
-identity, token, workspace and permissions. This is an independent personal
-project, not affiliated with Indeed, LinkedIn or OpenAI.
+After updating, rebuild, reload the unpacked extension and refresh job pages.
 
-## Tests and CI
+## Preview
 
-Requires macOS, Node.js 22+ and Xcode Command Line Tools. Install dependencies with `npm ci` before running the bridge or tests. Installation records the current Node executable's absolute path so the background service uses the same runtime as the installer. Reinstall the bridge if that executable moves.
+Serve the repository with `python3 -m http.server 48974 --bind 127.0.0.1`, then
+open [the synthetic preview](http://127.0.0.1:48974/test-support/job-marks-preview.html).
+It uses production scripts with mock Chrome APIs and needs no account, CV or
+bridge. Stop the server with **Ctrl+C**.
+
+## Development
 
 ```sh
 npm test
 ```
 
-This type-checks the Swift helper and runs Node's built-in test runner. Tests use
-synthetic jobs, mock browser APIs and temporary installation fixtures. Tests mirror
-the source boundaries under `test/extension/`, `test/bridge/` (including blockers
-and Codex), `test/installer/`, and `test/shared/`. Shared fixtures, VM/JSDOM script
-loaders, and distinct event-loop draining and timed waiting helpers live in
-`test-support/`. They cover
-job resolution, applied and unsuitable mark persistence, navigation, HTTP authentication,
-submission recovery and installation transactions. CI runs the same command on
-macOS for pushes and pull requests using Node.js 22 and 24.
-
-The suite does not prove compatibility with every live job-board layout or Codex
-version. Real Accessibility permissions and end-to-end task submission need a
-manual check on the target Mac; see [the setup guide](docs/setup.md#3-verify).
+Requires macOS, Node.js 22+ and Xcode Command Line Tools. Tests build the extension,
+type-check the Swift helper and run synthetic Node tests. CI uses Node 22 and 24.
+See [design and testing](docs/design.md) and [evaluation reports](docs/evaluations/README.md).
 
 ## Privacy and limitations
 
-Applied and unsuitable marks stay in this Chrome profile's extension storage. Removing the
-extension clears them. Job-board layout changes can break integrations; only
-rendered results are available to the navigation shortcuts.
+Marks stay in extension storage. CV tasks use a local service at `127.0.0.1:48973`;
+blocker checks send the description and verified evidence through the connected
+ChatGPT account. CV handling follows the configured workspace's skill and account.
+The bridge stores submission status and rotating logs locally.
 
-CV analysis sends the selected job URL to `127.0.0.1:48973`, then prepares a task
-in your configured Codex workspace. CV handling follows that workspace's skill
-and Codex account configuration. The bridge stores submission status and rotating
-logs locally; it does not make applications on your behalf.
-
-## Completed CV-fit analyses
-
-New CV-fit submissions include a job-specific completion command. When Codex
-finishes the assessment, it records the chat ID with the local bridge. The
-extension then shows **Analysed · Open analysis** on the job card and in the
-job detail controls, normally within 30 seconds. The action opens the saved
-chat through macOS using the bridge, like task submission; it does not use
-Chrome’s external-app confirmation.
-
-Submitting a task, preparing a draft, or failing an assessment does not create
-an analysed mark. Completed negative fit assessments do. The records survive
-bridge restarts and page reloads. Opening an analysis requires the bridge to be
-running; existing marks remain visible while it is offline. Earlier chats
-without a completion callback are not automatically marked.
-
-Analysed marks are green for **use as-is**, yellow for **edit the CV**, and red
-for **do not apply yet**. Other verdicts and earlier records without a verdict
-are blue. Hover over a mark to see its recorded verdict.
+Job-board layout changes can break integrations. Synthetic tests do not establish
+live job-board or Codex compatibility; see [manual verification](docs/setup.md#3-verify).
+This is an independent personal project, unaffiliated with Indeed, LinkedIn or OpenAI.
