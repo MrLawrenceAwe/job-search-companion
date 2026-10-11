@@ -43,6 +43,10 @@ Six superseded exploratory reports were removed from the current checkout. Their
 original bytes and the longer experiment narrative remain in
 [the review baseline](https://github.com/MrLawrenceAwe/job-search-companion/tree/25ed9f0338e2741258ebbcaeb6d84efa7d75c2f6/docs/evaluations).
 
+The benchmark-summary regression retains only the twelve original run records
+needed for its statistics in `test-support/benchmark-usage-limit-runs.json`, with
+a source permalink. It does not depend on keeping the full exploratory report.
+
 ## Reproduction and new reports
 
 `compare-blocker-checks.js` holds the model at Luna Medium, alternates request order,
