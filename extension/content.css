@@ -185,4 +185,3 @@
 .jsc-blocker-controls button:disabled { opacity: .5; cursor: default; }
 .jsc-blocker-badge { display: inline-block; margin: 7px 4px; padding: 3px 8px; border-radius: 5px; font-size: 12px; font-weight: 600; background: #e9eef5; color: #33465e; }
 .jsc-clear_blocker { background: #fde8e5; color: #84251e; }
-.jsc-uncertain_requirement { background: #fff0cf; color: #76530c; }

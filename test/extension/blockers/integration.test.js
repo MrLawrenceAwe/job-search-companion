@@ -228,7 +228,7 @@ test("cached profile mismatches never display a current clean result", async () 
     "blocker-result:first1111": {
       jobId: "first1111",
       outcome: "clear_blocker",
-      findings: [],
+      findings: [{ kind: "clear_blocker", requirementQuote: "Full UK licence required", explanation: "Only a provisional licence is documented.", profileFacts: [] }],
       descriptionHash: "old",
       profileHash: "old",
       model: "test",
@@ -284,7 +284,7 @@ test("cancelled checks retry the current job automatically", async () => {
 });
 
 
-test("an essential evidence gap shows Blocker on the card and prioritises it above uncertain requirements", async () => {
+test("an essential evidence gap shows only Blocker on the card and panel", async () => {
   const fixture = await createBlockerFixture({}, { initiallyHidden: true });
   try {
     const original = fixture.window.chrome.runtime.sendMessage;
@@ -293,7 +293,6 @@ test("an essential evidence gap shows Blocker on the card and prioritises it abo
       const check = await createCompletedCheck(message.body);
       check.result.outcome = "clear_blocker";
       check.result.findings = [
-        { kind: "uncertain_requirement", requirementQuote: "Commute to Hertford", explanation: "Commute is unknown.", profileFacts: [] },
         { kind: "clear_blocker", requirementQuote: "Three years repairing iPhones and Android devices is essential", explanation: "Your evidence does not establish three years repairing both device types.", profileFacts: [] },
       ];
       return { ok: true, check };
@@ -304,7 +303,8 @@ test("an essential evidence gap shows Blocker on the card and prioritises it abo
     const summaries = [...fixture.window.document.querySelectorAll(".jsc-blocker-panel summary")];
     assert.equal(summaries[0].querySelector("strong").textContent, "Blocker");
     assert.match(summaries[0].textContent, /Your evidence does not establish three years/);
-    assert.equal(summaries[1].querySelector("strong").textContent, "Uncertain requirement");
+    assert.equal(summaries.length, 1);
+    assert.equal(fixture.window.document.querySelector(".jsc-blocker-panel > strong").textContent, "Blocker check");
   } finally {
     fixture.close();
   }

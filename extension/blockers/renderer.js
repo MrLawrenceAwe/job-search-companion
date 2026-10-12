@@ -79,9 +79,9 @@
       if (result) panel.classList.add(`jsc-${result.outcome}`);
       const check = checks.get(selection.signature);
       let label = result
-        ? "Requirements check"
+        ? "Blocker check"
         : check?.status === "checking"
-          ? "Checking requirements…"
+          ? "Checking blockers…"
           : check?.status === "queued"
             ? "Waiting to check…"
             : check?.error ||
@@ -103,10 +103,7 @@
               "No blockers found in this description against your current profile. This check does not establish overall fit.",
             ),
           );
-        const orderedFindings = [...result.findings].sort(
-          (a, b) => Number(b.kind === "clear_blocker") - Number(a.kind === "clear_blocker"),
-        );
-        for (const finding of orderedFindings) {
+        for (const finding of result.findings) {
           const details = element("details");
           const summary = element("summary");
           summary.append(

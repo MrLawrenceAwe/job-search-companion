@@ -73,7 +73,7 @@ test("initial storage reads cannot overwrite newer results or resurrect removed 
   const store = fixture.createStore();
   const changes = [];
   store.subscribe((batch) => changes.push(...batch));
-  const latest = { ...makeRecord("first111"), outcome: "clear_blocker" };
+  const latest = { ...makeRecord("first111"), outcome: "clear_blocker", findings: [{ kind: "clear_blocker" }] };
   fixture.notify({ "blocker-result:first111": { newValue: latest } });
   fixture.notify({ "blocker-result:second111": {} });
   resolveRead({

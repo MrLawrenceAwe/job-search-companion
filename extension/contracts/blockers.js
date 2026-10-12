@@ -2,13 +2,12 @@
 (() => {
   const labels = Object.freeze({
     clear_blocker: "Blocker",
-    uncertain_requirement: "Uncertain requirement",
     no_blockers_found: "No blockers found",
   });
   const defaultReasoningEffort = "medium";
   const supportsReasoningSelection = (model) => model === "gpt-6-luna";
   const contract = {
-    version: 9,
+    version: 10,
     retentionMs: 30 * 86400_000,
     maximumRecords: 300,
     storagePrefix: "blocker-result:",
@@ -29,6 +28,8 @@
           record.checkerVersion === contract.version &&
           Object.hasOwn(labels, record.outcome) &&
           Array.isArray(record.findings) &&
+          record.findings.every((finding) => finding?.kind === "clear_blocker") &&
+          (record.outcome === "clear_blocker" ? record.findings.length > 0 : record.findings.length === 0) &&
           typeof record.jobId === "string" &&
           typeof record.descriptionHash === "string" &&
           typeof record.profileHash === "string" &&
