@@ -47,7 +47,6 @@
       checks.set(captured.signature, check);
       render();
       while (["checking", "queued"].includes(check.status)) {
-        await new Promise((resolve) => setTimeout(resolve, 1200));
         ({ check } = await request("poll", null, check.id));
         checks.set(captured.signature, check);
         // Poll completion regardless of later selection, but render only the current job.

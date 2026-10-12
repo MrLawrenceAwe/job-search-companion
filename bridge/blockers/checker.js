@@ -67,7 +67,11 @@ export const openBlockerChecker = async ({
       if (!["checking", "queued"].includes(checkJob.publicState.status)) checksById.delete(id);
     }
   };
+  const notifyWaiters = (checkJob) => {
+    for (const finish of checkJob.waiters || []) finish();
+  };
   const releaseCheck = (checkJob) => {
+    notifyWaiters(checkJob);
     if (checksByCacheKey.get(checkJob.key) === checkJob) checksByCacheKey.delete(checkJob.key);
     delete checkJob.description;
     delete checkJob.profile;
@@ -110,6 +114,7 @@ export const openBlockerChecker = async ({
     const checkJob = queue.shift();
     runningCheck = checkJob;
     checkJob.publicState.status = "checking";
+    notifyWaiters(checkJob);
     checkJob.accountId = chatgpt.connectionStatus().activeId;
     const controller = new AbortController();
     checkJob.controller = controller;
@@ -286,6 +291,28 @@ export const openBlockerChecker = async ({
     get(id) {
       const checkJob = checksById.get(id);
       if (!checkJob) throw new Error("Check no longer available. Retry this job.");
+      return checkJob.publicState;
+    },
+    async wait(id, { signal, timeoutMs = 8000 } = {}) {
+      signal?.throwIfAborted();
+      const checkJob = checksById.get(id);
+      if (!checkJob) throw new Error("Check no longer available. Retry this job.");
+      if (!["checking", "queued"].includes(checkJob.publicState.status)) return checkJob.publicState;
+      // Bound each HTTP wait below the extension's ten-second request deadline.
+      await new Promise((resolve, reject) => {
+        const finish = (error) => {
+          clearTimeout(timer);
+          signal?.removeEventListener("abort", abort);
+          checkJob.waiters.delete(finish);
+          if (error) reject(error);
+          else resolve();
+        };
+        const abort = () => finish(signal.reason);
+        const timer = setTimeout(finish, timeoutMs);
+        checkJob.waiters ??= new Set();
+        checkJob.waiters.add(finish);
+        signal?.addEventListener("abort", abort, { once: true });
+      });
       return checkJob.publicState;
     },
     async clearCache() {

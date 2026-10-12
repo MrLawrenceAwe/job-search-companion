@@ -114,3 +114,84 @@ test("indexing model is selected independently and validates catalog availabilit
   assert.equal((await checker.status()).settings.indexModel, null);
   checker.close();
 });
+
+test("result waits wake all tabs on completion and return finished checks immediately", async (t) => {
+  let release;
+  const { checker } = await setup(async () => {
+    await new Promise((resolve) => { release = resolve; });
+    return noBlockers;
+  });
+  t.after(() => checker.close());
+  const check = await checker.start(job());
+  const first = checker.wait(check.id);
+  const second = checker.wait(check.id);
+  let finished = false;
+  first.then(() => { finished = true; });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(finished, false);
+  release();
+  const results = await Promise.all([first, second]);
+  assert.ok(results.every((result) => result.status === "completed"));
+  assert.deepEqual(await checker.wait(check.id), results[0]);
+  await assert.rejects(checker.wait("missing"), /no longer available/);
+});
+
+test("result waits expire without cancelling inference and disconnected tabs can wait again", async (t) => {
+  let release;
+  const { checker } = await setup(async () => {
+    await new Promise((resolve) => { release = resolve; });
+    return noBlockers;
+  });
+  t.after(() => checker.close());
+  const check = await checker.start(job());
+  assert.equal((await checker.wait(check.id, { timeoutMs: 5 })).status, "checking");
+  const controller = new AbortController();
+  const disconnected = checker.wait(check.id, { signal: controller.signal });
+  controller.abort();
+  await assert.rejects(disconnected, { name: "AbortError" });
+  await assert.rejects(checker.wait(check.id, { signal: controller.signal }), { name: "AbortError" });
+  const connected = checker.wait(check.id);
+  release();
+  assert.equal((await connected).status, "completed");
+});
+
+test("result waits wake for queued cancellation and failed checks", async (t) => {
+  let release;
+  const { checker } = await setup(async () => {
+    await new Promise((resolve) => { release = resolve; });
+    throw new Error("Inference failed");
+  });
+  t.after(() => checker.close());
+  const running = await checker.start(job());
+  const queued = await checker.start(job("queued111"));
+  const runningWait = checker.wait(running.id);
+  const queuedWait = checker.wait(queued.id);
+  await checker.configure({ enabled: false });
+  assert.equal((await queuedWait).status, "cancelled");
+  release();
+  assert.equal((await runningWait).status, "cancelled");
+  await checker.configure({ enabled: true });
+  const failure = await checker.start(job());
+  const failureWait = checker.wait(failure.id);
+  release();
+  assert.equal((await failureWait).status, "failed");
+});
+
+test("queued tabs receive the checking transition as soon as their job starts", async (t) => {
+  const releases = [];
+  const { checker } = await setup(async () => {
+    await new Promise((resolve) => { releases.push(resolve); });
+    return noBlockers;
+  });
+  t.after(() => checker.close());
+  const first = await checker.start(job());
+  const queued = await checker.start(job("queued111"));
+  const firstWait = checker.wait(first.id);
+  const queuedWait = checker.wait(queued.id);
+  releases[0]();
+  assert.equal((await firstWait).status, "completed");
+  assert.equal((await queuedWait).status, "checking");
+  const completion = checker.wait(queued.id);
+  releases[1]();
+  assert.equal((await completion).status, "completed");
+});

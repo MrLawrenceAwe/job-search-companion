@@ -2,7 +2,7 @@ import { readJsonBody } from "../http-helpers.js";
 
 export const createBlockerRoutes =
   ({ checker, chatgpt }) =>
-  async (req, respond) => {
+  async (req, respond, res) => {
     if (!req.url?.startsWith("/blockers/")) return false;
     try {
       const body = req.method === "POST" ? await readJsonBody(req, 100_000) : {};
@@ -29,14 +29,23 @@ export const createBlockerRoutes =
         await checker.clearCache();
         result = await checker.status();
       } else if (route === "POST /blockers/checks") result = { check: await checker.start(body) };
-      else if (req.method === "GET" && /^\/blockers\/checks\/[a-f0-9-]{36}$/.test(req.url))
-        result = { check: checker.get(req.url.split("/").at(-1)) };
-      else {
+      else if (req.method === "GET" && /^\/blockers\/checks\/[a-f0-9-]{36}$/.test(req.url)) {
+        const controller = new AbortController();
+        const disconnect = () => controller.abort();
+        res.once("close", disconnect);
+        if (res.destroyed) disconnect();
+        try {
+          result = { check: await checker.wait(req.url.split("/").at(-1), { signal: controller.signal }) };
+        } finally {
+          res.removeListener("close", disconnect);
+        }
+      } else {
         respond(404, { ok: false, error: "Not found" });
         return true;
       }
       respond(200, { ok: true, ...result });
     } catch (error) {
+      if (res.destroyed) return true;
       respond(error.name === "RequestBodyTooLargeError" ? 413 : error.status || 400, {
         ok: false,
         error: error.message,

@@ -21,3 +21,34 @@ test("checker routes require the existing bridge authentication boundary", async
     assert.equal(response.status, 200); assert.equal((await response.json()).settings.enabled, false);
   } finally { server.close(); }
 });
+
+test("check route waits for a result and releases its wait when the client disconnects", async () => {
+  const { EventEmitter } = await import("node:events");
+  const id = "11111111-1111-1111-1111-111111111111";
+  let release;
+  let waitSignal;
+  const routes = createBlockerRoutes({ checker: {
+    wait: async (requestedId, { signal }) => {
+      assert.equal(requestedId, id);
+      waitSignal = signal;
+      return new Promise((resolve, reject) => {
+        release = () => resolve({ id, status: "completed" });
+        signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+      });
+    },
+  } });
+  const req = { method: "GET", url: `/blockers/checks/${id}` };
+  const res = new EventEmitter();
+  const replies = [];
+  const pending = routes(req, (status, body) => replies.push({ status, body }), res);
+  assert.equal(replies.length, 0);
+  release();
+  assert.equal(await pending, true);
+  assert.equal(replies[0].body.check.status, "completed");
+  assert.equal(res.listenerCount("close"), 0);
+  const disconnected = routes(req, () => {}, res);
+  res.emit("close");
+  await disconnected;
+  assert.equal(waitSignal.aborted, true);
+  assert.equal(res.listenerCount("close"), 0);
+});

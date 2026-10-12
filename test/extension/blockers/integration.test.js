@@ -111,7 +111,7 @@ const createBlockerFixture = async (initialStorage = {}, { initiallyHidden = fal
   }));
   const realTimeout = window.setTimeout.bind(window);
   window.setTimeout = (callback, milliseconds) =>
-    realTimeout(callback, milliseconds === 1500 ? dwellDelayMs : milliseconds === 100 ? 1 : [120, 1200].includes(milliseconds) ? 10 : milliseconds);
+    realTimeout(callback, milliseconds === 1500 ? dwellDelayMs : milliseconds === 100 ? 1 : milliseconds === 120 ? 10 : milliseconds);
   const mocks = installChromeMocks(window, initialStorage);
   await runScriptsInDom(window, ["contracts/job-urls.js", "contracts/blockers.js", "contracts/messages.js", "blockers/client.js", "extension-context.js"]);
   Object.assign(window.jobSearchCompanion.dom, {
@@ -305,6 +305,37 @@ test("an essential evidence gap shows only Blocker on the card and panel", async
     assert.match(summaries[0].textContent, /Your evidence does not establish three years/);
     assert.equal(summaries.length, 1);
     assert.equal(fixture.window.document.querySelector(".jsc-blocker-panel > strong").textContent, "Blocker check");
+  } finally {
+    fixture.close();
+  }
+});
+
+test("pending checks wait immediately and render a completed result without a polling sleep", async () => {
+  const fixture = await createBlockerFixture({}, { initiallyHidden: true });
+  try {
+    const original = fixture.window.chrome.runtime.sendMessage;
+    let release;
+    let completed;
+    let polls = 0;
+    fixture.window.chrome.runtime.sendMessage = async (message) => {
+      if (message.action === "check") {
+        completed = await createCompletedCheck(message.body);
+        return { ok: true, check: { id: "pending-check", status: "checking" } };
+      }
+      if (message.action === "poll") {
+        polls++;
+        return new Promise((resolve) => { release = () => resolve({ ok: true, check: completed }); });
+      }
+      return original(message);
+    };
+    fixture.setHidden(false);
+    await waitUntil(() => release);
+    assert.equal(polls, 1);
+    assert.equal(fixture.storage["blocker-result:first1111"], undefined);
+    release();
+    await waitUntil(() => fixture.storage["blocker-result:first1111"]);
+    assert.equal(polls, 1);
+    assert.ok(fixture.window.document.querySelector(".jsc-blocker-panel")?.textContent.includes("No blockers found"));
   } finally {
     fixture.close();
   }

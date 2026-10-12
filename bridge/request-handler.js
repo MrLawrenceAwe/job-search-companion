@@ -47,7 +47,7 @@ export const createRequestHandler = ({
     }
     if (await analysisRoutes.handleAuthenticated(req, respond)) return;
 
-    if (blockerRoutes && await blockerRoutes(req, respond)) return;
+    if (blockerRoutes && await blockerRoutes(req, respond, res)) return;
 
     if (req.method === "GET" && req.url === "/health") {
       const accessibilityHelper = await readHelperHealth();
