@@ -8,6 +8,8 @@ const local = path => pathToFileURL(join(root, path)).href;
 const { createEvaluationClient, readEvaluationProfile, writeEvaluationReport } = await import(local("scripts/evaluations/support.js"));
 const current = await import(local("bridge/blockers/inference.js"));
 const baselineRef = process.argv[2] || "HEAD";
+const currentReasoningEffort = process.argv[3] || "medium";
+if (!["low", "medium"].includes(currentReasoningEffort)) throw new Error("Choose low or medium for the current checker comparison");
 const source = execFileSync("git", ["show", `${baselineRef}:bridge/blockers/inference.js`], { encoding: "utf8" });
 const rewritten = source.replaceAll('"./chatgpt-response.js"', JSON.stringify(local("bridge/blockers/chatgpt-response.js"))).replaceAll('"../../shared/contracts.js"', JSON.stringify(local("shared/contracts.js")));
 const baseline = await import(`data:text/javascript;base64,${Buffer.from(rewritten).toString("base64")}`);
@@ -57,9 +59,10 @@ for (let round = 1; round <= 2 && !stop; round++) {
       }};
       const started = performance.now();
       let result, error;
-      try { result = await inference({chatgpt, model: "gpt-6-luna", reasoningEffort: "medium", description: fixture.description, profile, signal: AbortSignal.timeout(90000)}); }
+      const reasoningEffort = variant === "baseline" ? "medium" : currentReasoningEffort;
+      try { result = await inference({chatgpt, model: "gpt-6-luna", reasoningEffort, description: fixture.description, profile, signal: AbortSignal.timeout(90000)}); }
       catch (failure) { error = failure.message; }
-      const run = {round, case: fixture.name, variant, durationMs: Math.round(performance.now() - started), requestCount, outputBytes, outcome: result?.outcome || null, expected: fixture.expected, passed: result?.outcome === fixture.expected, findings: result?.findings || [], ...(error ? {error} : {})};
+      const run = {round, case: fixture.name, variant, reasoningEffort, durationMs: Math.round(performance.now() - started), requestCount, outputBytes, outcome: result?.outcome || null, expected: fixture.expected, passed: result?.outcome === fixture.expected, findings: result?.findings || [], ...(error ? {error} : {})};
       if (fixture.name === "renewables-specialist" && result) run.passed &&= result.findings.some(f => /renew|energy/i.test(f.requirementQuote)) && result.findings.some(f => /MCS|compliance documentation/i.test(f.requirementQuote));
       runs.push(run);
       console.log(JSON.stringify({...run, findings: run.findings.map(({kind, requirementQuote}) => ({kind, requirementQuote}))}));
@@ -74,7 +77,7 @@ for (const run of runs) { const key = `${run.round}:${run.case}`; if (!pairs.has
 const completed = [...pairs.values()].filter(p => ["baseline", "current"].every(v => p[v]?.outcome && !p[v].error));
 const summary = Object.fromEntries(["baseline", "current"].map(v => [v, { medianMs: median(completed.map(p => p[v].durationMs)), medianOutputBytes: median(completed.map(p => p[v].outputBytes)), passed: runs.filter(r => r.variant === v && r.passed).length, incorrectOutcomes: runs.filter(r => r.variant === v && r.outcome && !r.passed).length, errors: runs.filter(r => r.variant === v && r.error).length }]));
 const improvementPercent = summary.baseline.medianMs ? +(100*(1-summary.current.medianMs/summary.baseline.medianMs)).toFixed(1) : null;
-const report = { measuredAt: new Date().toISOString(), comparison: "baseline revision checker versus working tree checker, matched completed pairs", baselineRef: execFileSync("git", ["rev-parse", baselineRef], {encoding:"utf8"}).trim(), baselinePromptHash: createHash("sha256").update(baseline.blockerInstructions).digest("hex"), baselineSchemaHash: createHash("sha256").update(JSON.stringify(baseline.requirementInventorySchema)).digest("hex"), currentSchemaHash: createHash("sha256").update(JSON.stringify(current.requirementInventorySchema)).digest("hex"), currentPromptHash: createHash("sha256").update(current.blockerInstructions).digest("hex"), model: "gpt-6-luna", reasoningEffort: "medium", requestedServiceTier: "priority", deliveredServiceTier: "unconfirmed", indexing: "not run; frozen existing evidence snapshot", indexFingerprint: index.fingerprint, indexModel: index.model, indexedAt: index.indexedAt, profileHash: createHash("sha256").update(JSON.stringify(profile.facts)).digest("hex"), completedPairs: completed.length, excludedPairs: pairs.size - completed.length, summary, improvementPercent, cases, runs };
+const report = { measuredAt: new Date().toISOString(), comparison: "baseline revision checker versus working tree checker, matched completed pairs", baselineRef: execFileSync("git", ["rev-parse", baselineRef], {encoding:"utf8"}).trim(), baselinePromptHash: createHash("sha256").update(baseline.blockerInstructions).digest("hex"), baselineSchemaHash: createHash("sha256").update(JSON.stringify(baseline.requirementInventorySchema)).digest("hex"), currentSchemaHash: createHash("sha256").update(JSON.stringify(current.requirementInventorySchema)).digest("hex"), currentPromptHash: createHash("sha256").update(current.blockerInstructions).digest("hex"), model: "gpt-6-luna", baselineReasoningEffort: "medium", currentReasoningEffort, requestedServiceTier: "priority", deliveredServiceTier: "unconfirmed", indexing: "not run; frozen existing evidence snapshot", indexFingerprint: index.fingerprint, indexModel: index.model, indexedAt: index.indexedAt, profileHash: createHash("sha256").update(JSON.stringify(profile.facts)).digest("hex"), completedPairs: completed.length, excludedPairs: pairs.size - completed.length, summary, improvementPercent, cases, runs };
 const path = await writeEvaluationReport("blocker-check-performance", report);
 console.log(JSON.stringify({reportPath: fileURLToPath(path), completedPairs: report.completedPairs, excludedPairs: report.excludedPairs, summary, improvementPercent}));
 if (runs.some(r => !r.passed)) process.exitCode = 1;

@@ -17,6 +17,9 @@ The bridge reads relevant constraint/profile facts from `~/Job Hunting/profile.m
 CV source reads and extraction honour the check's cancellation signal and 90-second
 deadline. Cancellation stops active PDF/Word converters and prevents remaining
 CVs from being extracted or submitted for indexing.
+CV source hashing and conversion each run with at most three files in flight.
+Evidence stays in sorted source order regardless of conversion completion order.
+A failed conversion cancels sibling work and waits for it to stop before a retry.
 Within a bridge session, extracted CV text is reused by source path and content
 hash. Editing a CV converts that file again; unchanged files reuse their text
 when refreshing the index, changing the indexing model, or retrying a failed

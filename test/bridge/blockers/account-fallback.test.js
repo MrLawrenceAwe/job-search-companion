@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { openBlockerChecker } from "../../../bridge/blockers/checker.js";
 import { openChatGPTAccountManager } from "../../../bridge/blockers/chatgpt-accounts.js";
-import { drainEventLoopUntil } from "../../../test-support/async.js";
+import { drainEventLoopUntil, waitUntil } from "../../../test-support/async.js";
 
 const profile = { hash: "verified", facts: [{ id: "F1", text: "Provisional licence" }], sources: [] };
 const job = (id = "first1111") => ({ jobUrl: `https://uk.indeed.com/viewjob?jk=${id}`, description: "You must hold a full UK driving licence to visit customer sites in this role." });
@@ -27,7 +27,9 @@ const fixture = async (t, infer, models = async () => [{ slug: "test" }]) => {
   return { checker, chatgpt, selected };
 };
 const settle = async (checker, task) => {
-  await drainEventLoopUntil(() => ["completed", "failed", "cancelled"].includes(checker.get(task.id).status), 200);
+  await waitUntil(() => ["completed", "failed", "cancelled"].includes(checker.get(task.id).status), {
+    attempts: 400, message: "Expected fallback check to finish",
+  });
   return checker.get(task.id);
 };
 

@@ -163,8 +163,9 @@ test("cancellation during extraction stops remaining CVs and permits a fresh ret
     extract: async (path, { signal }) => {
       extracts++;
       if (extracts === 1) {
-        assert.equal(signal, controller.signal);
+        assert.equal(signal.aborted, false);
         controller.abort();
+        assert.equal(signal.aborted, true);
       }
       return readFile(path, "utf8");
     },
@@ -177,6 +178,113 @@ test("cancellation during extraction stops remaining CVs and permits a fresh ret
   assert.ok((await index.ensureCurrent({ model: "test", signal: new AbortController().signal })).facts.length);
   assert.equal(extracts, 4);
   assert.equal(requests, 1);
+});
+
+test("CV conversion overlaps at most three sources and retains sorted evidence despite completion order", async (t) => {
+  const directory = await mkdtemp(join(await realpath(tmpdir()), "jsc-cv-parallel-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const { waitUntil } = await import("../../../test-support/async.js");
+  const names = Array.from({ length: 6 }, (_, i) => `Lawrence_Awe_CV_${i}.txt`);
+  await Promise.all(names.map((name, i) => writeFile(join(directory, name), `${text} Source ${i}.`)));
+  const releases = new Map();
+  let active = 0;
+  let maximum = 0;
+  let passages;
+  const index = await openCvIndex({ directory, cvDirectory: directory,
+    extract: async (path) => {
+      active++;
+      maximum = Math.max(maximum, active);
+      await new Promise((resolve) => releases.set(path, resolve));
+      active--;
+      return readFile(path, "utf8");
+    },
+    chatgpt: { async request(endpoint, options) {
+      passages = JSON.parse(JSON.parse(options.body).input[0].content).passages;
+      return response({ passageIds: passages.map((p) => p.id) });
+    } },
+  });
+  const pending = index.ensureCurrent({ model: "test" });
+  await waitUntil(() => releases.size === 3);
+  assert.equal(active, 3);
+  assert.equal(releases.has(join(directory, names[3])), false);
+  releases.get(join(directory, names[2]))();
+  await waitUntil(() => releases.size === 4);
+  releases.get(join(directory, names[1]))();
+  await waitUntil(() => releases.size === 5);
+  releases.get(join(directory, names[0]))();
+  await waitUntil(() => releases.size === 6);
+  for (const name of names.slice(3)) releases.get(join(directory, name))();
+  await pending;
+  assert.equal(maximum, 3);
+  assert.deepEqual(passages.map((p) => p.name), names);
+});
+
+test("a failed conversion aborts and drains sibling converters before a retry", async (t) => {
+  const directory = await mkdtemp(join(await realpath(tmpdir()), "jsc-cv-sibling-failure-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const { waitUntil } = await import("../../../test-support/async.js");
+  for (let i = 0; i < 6; i++) await writeFile(join(directory, `Lawrence_Awe_CV_${i}.txt`), text);
+  let fail;
+  let retry = false;
+  let active = 0;
+  let started = 0;
+  let requests = 0;
+  const index = await openCvIndex({ directory, cvDirectory: directory,
+    extract: async (path, { signal }) => {
+      if (retry) return readFile(path, "utf8");
+      const first = started++ === 0;
+      active++;
+      try {
+        await new Promise((resolve, reject) => {
+          if (first) fail = () => reject(new Error("Converter failed"));
+          else signal.addEventListener("abort", () => setImmediate(() => reject(signal.reason)), { once: true });
+        });
+      } finally { active--; }
+    },
+    chatgpt: { async request() { requests++; return response({ passageIds: ["P1"] }); } },
+  });
+  const pending = index.ensureCurrent({ model: "test" });
+  const rejected = assert.rejects(pending, /Converter failed/);
+  await waitUntil(() => active === 3);
+  fail();
+  await rejected;
+  assert.equal(active, 0);
+  assert.equal(started, 3);
+  assert.equal(requests, 0);
+  await assert.rejects(readFile(join(directory, "cv-index.json")), { code: "ENOENT" });
+  retry = true;
+  assert.ok((await index.ensureCurrent({ model: "test" })).facts.length);
+  assert.equal(requests, 1);
+});
+
+test("cancellation drains all active conversions and skips waiting sources", async (t) => {
+  const directory = await mkdtemp(join(await realpath(tmpdir()), "jsc-cv-active-cancel-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const { waitUntil } = await import("../../../test-support/async.js");
+  for (let i = 0; i < 6; i++) await writeFile(join(directory, `Lawrence_Awe_CV_${i}.txt`), text);
+  const controller = new AbortController();
+  let active = 0;
+  let started = 0;
+  let requests = 0;
+  const index = await openCvIndex({ directory, cvDirectory: directory,
+    extract: async (path, { signal }) => {
+      started++;
+      active++;
+      try {
+        await new Promise((resolve, reject) => signal.addEventListener("abort",
+          () => setImmediate(() => reject(signal.reason)), { once: true }));
+      } finally { active--; }
+    },
+    chatgpt: { async request() { requests++; } },
+  });
+  const rejected = assert.rejects(index.ensureCurrent({ model: "test", signal: controller.signal }), { name: "AbortError" });
+  await waitUntil(() => active === 3);
+  controller.abort();
+  await rejected;
+  assert.equal(active, 0);
+  assert.equal(started, 3);
+  assert.equal(requests, 0);
+  await assert.rejects(readFile(join(directory, "cv-index.json")), { code: "ENOENT" });
 });
 
 test("already cancelled extraction never opens a source file or starts a converter", async () => {

@@ -1,0 +1,73 @@
+{
+  "measuredAt": "2026-10-12T09:30:19.436Z",
+  "comparison": "Local CV preparation only; real converters, mocked index response, no model or network requests",
+  "baselineRef": "20be0e8c85316114226fe2cf356f382e656bd70a",
+  "baselineSourceHash": "a7b3863a870bc47922a42f1fcf825c8d8dee6aaf2fe98906ef69a08c6b5bac17",
+  "currentSourceHash": "2cc97a1a98d35635ba4f901d9587db9bb885df8459f744401f3a6cdbaae736ba",
+  "evidenceHash": "1c92803d4dbddd5a03a1814473b414fb821bfc9a42a721a54b7f1bd10860f47a",
+  "summary": {
+    "baseline": {
+      "medianColdMs": 2932,
+      "medianWarmMs": 6.38
+    },
+    "current": {
+      "medianColdMs": 1171.21,
+      "medianWarmMs": 4.9
+    }
+  },
+  "coldImprovementPercent": 60.1,
+  "runs": [
+    {
+      "round": 1,
+      "variant": "baseline",
+      "coldMs": 3424.89,
+      "warmMs": 6.02,
+      "sourceCount": 65,
+      "passageCount": 224
+    },
+    {
+      "round": 1,
+      "variant": "current",
+      "coldMs": 1171.21,
+      "warmMs": 5.64,
+      "sourceCount": 65,
+      "passageCount": 224
+    },
+    {
+      "round": 2,
+      "variant": "current",
+      "coldMs": 1111.32,
+      "warmMs": 4.03,
+      "sourceCount": 65,
+      "passageCount": 224
+    },
+    {
+      "round": 2,
+      "variant": "baseline",
+      "coldMs": 2624.98,
+      "warmMs": 7.52,
+      "sourceCount": 65,
+      "passageCount": 224
+    },
+    {
+      "round": 3,
+      "variant": "baseline",
+      "coldMs": 2932,
+      "warmMs": 6.38,
+      "sourceCount": 65,
+      "passageCount": 224
+    },
+    {
+      "round": 3,
+      "variant": "current",
+      "coldMs": 1250.85,
+      "warmMs": 4.9,
+      "sourceCount": 65,
+      "passageCount": 224
+    }
+  ],
+  "checkerVersion": 10,
+  "blockerPromptHash": "a80cc011bb77af1c042d3df4be451a5da5f2e11e60a51df87e0bfbae17b9efdd",
+  "cvIndexVersion": 2,
+  "cvIndexPromptHash": "026b3138c7b1abfb85dfc59b572b04116a72efc8b19253fba01639c842d6d5df"
+}
