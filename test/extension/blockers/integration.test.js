@@ -262,6 +262,31 @@ test("GraphQL selected descriptions are captured without inferring descriptions 
   }
 });
 
+test("GraphQL Markdown escapes match rendered literal punctuation without accepting changed wording", async () => {
+  const fixture = await createBlockerFixture();
+  try {
+    await waitUntil(() => fixture.storage["blocker-result:first1111"]);
+    fixture.select("second111");
+    const rendered = "Drafting letters and other communications.\\ b. Experience working in an HR department is required.";
+    const markdown = rendered.replace("\\", "\\\\");
+    // Supply the same response shape as Indeed's selected-job GraphQL payload.
+    fixture.window.postMessage({
+      type: fixture.window.jobSearchContracts.messages.indeedDescription,
+      jobId: "second111",
+      text: markdown,
+    });
+    fixture.window.document.querySelector("#description").textContent = rendered.replace("required", "optional");
+    await waitUntil(() => fixture.window.document.querySelector(".jsc-blocker-panel")?.textContent.includes("waiting for a full description"));
+    assert.equal(fixture.calls.length, 1);
+    fixture.window.document.querySelector("#description").textContent = rendered;
+    await waitUntil(() => fixture.storage["blocker-result:second111"]);
+    assert.equal(fixture.calls[1].description, rendered);
+    assert.equal(fixture.calls[1].jobUrl, "https://uk.indeed.com/viewjob?jk=second111");
+  } finally {
+    fixture.close();
+  }
+});
+
 
 test("cancelled checks retry the current job automatically", async () => {
   const fixture = await createBlockerFixture({}, { dwellDelayMs: 100 });
