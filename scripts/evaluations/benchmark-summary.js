@@ -1,6 +1,6 @@
 import { completedRunPairs, median } from "./statistics.js";
 
-export const summarizeBlockerBenchmark = (runs, significantThresholdPercent = 20) => {
+export const summarizeBlockerBenchmark = (runs, minimumImprovementPercent = 20) => {
   // Keep the same cases and rounds for both efforts; errors are not completion times.
   const { completed, excludedPairs } = completedRunPairs(runs, "reasoningEffort", ["low", "medium"]);
   const medians = Object.fromEntries(["low", "medium"].map((effort) =>
@@ -21,8 +21,8 @@ export const summarizeBlockerBenchmark = (runs, significantThresholdPercent = 20
     medians,
     failures,
     improvementPercent: improvement === null ? null : Math.round(improvement * 10) / 10,
-    significantThresholdPercent,
-    recommendation: improvement !== null && improvement >= significantThresholdPercent &&
+    minimumImprovementPercent,
+    recommendation: improvement !== null && improvement >= minimumImprovementPercent &&
       runs.every((run) => run.passed) ? "low" : "medium",
   };
 };

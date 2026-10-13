@@ -46,6 +46,7 @@ test("odd sample medians use the middle pair and low requires sufficient improve
   const summary = summarizeBlockerBenchmark(runs);
   assert.deepEqual(summary.medians, { low: 80, medium: 100 });
   assert.equal(summary.recommendation, "low");
+  assert.equal(summary.minimumImprovementPercent, 20);
   assert.equal(summarizeBlockerBenchmark(runs, 21).recommendation, "medium");
 });
 

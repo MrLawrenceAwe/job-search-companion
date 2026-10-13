@@ -1,11 +1,12 @@
-import { jobAnalysisContract } from "../shared/contracts.js";
+import { jobAnalysisContract, identifierContract } from "../shared/contracts.js";
 import { runCommand } from "./run-command.js";
 import { readJsonBody, RequestBodyTooLargeError } from "./http-helpers.js";
 
 const handleCompletion = async (req, respond, store) => {
-  const match = req.method === "POST" && req.url?.match(/^\/analyses\/([a-f0-9-]{36})\/complete$/);
+  const match = req.method === "POST" && req.url?.match(/^\/analyses\/([^/?]+)\/complete$/);
   if (!match) return false;
   try {
+    if (!identifierContract.isUuid(match[1])) throw new Error("Invalid analysis ID");
     const { threadId, verdict } = await readJsonBody(req);
     const analysis = await store.complete({ id: match[1], token: req.headers["x-jsc-analysis-token"], threadId, verdict });
     respond(200, { ok: true, analysis });

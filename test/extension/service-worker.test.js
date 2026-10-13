@@ -248,3 +248,26 @@ test("analysis actions reject foreign senders and open through the authenticated
   assert.equal(captured.url, "http://127.0.0.1:48973/analyses/open");
   assert.equal(captured.options.headers["X-JSC-Token"], "test-token");
 });
+
+
+test("blocker polling validates UUID structure before contacting the bridge", async () => {
+  const id = "ABCDEF12-1234-1234-1234-123456789ABC";
+  let captured;
+  const worker = await loadWorker(async (url) => {
+    captured = url;
+    return { json: async () => ({ ok: true, check: { id, status: "completed" } }) };
+  });
+  const sender = { url: "https://uk.indeed.com/jobs" };
+  let rejected;
+  assert.equal(worker.messageHandler(
+    { type: "BLOCKER_REQUEST", action: "poll", id: "-".repeat(36) }, sender,
+    (reply) => { rejected = reply; },
+  ), false);
+  assert.equal(rejected.error, "Invalid check ID");
+  assert.equal(captured, undefined);
+  const reply = await new Promise((resolve) => worker.messageHandler(
+    { type: "BLOCKER_REQUEST", action: "poll", id }, sender, resolve,
+  ));
+  assert.equal(reply.check.id, id);
+  assert.equal(captured, `http://127.0.0.1:48973/blockers/checks/${id}`);
+});

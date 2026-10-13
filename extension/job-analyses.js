@@ -12,7 +12,6 @@
   });
   const recordFor = (url) => records.get(contract.keyFor(url));
   const updateAnalysisButton = (button, jobUrl, record) => {
-    button.dataset.threadId = record.threadId;
     button.dataset.jobUrl = jobUrl;
     button.dataset.verdictColor = contract.colorFor(record.verdict);
     button.title = `${record.verdict || "Verdict not recorded"} — Open completed CV-fit analysis in Codex (${new Date(record.analyzedAt).toLocaleDateString()})`;

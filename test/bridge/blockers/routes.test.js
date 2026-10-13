@@ -52,3 +52,19 @@ test("check route waits for a result and releases its wait when the client disco
   assert.equal(waitSignal.aborted, true);
   assert.equal(res.listenerCount("close"), 0);
 });
+
+
+test("check routes reject malformed UUIDs before calling the checker", async () => {
+  const { EventEmitter } = await import("node:events");
+  const routes = createBlockerRoutes({ checker: {
+    wait() { assert.fail("Malformed IDs must not reach the checker"); },
+  } });
+  const replies = [];
+  assert.equal(await routes(
+    { method: "GET", url: `/blockers/checks/${"-".repeat(36)}` },
+    (status, body) => replies.push({ status, body }),
+    new EventEmitter(),
+  ), true);
+  assert.equal(replies[0].status, 400);
+  assert.equal(replies[0].body.error, "Invalid check ID");
+});

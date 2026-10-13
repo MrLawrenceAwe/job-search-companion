@@ -8,33 +8,33 @@ export const createCvFitSubmissionService = ({
 }) => {
   const { submissions } = submissionStore;
   let activeSubmissionId = null;
-  const maximumCompletedSubmissions = 50;
+  const maximumTerminalSubmissions = 50;
 
-  const pruneCompletedSubmissions = () => {
-    const completedIds = [...submissions]
+  const pruneTerminalSubmissions = () => {
+    const terminalIds = [...submissions]
       .filter(([, submission]) => submission.status !== statuses.submitting)
       .map(([id]) => id);
-    for (const id of completedIds.slice(0, -maximumCompletedSubmissions)) {
+    for (const id of terminalIds.slice(0, -maximumTerminalSubmissions)) {
       submissions.delete(id);
     }
   };
 
   const runSubmission = async (submissionId, jobUrl, completion) => {
-    let completedSubmission;
+    let terminalSubmission;
     try {
       const { status } = await submitTask({ jobUrl, completion });
-      completedSubmission = { id: submissionId, status };
-      logger.info(`CV Fit task automation completed: ${completedSubmission.status}`);
+      terminalSubmission = { id: submissionId, status };
+      logger.info(`CV Fit task automation completed: ${terminalSubmission.status}`);
     } catch (error) {
-      completedSubmission = {
+      terminalSubmission = {
         id: submissionId,
         status: statuses.failed,
         error: error instanceof Error ? error.message : String(error),
       };
-      logger.warn(`CV Fit task submission failed: ${completedSubmission.error}`);
+      logger.warn(`CV Fit task submission failed: ${terminalSubmission.error}`);
     } finally {
-      submissions.set(submissionId, completedSubmission);
-      pruneCompletedSubmissions();
+      submissions.set(submissionId, terminalSubmission);
+      pruneTerminalSubmissions();
       try {
         await submissionStore.save();
       } catch (error) {

@@ -95,6 +95,8 @@ selection used by the other evaluation commands.
 New reports use exclusive UTC timestamp filenames and record versions, prompt/schema
 hashes, evidence identity, request counts, JSON bytes, outcomes and paired latency.
 Compare only matched completed pairs; report request errors and accuracy separately.
-Low requires at least a 20% improvement and every outcome passing. With no completed
-pairs, medians and improvement are null. Historical reports retain their original
-metadata and must not be treated as equivalent experiments across prompt versions.
+Low requires at least a 20% improvement and every outcome passing. New benchmark
+summaries call this decision rule `minimumImprovementPercent`; it is not a statistical
+significance test. With no completed pairs, medians and improvement are null.
+Historical reports retain their original field names and metadata and must not be
+treated as equivalent experiments across prompt versions.

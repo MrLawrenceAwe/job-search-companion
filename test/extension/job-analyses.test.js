@@ -34,11 +34,11 @@ test("a completed analysis renders on the card and detail pane and opens through
   await waitUntil(() => window.document.querySelector(".jsc-analysis-detail"));
   const badge = window.document.querySelector(".jsc-analyzed-badge");
   assert.equal(badge.textContent, "Analysed · Open analysis");
-  assert.equal(badge.dataset.threadId, threadId);
-  assert.equal(window.document.querySelector(".jsc-analysis-detail").dataset.threadId, threadId);
-  badge.click();
-  assert.equal(JSON.stringify(messages.at(-1)), JSON.stringify({ type: "OPEN_JOB_ANALYSIS", jobUrl }));
-  assert.equal(badge.disabled, false);
+  for (const button of [badge, window.document.querySelector(".jsc-analysis-detail")]) {
+    button.click();
+    assert.equal(JSON.stringify(messages.at(-1)), JSON.stringify({ type: "OPEN_JOB_ANALYSIS", jobUrl }));
+    assert.equal(button.disabled, false);
+  }
 });
 
 test("pending jobs have no analysed mark; storage updates and selection changes update controls", async (t) => {
@@ -64,7 +64,6 @@ for (const [verdict, color] of [["use as-is", "green"], ["edit the CV", "yellow"
     for (const button of window.document.querySelectorAll(".jsc-analysis-button")) {
       assert.equal(button.dataset.verdictColor, color);
       assert.ok(button.title.startsWith(verdict));
-      assert.equal(button.dataset.threadId, threadId);
     }
     const badge = window.document.querySelector(".jsc-analyzed-badge");
     change({ [key]: { newValue: { ...record, verdict: "edit the CV" } } });

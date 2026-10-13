@@ -153,7 +153,7 @@ export const openCvIndex = async ({ directory, cvDirectory, chatgpt, extract = e
       const text = texts[i];
       if (!seen.has(text)) {
         seen.add(text);
-        documents.push({ id: `C${documents.length + 1}`, name: snapshot.name, text });
+        documents.push({ name: snapshot.name, text });
       }
     }
     if (documents.reduce((count, document) => count + document.text.length, 0) > 400_000)

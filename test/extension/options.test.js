@@ -83,6 +83,20 @@ test("settings use account registrations, save preferences, and clear only block
   element("clearFindings").click();
   await waitUntil(() => element("feedback").textContent === "Saved findings cleared.");
   assert.deepEqual(removed, ["blocker-result:first111"]);
+  // Empty models keep their distinct contracts: omit checker model, clear index override.
+  for (const id of ["checkerModel", "indexModel"]) {
+    element(id).value = "";
+    element(id).dispatchEvent(new window.Event("change"));
+  }
+  element("checksEnabled").checked = false;
+  element("checksEnabled").dispatchEvent(new window.Event("change"));
+  element("saveSettings").click();
+  await waitUntil(() => element("feedback").textContent === "Settings saved.");
+  const body = requests.findLast((request) => request.action === "settings").body;
+  assert.equal(body.enabled, false);
+  assert.equal(body.accountFallback, false);
+  assert.equal(body.indexModel, null);
+  assert.equal(Object.hasOwn(body, "model"), false);
 });
 
 
@@ -115,10 +129,16 @@ test("returning to settings detects a pause and preserves unsaved preferences", 
   element("checkerModel").dispatchEvent(new window.Event("change"));
   element("checkerReasoning").value = "low";
   element("checkerReasoning").dispatchEvent(new window.Event("change"));
+  element("checksEnabled").checked = false;
+  element("checksEnabled").dispatchEvent(new window.Event("change"));
+  element("accountFallback").checked = true;
+  element("accountFallback").dispatchEvent(new window.Event("change"));
   state.pausedReason = "Updated pause reason";
   window.document.dispatchEvent(new window.Event("visibilitychange"));
   await waitUntil(() => element("feedback").textContent === "Updated pause reason");
   assert.equal(element("checkerModel").value, "gpt-6-luna");
   assert.equal(element("checkerReasoning").value, "low");
-  assert.equal(element("saveSettings").textContent, "Save and resume checks");
+  assert.equal(element("checksEnabled").checked, false);
+  assert.equal(element("accountFallback").checked, true);
+  assert.equal(element("saveSettings").textContent, "Save settings");
 });

@@ -40,11 +40,11 @@ Marks are manual and reversible; they are not proof of successful submission.
    memory and persisted to disk after status changes.
 
 Each accepted task receives a submission ID, and status checks use
-that ID so multiple browser tabs cannot observe one another's results. Completed
-records are bounded. Submission records are saved privately in
+that ID so multiple browser tabs cannot observe one another's results. Terminal
+submission records are bounded. Submission records are saved privately in
 `~/Library/Application Support/Job Search Companion/submissions.json` and loaded
 on startup. A restart marks unfinished `submitting` records as `interrupted`;
-completed records retain their status. Check Codex before retrying an interrupted
+other submission records retain their status. Check Codex before retrying an interrupted
 task because submission may have happened before confirmation was saved.
 
 ## Extension structure
@@ -76,7 +76,7 @@ The content scripts are ordered by dependency in the manifest:
 The separate `blockers/indeed-description-capture.js` MAIN-world script observes descriptions before the isolated content scripts start. `service-worker.js` loads `bridge-config.js` and the installer-generated `local-config.js` for private bridge settings. Its shared JSON transport owns request headers and timeouts; CV and blocker handlers own authorization, endpoint selection, and response filtering. `options.html`, `options.js`, and `options.css` implement settings.
 
 `cvFitSubmissions` is the content-page API for sending Codex tasks. The bridge's
-`cv-fit-submission-store.js` persists their statuses; `cv-fit-submission-service.js` owns locking, execution and completed-history pruning. `analysis-routes.js` owns completion, listing and chat opening, with scoped completion dispatched before general-token authentication. The native helper publishes
+`cv-fit-submission-store.js` persists their statuses; `cv-fit-submission-service.js` owns locking, execution and terminal-submission history pruning. `analysis-routes.js` owns completion, listing and chat opening, with scoped completion dispatched before general-token authentication. The native helper publishes
 its result enum in metadata; automated tests compare it with the shared status
 contract.
 
@@ -110,12 +110,16 @@ uncertain result fails closed.
 
 ## Codex verification
 
-The bridge opens this unsent prompt in the configured CV Fit workspace:
+The bridge opens an unsent prompt in the configured CV Fit workspace. Its assessment portion is:
 
 ```text
 $cv-fit-advisor
 <Indeed or LinkedIn job link>
 ```
+
+The prompt also includes a job-specific completion command, its scoped credential,
+and allowed verdicts. See [analysis completion and chat opening](#analysis-completion-and-chat-opening)
+for the callback contract and `bridge/codex/deep-link.js` for prompt generation.
 
 Before pressing Return, the helper:
 

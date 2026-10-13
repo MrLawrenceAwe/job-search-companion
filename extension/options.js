@@ -41,6 +41,19 @@ const renderFallbacks = () => {
     ...(lines.length ? lines : ["No fallback connected. Add another account."]),
   );
 };
+const preferenceFields = {
+  enabled: ["checksEnabled", "checked"],
+  accountFallback: ["accountFallback", "checked"],
+  reasoningEffort: ["checkerReasoning", "value"],
+  model: ["checkerModel", "value"],
+  indexModel: ["indexModel", "value"],
+};
+const normalizePreference = (property, value) => property === "checked" ? Boolean(value) : value || null;
+const readPreferences = () => Object.fromEntries(Object.entries(preferenceFields).map(([key, [id, property]]) =>
+  [key, normalizePreference(property, byId(id)[property])],
+));
+const preferenceChanged = (key, value) =>
+  value !== normalizePreference(preferenceFields[key][1], settingsState.settings[key]);
 const updateSave = () => {
   const button = byId("saveSettings");
   if (!settingsState || !modelsLoaded) {
@@ -52,12 +65,7 @@ const updateSave = () => {
     button.disabled = true;
     return;
   }
-  const changed =
-    byId("checksEnabled").checked !== settingsState.settings.enabled ||
-    byId("accountFallback").checked !== settingsState.settings.accountFallback ||
-    byId("checkerReasoning").value !== settingsState.settings.reasoningEffort ||
-    (byId("checkerModel").value || null) !== settingsState.settings.model ||
-    (byId("indexModel").value || null) !== (settingsState.settings.indexModel || null);
+  const changed = Object.entries(readPreferences()).some(([key, value]) => preferenceChanged(key, value));
   const resume = Boolean(settingsState.pausedReason && byId("checksEnabled").checked);
   byId("saveHint").textContent = saving
     ? "Saving your preferences…"
@@ -77,18 +85,9 @@ const updateSave = () => {
         : "Saved";
   button.disabled = busy || (!changed && !resume);
 };
-const preferenceFields = {
-  enabled: ["checksEnabled", "checked"],
-  accountFallback: ["accountFallback", "checked"],
-  reasoningEffort: ["checkerReasoning", "value"],
-  model: ["checkerModel", "value"],
-  indexModel: ["indexModel", "value"],
-};
 const render = (state, { preserveEdits = false } = {}) => {
   const edits = preserveEdits && settingsState
-    ? Object.entries(preferenceFields).filter(([key, [id, property]]) =>
-      (byId(id)[property] || null) !== (settingsState.settings[key] || null),
-    ).map(([, [id, property]]) => [id, property, byId(id)[property]])
+    ? Object.entries(readPreferences()).filter(([key, value]) => preferenceChanged(key, value))
     : [];
   settingsState = state;
   byId("connection").textContent = state.connectionStatus.pending
@@ -120,14 +119,14 @@ const render = (state, { preserveEdits = false } = {}) => {
       : "inactive";
   byId("currentAccount").replaceChildren(...state.connectionStatus.accounts.map((account) => option(account.id, account.label)));
   byId("currentAccount").value = state.connectionStatus.activeId || "";
-  byId("checksEnabled").checked = state.settings.enabled;
-  byId("accountFallback").checked = state.settings.accountFallback;
-  byId("checkerReasoning").value = state.settings.reasoningEffort;
-  if (modelsLoaded) {
-    byId("checkerModel").value = state.settings.model || "";
-    byId("indexModel").value = state.settings.indexModel || "";
+  for (const [key, [id, property]] of Object.entries(preferenceFields)) {
+    if (!modelsLoaded && ["model", "indexModel"].includes(key)) continue;
+    byId(id)[property] = state.settings[key] ?? (property === "checked" ? false : "");
   }
-  for (const [id, property, value] of edits) byId(id)[property] = value;
+  for (const [key, value] of edits) {
+    const [id, property] = preferenceFields[key];
+    byId(id)[property] = value ?? "";
+  }
   renderFallbacks();
   renderInferenceSettings();
   byId("connectChatGPT").disabled = state.connectionStatus.pending;
@@ -202,13 +201,9 @@ for (const [id, work] of Object.entries({
   saveSettings: async () => {
     saving = true;
     updateSave();
-    const body = {
-      enabled: byId("checksEnabled").checked,
-      accountFallback: byId("accountFallback").checked,
-      reasoningEffort: byId("checkerReasoning").value,
-      indexModel: byId("indexModel").value || null,
-    };
-    if (byId("checkerModel").value) body.model = byId("checkerModel").value;
+    const body = readPreferences();
+    // An empty checker selection must not clear the bridge's chosen model.
+    if (body.model === null) delete body.model;
     const resuming = Boolean(settingsState.pausedReason && body.enabled);
     try {
       render(await request("settings", body));
@@ -234,7 +229,7 @@ byId("currentAccount").addEventListener(
       await loadModels();
     }),
 );
-for (const id of ["checksEnabled", "checkerModel", "indexModel", "checkerReasoning", "accountFallback"])
+for (const [id] of Object.values(preferenceFields))
   byId(id).addEventListener("change", () => {
     feedback(settingsState?.pausedReason || "", "error");
     updateSave();

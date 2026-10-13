@@ -205,7 +205,7 @@ test("request handler admits only one active submission", async () => {
   await firstRequest;
 });
 
-test("completed submission statuses remain correlated after a later task starts", async () => {
+test("terminal submission statuses remain correlated after a later task starts", async () => {
   let nextId = 1;
   const handler = createHandler({
     createSubmissionId: () => `submission-${nextId++}`,

@@ -37,7 +37,7 @@
     new Promise((resolve) => window.setTimeout(resolve, milliseconds));
   let submissionInProgress = false;
 
-  const waitForCompletion = async (submissionId) => {
+  const waitForSubmissionResult = async (submissionId) => {
     const deadline = Date.now() + 220_000;
     while (Date.now() < deadline) {
       await delay(1000);
@@ -85,7 +85,7 @@
       if (!submission?.id) {
         throw new Error("The local bridge did not return a submission ID");
       }
-      const status = await waitForCompletion(submission.id);
+      const status = await waitForSubmissionResult(submission.id);
       showToast(
         status === statuses.submitted
           ? "CV Fit Advisor task submitted."

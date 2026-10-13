@@ -29,6 +29,9 @@ test("scoped callbacks work without the bridge credential; list/open retain gene
   assert.equal((await post({ "x-jsc-analysis-token": "bad" })).status, 400);
   assert.equal((await post({ "x-jsc-token": "bridge-token" })).status, 400);
   assert.equal((await post({ origin: "https://attacker.test", "x-jsc-analysis-token": completion.token })).status, 403);
+  const malformed = await post({ "x-jsc-analysis-token": completion.token }, "-".repeat(36));
+  assert.equal(malformed.status, 400);
+  assert.equal((await malformed.json()).error, "Invalid analysis ID");
   assert.deepEqual(store.list(), []);
   assert.equal((await post({ "x-jsc-analysis-token": completion.token })).status, 200);
   assert.equal((await post({ "x-jsc-analysis-token": completion.token }, threadId)).status, 400);

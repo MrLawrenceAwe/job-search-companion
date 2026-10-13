@@ -1,3 +1,4 @@
+import { identifierContract } from "../../shared/contracts.js";
 import { readJsonBody } from "../http-helpers.js";
 
 export const createBlockerRoutes =
@@ -7,6 +8,7 @@ export const createBlockerRoutes =
     try {
       const body = req.method === "POST" ? await readJsonBody(req, 100_000) : {};
       const route = `${req.method} ${req.url}`;
+      const checkMatch = req.method === "GET" && req.url.match(/^\/blockers\/checks\/([^/?]+)$/);
       let result;
       if (route === "GET /blockers/status") result = await checker.status();
       else if (route === "GET /blockers/models") result = { models: await chatgpt.models() };
@@ -29,13 +31,15 @@ export const createBlockerRoutes =
         await checker.clearCache();
         result = await checker.status();
       } else if (route === "POST /blockers/checks") result = { check: await checker.start(body) };
-      else if (req.method === "GET" && /^\/blockers\/checks\/[a-f0-9-]{36}$/.test(req.url)) {
+      else if (checkMatch) {
+        const id = checkMatch[1];
+        if (!identifierContract.isUuid(id)) throw new Error("Invalid check ID");
         const controller = new AbortController();
         const disconnect = () => controller.abort();
         res.once("close", disconnect);
         if (res.destroyed) disconnect();
         try {
-          result = { check: await checker.wait(req.url.split("/").at(-1), { signal: controller.signal }) };
+          result = { check: await checker.wait(id, { signal: controller.signal }) };
         } finally {
           res.removeListener("close", disconnect);
         }

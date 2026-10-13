@@ -147,7 +147,7 @@ const handleBlockerMessage = (message, sender, sendResponse) => {
     });
     return false;
   }
-  if (message.action === "poll" && !/^[a-f0-9-]{36}$/.test(message.id || "")) {
+  if (message.action === "poll" && !globalThis.jobSearchContracts.identifiers.isUuid(message.id)) {
     sendResponse({ ok: false, error: "Invalid check ID" });
     return false;
   }

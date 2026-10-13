@@ -94,7 +94,7 @@ When no fallback can continue, the check fails and queued checks pause. Use **Ma
 
 ## Cache and account data
 
-Each store keeps at most 300 saved findings on this device for up to 30 days. **Clear saved findings** clears both the bridge cache and extension records without changing manual marks. Older findings may appear as **Previously checked** until their description and profile are verified again.
+Each store retains at most 300 findings for reuse, and findings expire after 30 days. Expiry makes findings unavailable for reuse; expired records are removed when a later result is saved. **Clear saved findings** removes all findings from both the bridge cache and extension records without changing manual marks. Older findings may appear as **Previously checked** until their description and profile are verified again.
 
 The index is saved privately as `cv-index.json` in the checker data directory, with exact CV passages, the indexing model and source fingerprints. Full CV text is sent only when refreshing the index; routine checks send the compact excerpts and profile facts.
 
