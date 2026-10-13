@@ -258,6 +258,26 @@ test("the screenshot's vague geography and undocumented work arrangements produc
   assert.deepEqual(result, noBlockers);
 });
 
+test("a standalone residency question is unclear; an explicit residency prerequisite remains mandatory", async () => {
+  const question = "Have you lived in the UK for the last 3 years?";
+  const prerequisite = "Applicants must have lived in the UK for the last 3 years.";
+  const residencyProfile = { facts: [{ id: "R1", text: "Born and raised in the UK.", source: "Verified profile" }] };
+  let captured;
+  for (const mandatory of [false, true]) {
+    const requirement = { category: "eligibility", necessity: mandatory ? "mandatory" : "unclear",
+      evidence: "missing", requirementQuote: mandatory ? prerequisite : question,
+      explanation: mandatory ? "Continuous residence during the last three years is not established." : null, profileFactIds: [] };
+    const result = await runBlockerInference({ chatgpt: { async request(endpoint, options) {
+      captured = JSON.parse(options.body);
+      return sse(completed(JSON.stringify({ requirements: [requirement] })));
+    } }, model: "test", description: mandatory ? `${prerequisite}\nApplication question: ${question}` : `Application question (required): ${question}`, profile: residencyProfile });
+    assert.equal(result.outcome, mandatory ? "clear_blocker" : "no_blockers_found");
+  }
+  assert.match(captured.instructions, /A question being required to answer is not evidence that a particular answer is mandatory/);
+  assert.match(captured.instructions, /quote that explicit prerequisite rather than the standalone question/);
+  assert.match(captured.instructions, /being born and raised in the UK.*do not by themselves establish continuous UK residence/);
+});
+
 test("inventory schema and local validation agree on every classification's explanation shape", () => {
   const branches = requirementInventorySchema.properties.requirements.items.anyOf;
   for (const category of ["eligibility", "work_arrangement"]) {
