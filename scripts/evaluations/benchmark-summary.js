@@ -1,20 +1,8 @@
-const median = (values) => {
-  if (!values.length) return null;
-  const sorted = values.toSorted((a, b) => a - b);
-  const middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
-};
+import { completedRunPairs, median } from "./statistics.js";
 
 export const summarizeBlockerBenchmark = (runs, significantThresholdPercent = 20) => {
-  const pairs = new Map();
-  for (const run of runs) {
-    const key = JSON.stringify([run.round, run.case]);
-    if (!pairs.has(key)) pairs.set(key, {});
-    pairs.get(key)[run.reasoningEffort] = run;
-  }
   // Keep the same cases and rounds for both efforts; errors are not completion times.
-  const completed = [...pairs.values()].filter((pair) =>
-    ["low", "medium"].every((effort) => pair[effort]?.outcome && !pair[effort].error));
+  const { completed, excludedPairs } = completedRunPairs(runs, "reasoningEffort", ["low", "medium"]);
   const medians = Object.fromEntries(["low", "medium"].map((effort) =>
     [effort, median(completed.map((pair) => pair[effort].durationMs))]));
   const improvement = completed.length && medians.medium > 0
@@ -29,7 +17,7 @@ export const summarizeBlockerBenchmark = (runs, significantThresholdPercent = 20
   return {
     comparisonMethod: "matched_completed_pairs",
     completedPairs: completed.length,
-    excludedPairs: pairs.size - completed.length,
+    excludedPairs,
     medians,
     failures,
     improvementPercent: improvement === null ? null : Math.round(improvement * 10) / 10,

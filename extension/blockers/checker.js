@@ -37,7 +37,7 @@
       return;
     if (!force && (getCurrentResult() || checks.has(captured.signature))) return;
     checks.set(captured.signature, { status: "queued" });
-    render();
+    scheduleRender();
     try {
       let { check } = await request("check", {
         jobUrl: captured.jobUrl,
@@ -46,12 +46,12 @@
         ...(challenge ? { challenge } : {}),
       });
       checks.set(captured.signature, check);
-      render();
+      scheduleRender();
       while (["checking", "queued"].includes(check.status)) {
         ({ check } = await request("poll", null, check.id));
         checks.set(captured.signature, check);
         // Poll completion regardless of later selection, but render only the current job.
-        render();
+        scheduleRender();
       }
       if (check.status === "completed") {
         await recordStore.saveResult(check.result);
@@ -62,13 +62,13 @@
         // A cancelled request has no result. Restart dwell only for the selected job.
         if (selection?.signature === captured.signature) schedule();
       }
-      render();
+      scheduleRender();
     } catch (error) {
       checks.set(captured.signature, {
         status: "failed",
         error: error.message,
       });
-      render();
+      scheduleRender();
     }
   };
   const cancelDwell = () => {
@@ -110,7 +110,7 @@
       checkerState = { error: error.message, settings: { enabled: false } };
     } finally {
       statusRequestInProgress = false;
-      render();
+      scheduleRender();
     }
   };
   let scanGeneration = 0;
@@ -122,7 +122,7 @@
     } catch {
       selection = null;
       cancelDwell();
-      render();
+      scheduleRender();
       return;
     }
     const jobId = new URL(jobUrl).searchParams.get("jk");
@@ -149,7 +149,7 @@
     if (!descriptionElement || text.length < 40 || text.length > 80_000) {
       selection = null;
       cancelDwell();
-      render();
+      scheduleRender();
       return;
     }
     const descriptionHash = await digest(text);
@@ -159,7 +159,7 @@
       cancelDwell();
       selection = { jobId, jobUrl, text, descriptionHash, signature };
     }
-    render();
+    scheduleRender();
     scheduleDwell();
   };
   const schedule = () => {
@@ -170,7 +170,8 @@
     }, 120);
   };
   const descriptions = companion.blockers.observeDescriptions(schedule);
-  const render = companion.blockers.createRenderer({
+  const scheduleRender = companion.pageDecorations.schedule;
+  companion.blockers.registerRenderer({
     recordStore,
     checks,
     getCurrentResult,
@@ -192,7 +193,7 @@
       selection = null;
       schedule();
     }
-    render();
+    scheduleRender();
   });
   companion.pageDecorations.subscribe(schedule);
   document.addEventListener("visibilitychange", () => {
@@ -205,6 +206,6 @@
   }, 5000);
   void initialize().catch((error) => {
     checkerState = { settings: { enabled: false }, error: error.message };
-    render();
+    scheduleRender();
   });
 })();

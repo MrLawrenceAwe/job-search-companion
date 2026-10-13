@@ -25,7 +25,7 @@ const preferencePrefixes = [
   "- Commute fit:",
 ];
 
-export const readVerifiedProfile = async (profileSources) => {
+export const readProfileEvidence = async (profileSources) => {
   const facts = [];
   const sources = [];
   const snapshots = {};
@@ -70,7 +70,7 @@ export const readVerifiedProfile = async (profileSources) => {
   }
   if (!facts.length)
     throw new Error(
-      "The verified profile has no supported facts. Check the configured profile files.",
+      "The profile evidence has no supported facts. Check the configured profile files.",
     );
   return { facts, sources, hash: hashJson(facts), snapshots, factLocations };
 };

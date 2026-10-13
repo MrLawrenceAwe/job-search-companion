@@ -86,7 +86,11 @@ and runs six cases twice with one profile and frozen saved CV index. Baseline
 reasoning is Medium; current reasoning defaults to Medium and accepts `low` as
 the second argument. Each new run records its effort, and reports record both
 baseline/current efforts. Use an explicit baseline ref after committing changes.
-Account/access failures stop remaining requests.
+Account/access failures stop remaining requests. Accuracy checks compare finding
+presence and required specialist quotes across revisions, while reports retain
+each revision’s raw outcome labels. This keeps result-name changes separate from
+classification changes. Statistics share the median calculation and completed-pair
+selection used by the other evaluation commands.
 
 New reports use exclusive UTC timestamp filenames and record versions, prompt/schema
 hashes, evidence identity, request counts, JSON bytes, outcomes and paired latency.

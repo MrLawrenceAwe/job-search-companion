@@ -1,7 +1,7 @@
 (() => {
   const companion = globalThis.jobSearchCompanion;
   const { labels: LABELS, isRetainableResult } = globalThis.jobSearchContracts.blockers;
-  companion.blockers.createRenderer = ({ recordStore, checks, getCurrentResult, startCheck, getContext }) => {
+  companion.blockers.registerRenderer = ({ recordStore, checks, getCurrentResult, startCheck, getContext }) => {
     const drafts = new Map();
     const keyFromUrl = (url) => {
       try {
@@ -188,6 +188,5 @@
       findings.append(panel);
     };
     companion.pageDecorations.register(render);
-    return companion.pageDecorations.schedule;
   };
 })();

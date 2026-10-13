@@ -47,7 +47,8 @@ const fixture = async (t) => {
   companion.jobs.resolveSelectedJobUrl = () => selectedJob;
   companion.showToast = () => {};
   await runScriptsInDom(window, ['page-decorations.js', 'job-mark-store.js', 'job-marks.js', 'job-analyses.js', 'blockers/renderer.js']);
-  const scheduleFindings = companion.blockers.createRenderer({
+  const scheduleFindings = companion.pageDecorations.schedule;
+  companion.blockers.registerRenderer({
     recordStore: { get: () => result }, checks: new Map(),
     getCurrentResult: () => selectedJob === firstJob ? result : null,
     startCheck() {},

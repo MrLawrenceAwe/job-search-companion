@@ -1,3 +1,4 @@
+import { combineProfileAndCvEvidence } from "../../bridge/blockers/evidence.js";
 import { fileURLToPath } from "node:url";
 import { blockerSources } from "../../shared/blocker-sources.js";
 import { createEvaluationClient, readEvaluationProfile, writeEvaluationReport } from "./support.js";
@@ -15,11 +16,11 @@ const cvIndex = await openCvIndex({ directory, cvDirectory, chatgpt });
 const index = await cvIndex.ensureCurrent({ model: indexModel, reasoningEffort: "medium" });
 const indexingMs = Math.round(performance.now() - started);
 const base = await readEvaluationProfile();
-const profile = { ...base, facts: [...base.facts, ...index.facts.map((fact, i) => ({ ...fact, id: `CV${i + 1}` }))] };
+const profile = combineProfileAndCvEvidence(base, index);
 const cases = [
-  { name: "renewables-specialist", description: await readFile(new URL("../../test-support/renewables-administrator.txt", import.meta.url), "utf8"), expected: "clear_blocker" },
+  { name: "renewables-specialist", description: await readFile(new URL("../../test-support/renewables-administrator.txt", import.meta.url), "utf8"), expected: "blocker" },
   { name: "documented-qualification", description: "Remote software tester. You must have a BSc Computer Science degree and ISTQB Foundation certification. Manual testing experience is essential. Commercial automation experience is desirable but not required. No driving or travel required.", expected: "no_blockers_found" },
-  { name: "mandatory-driving", description: "Customer support coordinator. You must hold a full UK driving licence and drive to customer sites every day. This is an essential requirement. The position involves handling customer enquiries and updating CRM records.", expected: "clear_blocker" },
+  { name: "mandatory-driving", description: "Customer support coordinator. You must hold a full UK driving licence and drive to customer sites every day. This is an essential requirement. The position involves handling customer enquiries and updating CRM records.", expected: "blocker" },
 ];
 const runs = [];
 for (const fixture of cases) {

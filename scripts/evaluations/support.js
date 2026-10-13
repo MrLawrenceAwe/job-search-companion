@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { blockerSources } from "../../shared/blocker-sources.js";
 import { blockerContract } from "../../shared/contracts.js";
 import { sha256 } from "../../shared/sha256.js";
-import { readVerifiedProfile } from "../../bridge/blockers/profile.js";
+import { readProfileEvidence } from "../../bridge/blockers/profile.js";
 import { blockerInstructions } from "../../bridge/blockers/inference.js";
 import { cvIndexInstructions, cvIndexVersion } from "../../bridge/blockers/cv-index.js";
 
@@ -13,7 +13,7 @@ export const evaluationVersions = Object.freeze({
   cvIndexVersion,
   cvIndexPromptHash: sha256(cvIndexInstructions),
 });
-export const readEvaluationProfile = () => readVerifiedProfile(blockerSources().profileSources);
+export const readEvaluationProfile = () => readProfileEvidence(blockerSources().profileSources);
 
 // Evaluation never refreshes tokens or changes the account selected by the bridge.
 export const createEvaluationClient = ({

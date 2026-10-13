@@ -8,6 +8,7 @@ import { openCvIndex } from "../../bridge/blockers/cv-index.js";
 import { blockerSources } from "../../shared/blocker-sources.js";
 import { sha256 } from "../../shared/sha256.js";
 import { writeEvaluationReport } from "./support.js";
+import { median } from "./statistics.js";
 
 const baselineRef = process.argv[2];
 if (!baselineRef) throw new Error("Usage: node scripts/evaluations/benchmark-cv-preparation.js <baseline-git-ref>");
@@ -51,9 +52,11 @@ for (let round = 1; round <= 3; round++) {
   }
 }
 const summary = Object.fromEntries(["baseline", "current"].map((variant) => {
-  const values = runs.filter((run) => run.variant === variant);
-  const median = (key) => values.map((run) => run[key]).sort((a, b) => a - b)[1];
-  return [variant, { medianColdMs: median("coldMs"), medianWarmMs: median("warmMs") }];
+  const samples = runs.filter((run) => run.variant === variant);
+  return [variant, {
+    medianColdMs: median(samples.map((run) => run.coldMs)),
+    medianWarmMs: median(samples.map((run) => run.warmMs)),
+  }];
 }));
 const report = {
   measuredAt: new Date().toISOString(),

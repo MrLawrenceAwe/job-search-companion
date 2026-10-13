@@ -13,8 +13,8 @@ const renderInferenceSettings = () => {
     ? ""
     : "Other models use their default reasoning level. Select GPT-6 Luna to choose Light or Medium.";
   byId("checkerSpeed").textContent = supportsReasoningSelection
-    ? "Processing speed: Fast requested (priority). The delivered speed tier is unconfirmed."
-    : "Processing speed: model default. Fast processing is requested only for GPT-6 Luna.";
+    ? "Checker processing speed: Fast requested (priority). The delivered speed tier is unconfirmed."
+    : "Checker processing speed: model default. Fast processing is requested only for GPT-6 Luna.";
 };
 const feedback = (text, state = "success") => {
   byId("feedback").textContent = text;
@@ -134,7 +134,7 @@ const render = (state, { preserveEdits = false } = {}) => {
   byId("connectChatGPT").hidden = state.connectionStatus.planUsageEnabled && !state.connectionStatus.pending;
   byId("cancelSignIn").hidden = !state.connectionStatus.pending;
   byId("signOut").disabled = !state.connectionStatus.connected;
-  byId("profile").textContent = state.profile ? "Verified profile ready." : state.profileError;
+  byId("profile").textContent = state.profile ? "Profile evidence loaded." : state.profileError;
   byId("profile").dataset.state = state.profile ? "ready" : "error";
   if (state.pausedReason || state.connectionStatus.error)
     feedback(state.pausedReason || state.connectionStatus.error, "error");

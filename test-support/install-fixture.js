@@ -8,7 +8,7 @@ import { sha256 } from "../shared/sha256.js";
 export { sha256 };
 
 export const makeInstallFixture = async (context) => {
-  const directory = await mkdtemp(join(await realpath(tmpdir()), "indeed-cv-fit-install-"));
+  const directory = await mkdtemp(join(await realpath(tmpdir()), "jsc-install-"));
   context.after(() => rm(directory, { recursive: true, force: true }));
   const paths = {
     rootPath: join(directory, "checkout with & chars"),

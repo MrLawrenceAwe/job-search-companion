@@ -56,7 +56,7 @@ See [design and testing](docs/design.md) and [evaluation reports](docs/evaluatio
 ## Privacy and limitations
 
 Marks stay in extension storage. CV tasks use a local service at `127.0.0.1:48973`;
-blocker checks send the description and verified evidence through the connected
+blocker checks send the description and supplied profile/CV evidence through the connected
 ChatGPT account. CV handling follows the configured workspace's skill and account.
 The bridge stores submission status and rotating logs locally.
 

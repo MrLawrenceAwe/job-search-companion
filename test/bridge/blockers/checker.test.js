@@ -6,13 +6,13 @@ import { join } from "node:path";
 import { openBlockerChecker } from "../../../bridge/blockers/checker.js";
 import { drainEventLoopUntil, waitUntil } from "../../../test-support/async.js";
 
-const profile = { hash: "profile-v1", facts: [{ id: "F1", text: "Provisional UK driving licence only.", source: "Verified profile" }], sources: [] };
+const profile = { hash: "profile-v1", facts: [{ id: "F1", text: "Provisional UK driving licence only.", source: "Profile evidence" }], sources: [] };
 const job = (id = "job111111") => ({ jobUrl: `https://uk.indeed.com/viewjob?jk=${id}`, description: "You must hold a full UK driving licence to visit customer sites in this role." });
 const noBlockers = { outcome: "no_blockers_found", findings: [] };
-const setup = async (infer, readProfile = async () => profile) => {
+const setup = async (infer, readEvidence = async () => profile) => {
   const directory = await mkdtemp(join(await realpath(tmpdir()), "jsc-blockers-"));
   const chatgpt = { connectionStatus: () => ({ planUsageEnabled: true, activeId: "account1" }), models: async () => [{ slug: "test-model" }], close() {} };
-  const checker = await openBlockerChecker({ directory, profileSources: [], chatgpt, infer, readProfile });
+  const checker = await openBlockerChecker({ directory, profileSources: [], chatgpt, infer, evidence: { readCurrent: readEvidence, prepareCurrent: readEvidence } });
   await checker.configure({ enabled: true, model: "test-model" });
   return { checker, directory, chatgpt };
 };
@@ -31,7 +31,7 @@ test("checker deduplicates across tabs, persists results, and invalidates profil
   await waitUntil(() => checker.get(changedText.id).status === "completed");
   assert.equal(calls, 3);
   checker.close();
-  const restored = await openBlockerChecker({ directory, profileSources: [], chatgpt, infer: async () => { throw new Error("Should be cached"); }, readProfile: async () => currentProfile });
+  const restored = await openBlockerChecker({ directory, profileSources: [], chatgpt, infer: async () => { throw new Error("Should be cached"); }, evidence: { readCurrent: async () => currentProfile, prepareCurrent: async () => currentProfile } });
   assert.equal((await restored.start(job())).cached, true);
   assert.equal((await stat(join(directory, "cache.json"))).mode & 0o777, 0o600); restored.close();
 });

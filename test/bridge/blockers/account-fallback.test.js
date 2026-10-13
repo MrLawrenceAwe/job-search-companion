@@ -21,7 +21,7 @@ const fixture = async (t, infer, models = async () => [{ slug: "test" }]) => {
     select: async (id) => { selected.push(id); activeId = id; },
     models: () => models(activeId), close() {},
   };
-  const checker = await openBlockerChecker({ directory, chatgpt, readProfile: async () => profile, infer });
+  const checker = await openBlockerChecker({ directory, chatgpt, evidence: { readCurrent: async () => profile, prepareCurrent: async () => profile }, infer });
   t.after(async () => { checker.close(); await rm(directory, { recursive: true, force: true }); });
   await checker.configure({ enabled: true, model: "test", accountFallback: true });
   return { checker, chatgpt, selected };

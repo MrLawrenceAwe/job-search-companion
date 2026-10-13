@@ -73,7 +73,7 @@ test("initial storage reads cannot overwrite newer results or resurrect removed 
   const store = fixture.createStore();
   const changes = [];
   store.subscribe((batch) => changes.push(...batch));
-  const latest = { ...makeRecord("first111"), outcome: "clear_blocker", findings: [{ kind: "clear_blocker" }] };
+  const latest = { ...makeRecord("first111"), outcome: "blocker", findings: [{ kind: "blocker" }] };
   fixture.notify({ "blocker-result:first111": { newValue: latest } });
   fixture.notify({ "blocker-result:second111": {} });
   resolveRead({
@@ -81,7 +81,7 @@ test("initial storage reads cannot overwrite newer results or resurrect removed 
     "blocker-result:second111": makeRecord("second111"),
   });
   await store.ready;
-  assert.equal(store.get("first111").outcome, "clear_blocker");
+  assert.equal(store.get("first111").outcome, "blocker");
   assert.equal(store.get("second111"), undefined);
   assert.deepEqual(changes.map(({ jobId, removed }) => ({ jobId, removed })), [
     { jobId: "first111", removed: false }, { jobId: "second111", removed: true },

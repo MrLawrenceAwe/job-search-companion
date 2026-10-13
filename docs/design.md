@@ -70,7 +70,7 @@ The content scripts are ordered by dependency in the manifest:
 - `job-menu-observer.js` detects newly opened job menus;
 - `blockers/indeed-description-store.js` observes captured descriptions and extracts inert text;
 - `blockers/result-store.js` owns local findings and storage-change notifications;
-- `blockers/renderer.js` presents badges, findings, and checker controls; and
+- `blockers/renderer.js` registers the badge, findings, and checker-control renderer with page decorations; and
 - `blockers/checker.js` coordinates selection verification, dwell timing, and request polling.
 
 The separate `blockers/indeed-description-capture.js` MAIN-world script observes descriptions before the isolated content scripts start. `service-worker.js` loads `bridge-config.js` and the installer-generated `local-config.js` for private bridge settings. Its shared JSON transport owns request headers and timeouts; CV and blocker handlers own authorization, endpoint selection, and response filtering. `options.html`, `options.js`, and `options.css` implement settings.
@@ -173,7 +173,8 @@ the selected description, waits for selection dwell, and polls check completion.
 `blockers/result-store.js` owns extension-local result access, pruning, storage-change
 notifications, and clearing through `jobSearchBlockerResults.createStore()`;
 settings and the checker share that API. `blockers/renderer.js` reads results
-through the store and presents findings without changing manual marks.
+through the store and registers its renderer without changing manual marks. The
+checker requests deferred rendering through `pageDecorations.schedule()`.
 Each result store exposes a `ready` promise for its initial snapshot. Storage
 notifications apply after that snapshot so a late read cannot replace newer
 findings or resurrect a removed result. Saves and clearing also await readiness.
@@ -188,16 +189,42 @@ Native rendered descriptions are matched against an entire description subtree.
 The observer preserves fetch observation across ordinary page reassignment.
 
 In `bridge/blockers/`, `checker.js` owns scheduling, `result-cache.js` owns
-persisted result retention, `account-fallback.js` owns account rotation,
-`profile.js` parses explicitly named application and verified profile sources,
-`cv-index.js` fingerprints current source CVs and maintains a private compact index of exact excerpts. Its `ensureCurrent()` method may extract files and call the model; `readCurrent()` reads a matching saved index without inference.
-Source hashing and conversion use up to three concurrent workers, preserving sorted source order and passage IDs. Failure or cancellation stops pending work and drains active workers before releasing a refresh for retry; source content checks and final collection verification still apply.
-`chatgpt-response.js` parses completed JSON streams shared by checking and indexing. `inference.js` validates a streamed requirement inventory and derives findings from category, necessity and evidence classifications. Preferred and supported requirements are excluded. Mandatory eligibility requirements with missing, conflicting or incompatible evidence produce a **Blocker**. Mandatory work arrangements block only with explicit incompatible evidence. Missing or conflicting availability and unclear necessity produce no findings. Vague general knowledge statements are excluded. Explanations retain the distinction between undocumented evidence and a confirmed shortfall. Checker version 10 invalidates older classifications. All inventory entries that produce no blocker use null explanations to reduce model output; all quotes and evidence IDs remain validated. Specialist examples and candidate-requirement guidance are retained.
-`chatgpt-accounts.js` exposes `openChatGPTAccountManager()` for persisted registrations, active-account selection, OAuth, and authenticated requests. `fallbackAccountIds()` returns eligible registration IDs. The checker has separate endpoints and status from CV Fit submissions.
+persisted result retention, and `account-fallback.js` owns account rotation.
+`profile.js` reads relevant facts from the application and verified application
+profile sources and integrates accepted corrections. These are supplied evidence,
+including self-reported corrections, rather than independent verification.
+
+`evidence.js` assembles profile facts and indexed CV excerpts with one shared
+identity and hashing operation, also used by evaluation scripts. Its provider
+exposes `readCurrent()` for existing evidence and `prepareCurrent()` for work that
+may convert CV files, call the model, and save a refreshed index.
+`cancelPreparation()` aborts that preparation independently of saved-evidence reads.
+
+`cv-index.js` fingerprints current source CVs and maintains a private compact index
+of exact excerpts. Its `ensureCurrent()` method may extract files and call the
+model; `readCurrent()` reads a matching saved index without inference. Source hashing
+and conversion use up to three concurrent workers, preserving sorted source order
+and passage IDs. Failure or cancellation drains active workers before a retry;
+source content checks and final collection verification still apply.
+
+`chatgpt-response.js` parses completed JSON streams shared by checking and indexing.
+`inference.js` validates the requirement inventory, exact description quotes, and
+known evidence IDs before deriving findings. The structured schema requires prose
+for findings and null explanations for other entries. See
+[processing and findings](blocker-checker.md#processing-and-findings) for classification
+policy and the current result-contract version.
+
+`chatgpt-accounts.js` exposes `openChatGPTAccountManager()` for registrations,
+active-account selection, OAuth, and authenticated requests. `fallbackAccountIds()`
+returns eligible registration IDs. The checker has separate endpoints and status
+from CV Fit submissions.
+
 `extension/contracts/blockers.js` defines result labels, version, retention,
 record bounds, and retention eligibility for both runtimes. It also owns model
-reasoning-selection capability and inference request options, shared by the
-settings page, requirement inference, and CV indexing.
+reasoning-selection capability and inference request options, shared by settings,
+requirement inference, and CV indexing. The `blocker` result name covers both
+confirmed shortfalls and missing or conflicting evidence; explanations retain
+that distinction.
 
 OAuth attempts use fresh state, nonce and PKCE values, a loopback callback,
 and ID-token signature, issuer, audience, expiry and nonce validation. Refreshes
