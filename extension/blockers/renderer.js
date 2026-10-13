@@ -2,6 +2,7 @@
   const companion = globalThis.jobSearchCompanion;
   const { labels: LABELS, isRetainableResult } = globalThis.jobSearchContracts.blockers;
   companion.blockers.createRenderer = ({ recordStore, checks, getCurrentResult, startCheck, getContext }) => {
+    const drafts = new Map();
     const keyFromUrl = (url) => {
       try {
         return new URL(url).searchParams.get("jk");
@@ -88,7 +89,10 @@
               checkerState?.pausedReason ||
               checkerState?.error ||
               (!checkerState?.settings.enabled ? "Blocker checks off" : "Not checked yet");
+      const busy = ["checking", "queued"].includes(check?.status);
       panel.append(element("strong", label));
+      if (result && busy) panel.append(element("p", "Reviewing…"));
+      if (result && check?.error) panel.append(element("p", check.error, "jsc-blocker-error"));
       if (result) {
         panel.append(
           element(
@@ -96,6 +100,14 @@
             `Checked ${new Date(result.checkedAt).toLocaleString()} against your current profile and CV evidence.`,
           ),
         );
+        if (result.challengeReview) {
+          const review = element("div", null, "jsc-blocker-review");
+          review.setAttribute("role", "status");
+          review.append(element("strong", result.challengeReview.accepted ? "Challenge accepted" : "Blocker retained"),
+            element("p", result.challengeReview.response));
+          if (result.challengeReview.profileUpdated) review.append(element("p", "Your profile has been updated for future checks."));
+          panel.append(review);
+        }
         if (!result.findings.length)
           panel.append(
             element(
@@ -121,7 +133,48 @@
             details.append(
               element("p", "Your profile and CV evidence do not establish this requirement."),
             );
-          panel.append(details);
+          const row = element("div", null, "jsc-blocker-finding");
+          row.append(details);
+          const form = element("form", null, "jsc-blocker-challenge");
+          form.hidden = true;
+          const draftKey = `${selection.signature}:${finding.requirementQuote}`;
+          const inputLabel = element("label", "Why should this blocker be reconsidered?");
+          const input = element("textarea");
+          input.required = true;
+          input.maxLength = 2000;
+          input.rows = 3;
+          input.value = drafts.get(draftKey) || "";
+          input.placeholder = "Explain the mistake or add a factual correction. Accepted reusable facts update your profile.";
+          input.addEventListener("input", () => {
+            input.setCustomValidity("");
+            drafts.set(draftKey, input.value);
+            if (drafts.size > 20) drafts.delete(drafts.keys().next().value);
+          });
+          inputLabel.append(input);
+          const actions = element("div", null, "jsc-blocker-controls");
+          const submit = button("Send challenge", () => form.requestSubmit());
+          submit.disabled = busy || !checkerState?.settings.enabled || !checkerState?.connectionStatus.planUsageEnabled || Boolean(checkerState?.pausedReason);
+          const cancel = button("Cancel", () => { form.hidden = true; toggle.hidden = false; });
+          actions.append(submit, cancel);
+          form.append(inputLabel, actions);
+          form.addEventListener("submit", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (!input.value.trim()) {
+              input.setCustomValidity("Explain why this blocker should be reconsidered.");
+              input.reportValidity();
+              return;
+            }
+            void startCheck(true, { requirementQuote: finding.requirementQuote, reason: input.value.trim() });
+          });
+          const toggle = button("Challenge", () => {
+            form.hidden = false;
+            toggle.hidden = true;
+            input.focus();
+          });
+          toggle.disabled = submit.disabled;
+          row.append(toggle, form);
+          panel.append(row);
         }
       }
       const controls = element("div", null, "jsc-blocker-controls");

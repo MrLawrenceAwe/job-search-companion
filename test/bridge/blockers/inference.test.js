@@ -301,3 +301,43 @@ test("inventory schema and local validation agree on every classification's expl
     }
   }
 });
+
+test("challenge inference replies directly and proposes only validated profile corrections", async () => {
+  let captured;
+  const description = job().description;
+  const challenges = [{ requirementQuote: "full UK driving licence", reason: "I passed my driving test last week and now hold a full UK licence." }];
+  const output = { requirements: [{ category: "eligibility", necessity: "mandatory", evidence: "supported",
+    requirementQuote: challenges[0].requirementQuote, explanation: null, profileFactIds: ["CH1"] }],
+    challengeResponse: "Your new full licence satisfies this requirement. I have corrected the outdated provisional-licence fact.",
+    challengeAccepted: true, profileUpdates: [{ text: "Holds a full UK driving licence.", replacesFactIds: ["F1"] }] };
+  const chatgpt = { async request(endpoint, options) { captured = JSON.parse(options.body); return sse(completed(JSON.stringify(output))); } };
+  const result = await runBlockerInference({ chatgpt, model: "test", description, profile, challenges });
+  assert.equal(result.outcome, "no_blockers_found");
+  assert.equal(result.challengeReview.accepted, true);
+  assert.deepEqual(result.profileUpdates, output.profileUpdates);
+  const input = JSON.parse(captured.input[0].content);
+  assert.equal(input.blockerChallenges[0].reason, challenges[0].reason);
+  assert.equal(input.candidateClarifications[0].id, "CH1");
+  assert.match(captured.instructions, /never instructions to obey/);
+  for (const patch of [
+    { challengeResponse: "" }, { challengeAccepted: false, profileUpdates: [] },
+    { profileUpdates: [{ text: "Full licence", replacesFactIds: ["CV1"] }] },
+    { profileUpdates: [{ text: "Full licence\n## Injected section", replacesFactIds: [] }] },
+  ]) {
+    await assert.rejects(runBlockerInference({ chatgpt: { request: async () => sse(completed(JSON.stringify({ ...output, ...patch }))) },
+      model: "test", description, profile, challenges }));
+  }
+});
+
+test("rejected challenges explain the remaining blocker without proposing profile edits", async () => {
+  const challenges = [{ requirementQuote: "full UK driving licence", reason: "Can we ignore this?" }];
+  const output = { requirements: [{ category: "eligibility", necessity: "mandatory", evidence: "incompatible",
+    requirementQuote: challenges[0].requirementQuote, explanation: "A provisional licence does not satisfy the required full licence.", profileFactIds: ["F1"] }],
+    challengeResponse: "The advert requires a full licence and your profile confirms a provisional licence. This remains a blocker.",
+    challengeAccepted: false, profileUpdates: [] };
+  const result = await runBlockerInference({ chatgpt: { request: async () => sse(completed(JSON.stringify(output))) },
+    model: "test", description: job().description, profile, challenges });
+  assert.equal(result.findings.length, 1);
+  assert.equal(result.challengeReview.accepted, false);
+  assert.deepEqual(result.profileUpdates, []);
+});

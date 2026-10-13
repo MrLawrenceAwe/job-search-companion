@@ -26,7 +26,7 @@
       ? record
       : null;
   };
-  const startCheck = async (force = false) => {
+  const startCheck = async (force = false, challenge) => {
     const captured = selection;
     if (
       !captured ||
@@ -43,6 +43,7 @@
         jobUrl: captured.jobUrl,
         description: captured.text,
         force,
+        ...(challenge ? { challenge } : {}),
       });
       checks.set(captured.signature, check);
       render();
@@ -52,7 +53,10 @@
         // Poll completion regardless of later selection, but render only the current job.
         render();
       }
-      if (check.status === "completed") await recordStore.saveResult(check.result);
+      if (check.status === "completed") {
+        await recordStore.saveResult(check.result);
+        if (check.result.challengeReview?.profileUpdated) await refreshState().then(schedule);
+      }
       if (check.status === "cancelled") {
         checks.delete(captured.signature);
         // A cancelled request has no result. Restart dwell only for the selected job.

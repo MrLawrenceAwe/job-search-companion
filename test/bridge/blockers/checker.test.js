@@ -195,3 +195,48 @@ test("queued tabs receive the checking transition as soon as their job starts", 
   releases[1]();
   assert.equal((await completion).status, "completed");
 });
+
+test("accepted challenge integrates the profile and future checks use the correction without replaying notes", async () => {
+  const { writeFile } = await import("node:fs/promises");
+  const directory = await mkdtemp(join(await realpath(tmpdir()), "jsc-challenge-"));
+  const path = join(directory, "profile.md");
+  await writeFile(path, "## Personal Constraints\n- Provisional UK driving licence only.\n");
+  const received = [];
+  let release;
+  const chatgpt = { connectionStatus: () => ({ planUsageEnabled: true, activeId: "account1" }), models: async () => [{ slug: "test-model" }], close() {} };
+  const checker = await openBlockerChecker({ directory, profileSources: [{ kind: "application", path }], chatgpt,
+    infer: async (input) => {
+      received.push(input);
+      if (input.challenges.length) await new Promise((resolve) => { release = resolve; });
+      return input.challenges.length ? { ...noBlockers,
+        challengeReview: { accepted: true, requirementQuote: "full UK driving licence", response: "The full licence satisfies this requirement." },
+        profileUpdates: [{ text: "Holds a full UK driving licence.", replacesFactIds: ["F1"] }] } : noBlockers;
+    } });
+  try {
+    await checker.configure({ enabled: true, model: "test-model" });
+    const before = (await checker.status()).profile.hash;
+    const challenge = { requirementQuote: "full UK driving licence", reason: "I passed my test." };
+    const check = await checker.start({ ...job(), challenge });
+    await waitUntil(() => release);
+    const queued = await checker.start(job("queued111"));
+    release();
+    await waitUntil(() => checker.get(check.id).status === "completed");
+    await waitUntil(() => checker.get(queued.id).status === "completed");
+    assert.equal((await checker.start(job())).cached, true);
+    const result = checker.get(check.id).result;
+    assert.equal(result.challengeReview.profileUpdated, true);
+    assert.notEqual(result.profileHash, before);
+    assert.equal(result.profileHash, (await checker.status()).profile.hash);
+    assert.doesNotMatch(await readFile(path, "utf8"), /Provisional/);
+    assert.deepEqual(received[1].challenges, []);
+    assert.equal(received[1].profile.facts[0].text, "Holds a full UK driving licence.");
+    const later = await checker.start(job("future111"));
+    await waitUntil(() => checker.get(later.id).status === "completed");
+    assert.deepEqual(received[1].challenges, []);
+    assert.equal(received[1].profile.facts[0].text, "Holds a full UK driving licence.");
+    const persisted = await readFile(join(directory, "cache.json"), "utf8");
+    assert.doesNotMatch(persisted, /I passed my test|profileUpdates|replacesFactIds/);
+    await assert.rejects(checker.start({ ...job(), challenge: { ...challenge, reason: " " } }), /challenge must/);
+    await assert.rejects(checker.start({ ...job(), challenge: { ...challenge, requirementQuote: "invented" } }), /challenge must/);
+  } finally { checker.close(); }
+});

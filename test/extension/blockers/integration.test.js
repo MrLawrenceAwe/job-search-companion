@@ -365,3 +365,81 @@ test("pending checks wait immediately and render a completed result without a po
     fixture.close();
   }
 });
+
+test("challenging a blocker sends the objection, shows the reply, and does not replay it on recheck", async () => {
+  const fixture = await createBlockerFixture({}, { initiallyHidden: true });
+  try {
+    const original = fixture.window.chrome.runtime.sendMessage;
+    const calls = [];
+    fixture.window.chrome.runtime.sendMessage = async (message) => {
+      if (message.action !== "check") return original(message);
+      calls.push(message.body);
+      const check = await createCompletedCheck(message.body);
+      if (calls.length === 1) {
+        check.result.outcome = "clear_blocker";
+        check.result.findings = [{ kind: "clear_blocker", requirementQuote: "full UK driving licence", explanation: "Only a provisional licence is documented.", profileFacts: [] }];
+      } else if (message.body.challenge) check.result.challengeReview = {
+        accepted: true, profileUpdated: false, requirementQuote: message.body.challenge.requirementQuote,
+        response: "The clarification resolves this job-specific blocker.",
+      };
+      return { ok: true, check };
+    };
+    fixture.setHidden(false);
+    const doc = fixture.window.document;
+    await waitUntil(() => doc.querySelector(".jsc-blocker-finding > button"));
+    doc.querySelector(".jsc-blocker-finding > button").click();
+    assert.equal(doc.querySelector(".jsc-blocker-challenge").hidden, false);
+    const input = doc.querySelector(".jsc-blocker-challenge textarea");
+    input.value = "The job allows non-driving travel elsewhere in the advert.";
+    input.dispatchEvent(new fixture.window.Event("input"));
+    doc.querySelector(".jsc-blocker-challenge button").click();
+    await waitUntil(() => doc.querySelector(".jsc-blocker-review"));
+    assert.equal(calls[1].challenge.reason, input.value);
+    assert.match(doc.querySelector(".jsc-blocker-review").textContent, /Challenge accepted.*clarification resolves/);
+    assert.match(doc.querySelector(".jsc-blocker-badge").textContent, /No blockers found/);
+    [...doc.querySelectorAll(".jsc-blocker-controls button")].find((node) => node.textContent === "Recheck").click();
+    await waitUntil(() => calls.length === 3);
+    assert.equal(calls[2].challenge, undefined);
+  } finally { fixture.close(); }
+});
+
+test("an accepted profile correction refreshes evidence and keeps its reply visible without another check", async () => {
+  const fixture = await createBlockerFixture({}, { initiallyHidden: true });
+  try {
+    const original = fixture.window.chrome.runtime.sendMessage;
+    let corrected = false;
+    let starts = 0;
+    fixture.window.chrome.runtime.sendMessage = async (message) => {
+      if (message.action === "status") {
+        const status = await original(message);
+        if (corrected) status.profile.hash = "profile-corrected";
+        return status;
+      }
+      if (message.action !== "check") return original(message);
+      starts++;
+      const check = await createCompletedCheck(message.body);
+      if (!message.body.challenge) {
+        check.result.outcome = "clear_blocker";
+        check.result.findings = [{ kind: "clear_blocker", requirementQuote: "full UK driving licence", explanation: "A full licence is not documented.", profileFacts: [] }];
+      } else {
+        corrected = true;
+        check.result.profileHash = "profile-corrected";
+        check.result.challengeReview = { accepted: true, profileUpdated: true, requirementQuote: "full UK driving licence", response: "Your full licence resolves the blocker." };
+      }
+      return { ok: true, check };
+    };
+    fixture.setHidden(false);
+    const doc = fixture.window.document;
+    await waitUntil(() => doc.querySelector(".jsc-blocker-finding > button"));
+    doc.querySelector(".jsc-blocker-finding > button").click();
+    const input = doc.querySelector("textarea");
+    input.value = "I now hold a full UK driving licence.";
+    input.dispatchEvent(new fixture.window.Event("input"));
+    doc.querySelector(".jsc-blocker-challenge button").click();
+    await waitUntil(() => doc.querySelector(".jsc-blocker-review")?.textContent.includes("profile has been updated"));
+    assert.equal(fixture.storage["blocker-result:first1111"].profileHash, "profile-corrected");
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    assert.equal(starts, 2);
+    assert.match(doc.querySelector(".jsc-blocker-review").textContent, /full licence resolves/);
+  } finally { fixture.close(); }
+});

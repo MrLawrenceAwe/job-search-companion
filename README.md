@@ -16,6 +16,7 @@ results, and checking job requirements and CV fit through a local bridge.
 - Mark jobs as applied or unsuitable, with persistent badges across open tabs.
 - Browse rendered results with **J/K**, hide with **H**, and undo with **U**.
 - Check complete loaded Indeed descriptions for blockers using ChatGPT plan usage.
+- Challenge individual blockers, receive a direct reply, and integrate accepted factual corrections into your profile for future checks.
 - Send a selected job to Codex through **Analyse with CV Fit Advisor** or **N**,
   then reopen its completed analysis from the job card.
 

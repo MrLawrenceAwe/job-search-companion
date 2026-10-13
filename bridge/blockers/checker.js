@@ -7,7 +7,7 @@ import { normalizeJobUrl } from "../job-url.js";
 import { runWithAccountFallback } from "./account-fallback.js";
 import { runBlockerInference } from "./inference.js";
 import { openPrivateStore } from "./private-store.js";
-import { readVerifiedProfile } from "./profile.js";
+import { readVerifiedProfile, integrateProfileUpdates } from "./profile.js";
 import { openCvIndex } from "./cv-index.js";
 import { openResultCache } from "./result-cache.js";
 
@@ -43,7 +43,7 @@ export const openBlockerChecker = async ({
       : await cvIndex.readCurrent({ model: settings.value.indexModel || settings.value.model });
     if (!index) return { ...profile, hash: hashJson({ facts: profile.facts, cvFingerprint: null, indexModel: settings.value.indexModel || settings.value.model }) };
     const facts = [...profile.facts, ...index.facts.map((fact, i) => ({ ...fact, id: `CV${i + 1}` }))];
-    return { facts, sources: [...profile.sources, { name: "CV experience index", path: join(directory, "cv-index.json") }],
+    return { ...profile, facts, sources: [...profile.sources, { name: "CV experience index", path: join(directory, "cv-index.json") }],
       hash: hashJson({ facts, cvFingerprint: index.fingerprint }) };
   });
   const checksById = new Map();
@@ -53,9 +53,9 @@ export const openBlockerChecker = async ({
   let cancellationGeneration = 0;
   let pausedReason = null;
   let disposed = false;
-  const cacheKeyFor = ({ jobId, descriptionHash, profile, model, reasoningEffort }) => hashJson({
+  const cacheKeyFor = ({ jobId, descriptionHash, profile, model, reasoningEffort, challenges }) => hashJson({
     jobId, descriptionHash, profileHash: profile.hash,
-    checkerVersion: CHECKER_VERSION, model, reasoningEffort,
+    checkerVersion: CHECKER_VERSION, model, reasoningEffort, challenges,
   });
   const isCheckCurrent = (checkJob) =>
     checkJob.cancellationGeneration === cancellationGeneration &&
@@ -120,6 +120,7 @@ export const openBlockerChecker = async ({
     checkJob.controller = controller;
     const timer = setTimeout(() => controller.abort(), 90_000);
     let pendingRecord = null;
+    let recordKey = checkJob.key;
     let previousRecord = cache.get(checkJob.key);
     const isCurrent = () => isCheckCurrent(checkJob);
     try {
@@ -131,20 +132,19 @@ export const openBlockerChecker = async ({
         isCurrent,
         enabled: () => settings.value.accountFallback,
         run: async () => {
-          if (cvIndex) {
-            requiredModel = settings.value.indexModel || checkJob.model;
-            checkJob.profile = await readProfile({ signal: controller.signal });
-            if (!isCurrent()) throw new Error("Check interrupted while preparing CV evidence.");
-            checksByCacheKey.delete(checkJob.key);
-            checkJob.key = cacheKeyFor(checkJob);
-            checksByCacheKey.set(checkJob.key, checkJob);
-            previousRecord = cache.get(checkJob.key);
-            if (!checkJob.force && previousRecord) return { cachedRecord: previousRecord };
-          }
+          requiredModel = cvIndex ? settings.value.indexModel || checkJob.model : checkJob.model;
+          // Queued checks must include corrections accepted while they were waiting.
+          checkJob.profile = await readProfile({ signal: controller.signal });
+          if (!isCurrent()) throw new Error("Check interrupted while preparing CV evidence.");
+          checksByCacheKey.delete(checkJob.key);
+          checkJob.key = cacheKeyFor(checkJob);
+          checksByCacheKey.set(checkJob.key, checkJob);
+          previousRecord = cache.get(checkJob.key);
+          if (!checkJob.force && previousRecord) return { cachedRecord: previousRecord };
           requiredModel = checkJob.model;
           return { result: await infer({
             chatgpt, model: checkJob.model, reasoningEffort: checkJob.reasoningEffort,
-            description: checkJob.description, profile: checkJob.profile, signal: controller.signal,
+            description: checkJob.description, profile: checkJob.profile, challenges: checkJob.challenges, signal: controller.signal,
           }) };
         },
       });
@@ -157,8 +157,13 @@ export const openBlockerChecker = async ({
         checkJob.publicState.result = outcome.cachedRecord;
         return;
       }
+      const { profileUpdates = [], ...result } = outcome.result;
+      if (profileUpdates.length) {
+        await integrateProfileUpdates({ profile: checkJob.profile, updates: profileUpdates, profileSources, isCurrent });
+        checkJob.profile = await readProfile({ refreshCvIndex: false });
+      }
       const record = {
-        ...outcome.result,
+        ...result,
         jobId: checkJob.jobId,
         descriptionHash: checkJob.descriptionHash,
         profileHash: checkJob.profile.hash,
@@ -166,9 +171,13 @@ export const openBlockerChecker = async ({
         model: checkJob.model,
         reasoningEffort: checkJob.reasoningEffort,
         checkedAt: new Date().toISOString(),
+        ...(result.challengeReview ? { challengeReview: { ...result.challengeReview, profileUpdated: profileUpdates.length > 0 } } : {}),
       };
+      // Only the latest result/reply is retained, never a cache entry per objection.
+      recordKey = cacheKeyFor({ ...checkJob, challenges: [] });
+      previousRecord = cache.get(recordKey);
       pendingRecord = record;
-      await cache.put(checkJob.key, record);
+      await cache.put(recordKey, record);
       if (!isCurrent()) {
         checkJob.publicState.status = "cancelled";
         return;
@@ -176,7 +185,7 @@ export const openBlockerChecker = async ({
       checkJob.publicState.status = "completed";
       checkJob.publicState.result = record;
     } catch (error) {
-      if (pendingRecord) cache.restore(checkJob.key, pendingRecord, previousRecord);
+      if (pendingRecord) cache.restore(recordKey, pendingRecord, previousRecord);
       checkJob.publicState.status = !isCurrent() ? "cancelled" : "failed";
       checkJob.publicState.error = controller.signal.aborted
         ? "Check interrupted or timed out. Try again."
@@ -240,7 +249,7 @@ export const openBlockerChecker = async ({
       void runNextCheck();
       return status();
     },
-    async start({ jobUrl: rawUrl, description, force = false }) {
+    async start({ jobUrl: rawUrl, description, force = false, challenge }) {
       const jobUrl = normalizeJobUrl(rawUrl);
       const parsed = new URL(jobUrl);
       if (!jobUrlContract.isIndeedHost(parsed.hostname) || parsed.protocol !== "https:")
@@ -252,6 +261,14 @@ export const openBlockerChecker = async ({
         typeof force !== "boolean"
       )
         throw new Error("A full job description between 40 and 80,000 characters is required");
+      if (challenge !== undefined && (!challenge ||
+        Object.keys(challenge).sort().join(",") !== "reason,requirementQuote" ||
+        typeof challenge.requirementQuote !== "string" || !challenge.requirementQuote.trim() || challenge.requirementQuote.length > 2000 ||
+        typeof challenge.reason !== "string" || !challenge.reason.trim() || challenge.reason.length > 2000 ||
+        !description.replace(/\s+/g, " ").includes(challenge.requirementQuote.replace(/\s+/g, " "))))
+        throw new Error("A challenge must quote this advert and include a reason of up to 2,000 characters");
+      const challenges = challenge ? [{ requirementQuote: challenge.requirementQuote, reason: challenge.reason.trim() }] : [];
+      if (challenge) force = true;
       if (pausedReason || !settings.value.enabled)
         throw new Error(pausedReason || "Blocker checks are off. Enable them in settings.");
       if (!chatgpt.connectionStatus().planUsageEnabled || !settings.value.model)
@@ -264,7 +281,7 @@ export const openBlockerChecker = async ({
       const descriptionHash = sha256(description);
       const model = settings.value.model;
       const reasoningEffort = blockerContract.reasoningForModel(model, settings.value.reasoningEffort);
-      const inputs = { jobId, descriptionHash, profile, model, reasoningEffort };
+      const inputs = { jobId, descriptionHash, profile, model, reasoningEffort, challenges };
       const key = cacheKeyFor(inputs);
       if (checksByCacheKey.has(key)) return checksByCacheKey.get(key).publicState;
       const cached = cache.get(key);

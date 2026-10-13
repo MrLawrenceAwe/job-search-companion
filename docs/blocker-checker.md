@@ -37,6 +37,30 @@ The model inventories candidate requirements in introductory prose and Experienc
 
 The selected detail shows **Blocker check**, with either **Blocker** findings or **No blockers found**. Only clear mandatory requirements can produce blockers. Concrete essential eligibility prerequisites show **Blocker** whenever the current evidence is missing, conflicting or incompatible. The explanation distinguishes undocumented experience from a confirmed shortfall; missing evidence is not proof that the candidate lacks experience. Vague general knowledge statements, such as knowledge of UK geographical locations, are excluded. Onsite attendance, working hours, location, commute, relocation, travel availability and contract duration block only with explicit incompatible profile evidence. Missing or conflicting availability produces no finding. A stated willingness for one arrangement does not imply refusal of other arrangements. Standalone application questions do not establish a required answer: “Have you lived in the UK for the last 3 years?” is unclear unless the advert explicitly establishes the prerequisite or required answer. Required form completion does not make a particular answer mandatory. Born-and-raised background, citizenship and current location do not establish continuous recent residence. Requirements whose necessity is unclear, supported requirements and preferences produce no findings. Checker version 11 invalidates older cached classifications so they are checked again. Completed cards receive compact badges; unopened cards can show **Previously checked** but are never claimed current before their description is verified. Manual marks and job visibility are not changed.
 
+## Challenging a blocker
+
+Choose **Challenge** beneath a finding, explain the objection or
+provide a factual correction, and choose **Send challenge**. The model reviews
+the full advert again and gives a direct response explaining whether the
+challenge is accepted or the blocker remains. Other requirements are still
+checked. A challenge is evidence to assess, not an automatic override.
+
+When accepted, concrete reusable factual corrections are integrated into the
+configured profile files for future checks. Superseded facts are removed from
+those sources and concise current facts are kept under **Blocker-check
+clarifications** in the application profile (or the first configured profile).
+CV files are not edited. The review cannot overwrite a profile edited during
+inference; retry against the updated profile instead. Profile changes invalidate
+older results, and queued checks read the latest evidence before inference.
+
+Rejected challenges, advert-specific interpretations and job-specific exceptions
+are not added to the profile. The latest review reply replaces the result for
+that job; the checker does not save challenge notes or append a challenge
+history. **Recheck** uses the current profile without replaying the objection.
+A failed request leaves the prior findings visible and shows an error so the
+challenge can be retried. Accepted profile corrections remain when saved
+findings are cleared.
+
 ## Fallback accounts
 
 In **ChatGPT connection**, add your other accounts through **Add account**, completing sign-in with plan usage enabled for each. Enable **Account fallback** and save. Fallback is off by default.
