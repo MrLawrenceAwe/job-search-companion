@@ -340,8 +340,8 @@ test("checker queues slow indexing without blocking the start response and expos
   };
   const checker = await openBlockerChecker({ directory, cvDirectory: directory,
     profileSources: [{ kind: "application", path: profile }], chatgpt,
-    infer: async ({ profile }) => {
-      assert.ok(profile.facts.some((f) => /Boeing/.test(f.text)));
+    infer: async ({ evidence }) => {
+      assert.ok(evidence.facts.some((f) => /Boeing/.test(f.text)));
       return { outcome: "no_blockers_found", findings: [] };
     } });
   await checker.configure({ enabled: true, model: "gpt-6-luna" });
@@ -352,11 +352,11 @@ test("checker queues slow indexing without blocking the start response and expos
   await waitUntil(() => release);
   release();
   await waitUntil(() => checker.get(first.id).status === "completed");
-  const hash = checker.get(first.id).result.profileHash;
-  assert.equal((await checker.status()).profile.hash, hash);
+  const hash = checker.get(first.id).result.evidenceHash;
+  assert.equal((await checker.status()).evidence.hash, hash);
   assert.equal((await checker.start(job)).cached, true);
   assert.equal(calls, 1);
   await writeFile(cv, (await readFile(cv, "utf8")) + "\nISTQB Foundation certified.");
-  assert.notEqual((await checker.status()).profile.hash, hash);
+  assert.notEqual((await checker.status()).evidence.hash, hash);
   checker.close();
 });

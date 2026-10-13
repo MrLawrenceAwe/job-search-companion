@@ -12,7 +12,7 @@ const noBlockers = { outcome: "no_blockers_found", findings: [] };
 const setup = async (infer, readEvidence = async () => profile) => {
   const directory = await mkdtemp(join(await realpath(tmpdir()), "jsc-blockers-"));
   const chatgpt = { connectionStatus: () => ({ planUsageEnabled: true, activeId: "account1" }), models: async () => [{ slug: "test-model" }], close() {} };
-  const checker = await openBlockerChecker({ directory, profileSources: [], chatgpt, infer, evidence: { readCurrent: readEvidence, prepareCurrent: readEvidence } });
+  const checker = await openBlockerChecker({ directory, profileSources: [], chatgpt, infer, evidenceProvider: { readCurrent: readEvidence, prepareCurrent: readEvidence } });
   await checker.configure({ enabled: true, model: "test-model" });
   return { checker, directory, chatgpt };
 };
@@ -31,7 +31,7 @@ test("checker deduplicates across tabs, persists results, and invalidates profil
   await waitUntil(() => checker.get(changedText.id).status === "completed");
   assert.equal(calls, 3);
   checker.close();
-  const restored = await openBlockerChecker({ directory, profileSources: [], chatgpt, infer: async () => { throw new Error("Should be cached"); }, evidence: { readCurrent: async () => currentProfile, prepareCurrent: async () => currentProfile } });
+  const restored = await openBlockerChecker({ directory, profileSources: [], chatgpt, infer: async () => { throw new Error("Should be cached"); }, evidenceProvider: { readCurrent: async () => currentProfile, prepareCurrent: async () => currentProfile } });
   assert.equal((await restored.start(job())).cached, true);
   assert.equal((await stat(join(directory, "cache.json"))).mode & 0o777, 0o600); restored.close();
 });
@@ -207,14 +207,14 @@ test("accepted challenge integrates the profile and future checks use the correc
   const checker = await openBlockerChecker({ directory, profileSources: [{ kind: "application", path }], chatgpt,
     infer: async (input) => {
       received.push(input);
-      if (input.challenges.length) await new Promise((resolve) => { release = resolve; });
-      return input.challenges.length ? { ...noBlockers,
+      if (input.challenge) await new Promise((resolve) => { release = resolve; });
+      return input.challenge ? { ...noBlockers,
         challengeReview: { accepted: true, requirementQuote: "full UK driving licence", response: "The full licence satisfies this requirement." },
         profileUpdates: [{ text: "Holds a full UK driving licence.", replacesFactIds: ["F1"] }] } : noBlockers;
     } });
   try {
     await checker.configure({ enabled: true, model: "test-model" });
-    const before = (await checker.status()).profile.hash;
+    const before = (await checker.status()).evidence.hash;
     const challenge = { requirementQuote: "full UK driving licence", reason: "I passed my test." };
     const check = await checker.start({ ...job(), challenge });
     await waitUntil(() => release);
@@ -225,15 +225,15 @@ test("accepted challenge integrates the profile and future checks use the correc
     assert.equal((await checker.start(job())).cached, true);
     const result = checker.get(check.id).result;
     assert.equal(result.challengeReview.profileUpdated, true);
-    assert.notEqual(result.profileHash, before);
-    assert.equal(result.profileHash, (await checker.status()).profile.hash);
+    assert.notEqual(result.evidenceHash, before);
+    assert.equal(result.evidenceHash, (await checker.status()).evidence.hash);
     assert.doesNotMatch(await readFile(path, "utf8"), /Provisional/);
-    assert.deepEqual(received[1].challenges, []);
-    assert.equal(received[1].profile.facts[0].text, "Holds a full UK driving licence.");
+    assert.deepEqual(received[1].challenge, null);
+    assert.equal(received[1].evidence.facts[0].text, "Holds a full UK driving licence.");
     const later = await checker.start(job("future111"));
     await waitUntil(() => checker.get(later.id).status === "completed");
-    assert.deepEqual(received[1].challenges, []);
-    assert.equal(received[1].profile.facts[0].text, "Holds a full UK driving licence.");
+    assert.deepEqual(received[1].challenge, null);
+    assert.equal(received[1].evidence.facts[0].text, "Holds a full UK driving licence.");
     const persisted = await readFile(join(directory, "cache.json"), "utf8");
     assert.doesNotMatch(persisted, /I passed my test|profileUpdates|replacesFactIds/);
     await assert.rejects(checker.start({ ...job(), challenge: { ...challenge, reason: " " } }), /challenge must/);

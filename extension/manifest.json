@@ -59,6 +59,7 @@
         "contracts/identifiers.js",
         "contracts/job-analyses.js",
         "contracts/blockers.js",
+        "contracts/inference-settings.js",
         "contracts/messages.js",
         "contracts/cv-fit-submissions.js",
         "contracts/shortcuts.js",

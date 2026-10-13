@@ -1,27 +1,15 @@
 // Shared by classic Chrome scripts and the Node bridge via shared/contracts.js.
 (() => {
   const labels = Object.freeze({
-    blocker: "Blocker",
+    blocker: "Potential blocker",
     no_blockers_found: "No blockers found",
   });
-  const defaultReasoningEffort = "medium";
-  const supportsReasoningSelection = (model) => model === "gpt-6-luna";
   const contract = {
-    version: 12,
+    version: 13,
     retentionMs: 30 * 86400_000,
     maximumRecords: 300,
     storagePrefix: "blocker-result:",
     labels,
-    defaultReasoningEffort,
-    supportsReasoningSelection,
-    reasoningForModel(model, effort) {
-      return supportsReasoningSelection(model) ? effort : null;
-    },
-    inferenceOptions(model, effort = defaultReasoningEffort) {
-      return supportsReasoningSelection(model)
-        ? { service_tier: "priority", reasoning: { effort: effort || defaultReasoningEffort } }
-        : {};
-    },
     isRetainableResult(record, now = Date.now()) {
       return Boolean(
         record &&
@@ -32,7 +20,7 @@
           (record.outcome === "blocker" ? record.findings.length > 0 : record.findings.length === 0) &&
           typeof record.jobId === "string" &&
           typeof record.descriptionHash === "string" &&
-          typeof record.profileHash === "string" &&
+          typeof record.evidenceHash === "string" &&
           typeof record.model === "string" &&
           Number.isFinite(Date.parse(record.checkedAt)) &&
           now - Date.parse(record.checkedAt) < contract.retentionMs,

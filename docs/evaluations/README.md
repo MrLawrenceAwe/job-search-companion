@@ -85,7 +85,10 @@ a source permalink. It does not depend on keeping the full exploratory report.
 and runs six cases twice with one profile and frozen saved CV index. Baseline
 reasoning is Medium; current reasoning defaults to Medium and accepts `low` as
 the second argument. Each new run records its effort, and reports record both
-baseline/current efforts. Use an explicit baseline ref after committing changes.
+baseline/current efforts. Use an explicit baseline ref after committing changes. Baseline modules and their
+relative dependencies are loaded from a temporary snapshot of that revision,
+removed after the comparison. Historical inference inputs are passed only to
+the baseline; current checks use the evidence contract.
 Account/access failures stop remaining requests. Accuracy checks compare finding
 presence and required specialist quotes across revisions, while reports retain
 each revision’s raw outcome labels. This keeps result-name changes separate from

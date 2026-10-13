@@ -50,7 +50,7 @@
         <label class="field-label" for="indexModel">CV indexing model</label>
         <select id="indexModel" aria-describedby="indexReasoningHint"></select>
         <p id="indexReasoningHint" class="note">CV indexing uses Medium reasoning for GPT-6 Luna; other indexing models use their default reasoning and processing tier.</p>
-        <p id="profile" class="note profile-status" role="status">Loading profile evidence…</p>
+        <p id="evidence" class="note evidence-status" role="status">Loading evidence…</p>
         <div class="divider"></div>
         <label class="toggle-row" for="checksEnabled">
           <span><span class="setting-title">Enable blocker checks</span><span class="description">Automatically check selected Indeed jobs. Also enables Check now and Recheck.</span></span>
@@ -71,6 +71,7 @@
     <footer><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></svg><p>Index refreshes send CV text; routine checks send job descriptions, profile facts and indexed CV evidence to OpenAI using your ChatGPT plan.</p></footer>
   </main>
   <script src="contracts/blockers.js"></script>
+  <script src="contracts/inference-settings.js"></script>
   <script src="contracts/messages.js"></script>
   <script src="blockers/client.js"></script>
   <script src="blockers/result-store.js"></script>

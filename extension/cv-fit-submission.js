@@ -42,7 +42,7 @@
     while (Date.now() < deadline) {
       await delay(1000);
       const { submission } = await sendBridgeRequest({
-        type: messages.getCvFitTaskStatus,
+        type: messages.getCvFitSubmissionStatus,
         submissionId,
       });
       if (helperResults.includes(submission?.status)) {

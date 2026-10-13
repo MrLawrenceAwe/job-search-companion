@@ -3,7 +3,7 @@ import { createEvaluationClient, readEvaluationProfile, writeEvaluationReport } 
 import { runBlockerInference } from "../../bridge/blockers/inference.js";
 import { summarizeBlockerBenchmark } from "./benchmark-summary.js";
 
-const profile = await readEvaluationProfile();
+const evidence = await readEvaluationProfile();
 const cases = [
   { name: "mandatory-driving", description: "Customer support coordinator. You must hold a full UK driving licence and drive to customer sites every day. This is an essential requirement, not a preference. The position involves handling customer enquiries, updating CRM records and coordinating appointments during normal weekday office hours.", expected: "blocker" },
   { name: "preferred-driving", description: "Customer support administrator. A full UK driving licence is desirable but not required. This fully remote position involves handling customer enquiries, updating CRM records and coordinating appointments. Training is provided and no commercial software development experience is required. Working hours are Monday to Friday, 9am to 5pm.", expected: "no_blockers_found" },
@@ -20,7 +20,7 @@ for (let round = 0; round < 2; round++) {
       let error = null;
       try {
         result = await runBlockerInference({ chatgpt, model: "gpt-6-luna", reasoningEffort,
-          description: fixture.description, profile, signal: AbortSignal.timeout(90_000) });
+          description: fixture.description, evidence, signal: AbortSignal.timeout(90_000) });
       } catch (failure) {
         error = failure.message;
       }

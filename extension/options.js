@@ -6,7 +6,7 @@ let saving = false;
 let modelsLoaded = false;
 const { request } = globalThis.jobSearchBlockerClient;
 const renderInferenceSettings = () => {
-  const supportsReasoningSelection = globalThis.jobSearchContracts.blockers.supportsReasoningSelection(byId("checkerModel").value);
+  const supportsReasoningSelection = globalThis.jobSearchContracts.inferenceSettings.supportsReasoningSelection(byId("checkerModel").value);
   byId("checkerReasoning").disabled = !supportsReasoningSelection;
   byId("reasoningHint").hidden = supportsReasoningSelection;
   byId("reasoningHint").textContent = supportsReasoningSelection
@@ -133,8 +133,8 @@ const render = (state, { preserveEdits = false } = {}) => {
   byId("connectChatGPT").hidden = state.connectionStatus.planUsageEnabled && !state.connectionStatus.pending;
   byId("cancelSignIn").hidden = !state.connectionStatus.pending;
   byId("signOut").disabled = !state.connectionStatus.connected;
-  byId("profile").textContent = state.profile ? "Profile evidence loaded." : state.profileError;
-  byId("profile").dataset.state = state.profile ? "ready" : "error";
+  byId("evidence").textContent = state.evidence ? "Evidence available." : state.evidenceError;
+  byId("evidence").dataset.state = state.evidence ? "ready" : "error";
   if (state.pausedReason || state.connectionStatus.error)
     feedback(state.pausedReason || state.connectionStatus.error, "error");
   updateSave();

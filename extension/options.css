@@ -71,8 +71,8 @@ a:hover { text-decoration: underline; }
 #reasoningHint, #checkerSpeed { margin-top: 8px; }
 select:disabled { opacity: .65; }
 .icon-button { display: grid; place-items: center; padding: 9px; }
-.profile-status { margin-top: 12px; }
-.profile-status[data-state="ready"] { color: var(--success); }
+.evidence-status { margin-top: 12px; }
+.evidence-status[data-state="ready"] { color: var(--success); }
 .storage-card { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
 .storage-card .description { margin-top: 6px; }
 .storage-card button { flex-shrink: 0; }

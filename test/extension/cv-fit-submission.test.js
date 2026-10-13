@@ -11,7 +11,7 @@ test("menu submits the resolved job and reports success", async () => {
     lastError: null,
     sendMessage(message, callback) {
       messages.push(message);
-      callback(message.type === "GET_CV_FIT_TASK_STATUS"
+      callback(message.type === "GET_CV_FIT_SUBMISSION_STATUS"
         ? { ok: true, submission: { id: "submission-1", status: "submitted" } }
         : { ok: true, submission: { id: "submission-1", status: "submitting" } });
     },
@@ -28,7 +28,7 @@ test("menu submits the resolved job and reports success", async () => {
       type: "SUBMIT_CV_FIT_TASK",
       jobUrl: "https://uk.indeed.com/viewjob?jk=fixture111",
     },
-    { type: "GET_CV_FIT_TASK_STATUS", submissionId: "submission-1" },
+    { type: "GET_CV_FIT_SUBMISSION_STATUS", submissionId: "submission-1" },
   ]));
   assert.equal(toasts.at(-1).textContent, "CV Fit Advisor task submitted.");
   assert.equal(toasts.at(-1).role, "status");
@@ -47,7 +47,7 @@ test("LinkedIn menu submits a normalized LinkedIn job URL", async () => {
     lastError: null,
     sendMessage(message, callback) {
       messages.push(message);
-      callback(message.type === "GET_CV_FIT_TASK_STATUS"
+      callback(message.type === "GET_CV_FIT_SUBMISSION_STATUS"
         ? { ok: true, submission: { id: "submission-1", status: "submitted" } }
         : { ok: true, submission: { id: "submission-1", status: "submitting" } });
     },
@@ -66,7 +66,7 @@ test("menu reports bridge errors and restores the action", async () => {
   const runtime = {
     lastError: null,
     sendMessage(message, callback) {
-      callback(message.type === "GET_CV_FIT_TASK_STATUS"
+      callback(message.type === "GET_CV_FIT_SUBMISSION_STATUS"
         ? { ok: true, submission: { id: "submission-1", status: "failed", error: "Codex UI changed" } }
         : { ok: true, submission: { id: "submission-1", status: "submitting" } });
     },
@@ -88,7 +88,7 @@ test("menu explains an interrupted submission after a bridge restart", async () 
   const runtime = {
     lastError: null,
     sendMessage(message, callback) {
-      callback(message.type === "GET_CV_FIT_TASK_STATUS"
+      callback(message.type === "GET_CV_FIT_SUBMISSION_STATUS"
         ? { ok: true, submission: {
           id: "submission-1",
           status: "interrupted",
@@ -113,7 +113,7 @@ test("menu reports when mismatched settings leave a draft ready for review", asy
   const runtime = {
     lastError: null,
     sendMessage(message, callback) {
-      callback(message.type === "GET_CV_FIT_TASK_STATUS"
+      callback(message.type === "GET_CV_FIT_SUBMISSION_STATUS"
         ? { ok: true, submission: { id: "submission-1", status: "ready_for_review" } }
         : { ok: true, submission: { id: "submission-1", status: "submitting" } });
     },

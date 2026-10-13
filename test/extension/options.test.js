@@ -26,7 +26,7 @@ test("settings use account registrations, save preferences, and clear only block
         { id: "b", label: "Second account", email: "second@example.test" },
       ],
     },
-    profile: { hash: "profile" },
+    evidence: { hash: "evidence" },
   };
   const requests = [];
   const removed = [];
@@ -53,7 +53,7 @@ test("settings use account registrations, save preferences, and clear only block
       },
     },
   };
-  await runScriptsInDom(window, ["contracts/blockers.js", "contracts/messages.js", "blockers/client.js", "blockers/result-store.js", "options.js"]);
+  await runScriptsInDom(window, ["contracts/blockers.js", "contracts/inference-settings.js", "contracts/messages.js", "blockers/client.js", "blockers/result-store.js", "options.js"]);
   const element = (id) => window.document.getElementById(id);
   await waitUntil(() => element("saveSettings").textContent === "Saved");
   assert.equal(element("currentAccount").value, "a");
@@ -109,7 +109,7 @@ test("returning to settings detects a pause and preserves unsaved preferences", 
     settings: { enabled: true, model: "test", indexModel: null, accountFallback: false, reasoningEffort: "medium" },
     pausedReason: null,
     connectionStatus: { planUsageEnabled: true, connected: true, pending: false, activeId: "a", fallbackIds: [], accounts: [{ id: "a", label: "Account A" }] },
-    profile: { hash: "profile" },
+    evidence: { hash: "evidence" },
   };
   window.chrome = {
     runtime: { async sendMessage(message) {
@@ -118,7 +118,7 @@ test("returning to settings detects a pause and preserves unsaved preferences", 
     } },
     storage: { local: { async get() { return {}; } }, onChanged: { addListener() {} } },
   };
-  await runScriptsInDom(window, ["contracts/blockers.js", "contracts/messages.js", "blockers/client.js", "blockers/result-store.js", "options.js"]);
+  await runScriptsInDom(window, ["contracts/blockers.js", "contracts/inference-settings.js", "contracts/messages.js", "blockers/client.js", "blockers/result-store.js", "options.js"]);
   const element = (id) => window.document.getElementById(id);
   await waitUntil(() => element("saveSettings").textContent === "Saved");
   state.pausedReason = "Plan usage limit reached";

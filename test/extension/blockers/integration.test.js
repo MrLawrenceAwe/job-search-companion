@@ -41,7 +41,7 @@ const createCompletedCheck = async ({ jobUrl, description }) => {
       findings: [],
       jobId: new URL(jobUrl).searchParams.get("jk"),
       descriptionHash,
-      profileHash: "profile",
+      evidenceHash: "profile",
       model: "test",
       reasoningEffort: null,
       checkerVersion: blockerContract.version,
@@ -61,7 +61,7 @@ const installChromeMocks = (window, initialStorage) => {
           ok: true,
           settings: { enabled: true, model: "test" },
           connectionStatus: { planUsageEnabled: true },
-          profile: { hash: "profile" },
+          evidence: { hash: "profile" },
         };
         if (message.action === "check") {
           calls.push(message.body);
@@ -113,7 +113,7 @@ const createBlockerFixture = async (initialStorage = {}, { initiallyHidden = fal
   window.setTimeout = (callback, milliseconds) =>
     realTimeout(callback, milliseconds === 1500 ? dwellDelayMs : milliseconds === 100 ? 1 : milliseconds === 120 ? 10 : milliseconds);
   const mocks = installChromeMocks(window, initialStorage);
-  await runScriptsInDom(window, ["contracts/job-urls.js", "contracts/blockers.js", "contracts/messages.js", "blockers/client.js", "extension-context.js"]);
+  await runScriptsInDom(window, ["contracts/job-urls.js", "contracts/blockers.js", "contracts/inference-settings.js", "contracts/messages.js", "blockers/client.js", "extension-context.js"]);
   Object.assign(window.jobSearchCompanion.dom, {
     getRenderedRect: () => ({ width: 200, height: 100 }),
   });
@@ -228,9 +228,9 @@ test("cached profile mismatches never display a current clean result", async () 
     "blocker-result:first1111": {
       jobId: "first1111",
       outcome: "blocker",
-      findings: [{ kind: "blocker", requirementQuote: "Full UK licence required", explanation: "Only a provisional licence is documented.", profileFacts: [] }],
+      findings: [{ kind: "blocker", requirementQuote: "Full UK licence required", explanation: "Only a provisional licence is documented.", evidenceFacts: [] }],
       descriptionHash: "old",
-      profileHash: "old",
+      evidenceHash: "old",
       model: "test",
       reasoningEffort: null,
       checkerVersion: blockerContract.version,
@@ -309,7 +309,7 @@ test("cancelled checks retry the current job automatically", async () => {
 });
 
 
-test("an essential evidence gap shows only Blocker on the card and panel", async () => {
+test("an essential evidence gap shows Potential blocker on the card and panel", async () => {
   const fixture = await createBlockerFixture({}, { initiallyHidden: true });
   try {
     const original = fixture.window.chrome.runtime.sendMessage;
@@ -318,15 +318,15 @@ test("an essential evidence gap shows only Blocker on the card and panel", async
       const check = await createCompletedCheck(message.body);
       check.result.outcome = "blocker";
       check.result.findings = [
-        { kind: "blocker", requirementQuote: "Three years repairing iPhones and Android devices is essential", explanation: "Your evidence does not establish three years repairing both device types.", profileFacts: [] },
+        { kind: "blocker", requirementQuote: "Three years repairing iPhones and Android devices is essential", explanation: "Your evidence does not establish three years repairing both device types.", evidenceFacts: [] },
       ];
       return { ok: true, check };
     };
     fixture.setHidden(false);
     await waitUntil(() => fixture.window.document.querySelector(".jsc-blocker-panel.jsc-blocker"));
-    assert.equal(fixture.window.document.querySelector(".jsc-blocker-badge").textContent, "Blocker");
+    assert.equal(fixture.window.document.querySelector(".jsc-blocker-badge").textContent, "Potential blocker");
     const summaries = [...fixture.window.document.querySelectorAll(".jsc-blocker-panel summary")];
-    assert.equal(summaries[0].querySelector("strong").textContent, "Blocker");
+    assert.equal(summaries[0].querySelector("strong").textContent, "Potential blocker");
     assert.match(summaries[0].textContent, /Your evidence does not establish three years/);
     assert.equal(summaries.length, 1);
     assert.equal(fixture.window.document.querySelector(".jsc-blocker-panel > strong").textContent, "Blocker check");
@@ -377,7 +377,7 @@ test("challenging a blocker sends the objection, shows the reply, and does not r
       const check = await createCompletedCheck(message.body);
       if (calls.length === 1) {
         check.result.outcome = "blocker";
-        check.result.findings = [{ kind: "blocker", requirementQuote: "full UK driving licence", explanation: "Only a provisional licence is documented.", profileFacts: [] }];
+        check.result.findings = [{ kind: "blocker", requirementQuote: "full UK driving licence", explanation: "Only a provisional licence is documented.", evidenceFacts: [] }];
       } else if (message.body.challenge) check.result.challengeReview = {
         accepted: true, profileUpdated: false, requirementQuote: message.body.challenge.requirementQuote,
         response: "The clarification resolves this job-specific blocker.",
@@ -412,7 +412,7 @@ test("an accepted profile correction refreshes evidence and keeps its reply visi
     fixture.window.chrome.runtime.sendMessage = async (message) => {
       if (message.action === "status") {
         const status = await original(message);
-        if (corrected) status.profile.hash = "profile-corrected";
+        if (corrected) status.evidence.hash = "profile-corrected";
         return status;
       }
       if (message.action !== "check") return original(message);
@@ -420,10 +420,10 @@ test("an accepted profile correction refreshes evidence and keeps its reply visi
       const check = await createCompletedCheck(message.body);
       if (!message.body.challenge) {
         check.result.outcome = "blocker";
-        check.result.findings = [{ kind: "blocker", requirementQuote: "full UK driving licence", explanation: "A full licence is not documented.", profileFacts: [] }];
+        check.result.findings = [{ kind: "blocker", requirementQuote: "full UK driving licence", explanation: "A full licence is not documented.", evidenceFacts: [] }];
       } else {
         corrected = true;
-        check.result.profileHash = "profile-corrected";
+        check.result.evidenceHash = "profile-corrected";
         check.result.challengeReview = { accepted: true, profileUpdated: true, requirementQuote: "full UK driving licence", response: "Your full licence resolves the blocker." };
       }
       return { ok: true, check };
@@ -437,7 +437,7 @@ test("an accepted profile correction refreshes evidence and keeps its reply visi
     input.dispatchEvent(new fixture.window.Event("input"));
     doc.querySelector(".jsc-blocker-challenge button").click();
     await waitUntil(() => doc.querySelector(".jsc-blocker-review")?.textContent.includes("profile has been updated"));
-    assert.equal(fixture.storage["blocker-result:first1111"].profileHash, "profile-corrected");
+    assert.equal(fixture.storage["blocker-result:first1111"].evidenceHash, "profile-corrected");
     await new Promise((resolve) => setTimeout(resolve, 40));
     assert.equal(starts, 2);
     assert.match(doc.querySelector(".jsc-blocker-review").textContent, /full licence resolves/);

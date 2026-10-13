@@ -8,7 +8,7 @@ const record = {
   findings: [],
   jobId: "first111",
   descriptionHash: "description",
-  profileHash: "profile",
+  evidenceHash: "profile",
   model: "test",
   checkedAt: new Date().toISOString(),
 };
@@ -24,6 +24,7 @@ test("shared blocker validation rejects expired, unknown and incomplete records"
     { outcome: "blocker", findings: [{ kind: "uncertain_requirement" }] },
     { checkedAt: "invalid" },
     { model: null },
+    { evidenceHash: null },
     { descriptionHash: null },
     { findings: null },
   ]) {

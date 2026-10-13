@@ -86,7 +86,7 @@ const requestCvFitSubmission = async (message) => {
 
 const handleCvFitMessage = (message, _sender, sendResponse) => {
   if (
-    ![messages.submitCvFitTask, messages.getCvFitTaskStatus].includes(
+    ![messages.submitCvFitTask, messages.getCvFitSubmissionStatus].includes(
       message?.type,
     )
   ) {
@@ -161,7 +161,7 @@ const handleBlockerMessage = (message, sender, sendResponse) => {
       // Only the extension settings page may receive sign-in URLs or account state.
       if (!isSettings && body.connectionStatus) {
         body.connectionStatus = { planUsageEnabled: body.connectionStatus.planUsageEnabled };
-        if (body.profile) body.profile = { hash: body.profile.hash };
+        if (body.evidence) body.evidence = { hash: body.evidence.hash };
       }
       sendResponse(body);
     })

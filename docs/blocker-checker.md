@@ -35,28 +35,41 @@ evidence. Classification policy is described under [processing and findings](#pr
 
 ## Processing and findings
 
-CV source reads and extraction honour the check's cancellation signal and 90-second
-deadline. Cancellation stops active PDF/Word converters and prevents remaining
-CVs from being extracted or submitted for indexing.
-CV source hashing and conversion each run with at most three files in flight.
-Evidence stays in sorted source order regardless of conversion completion order.
-A failed conversion cancels sibling work and waits for it to stop before a retry.
-Within a bridge session, extracted CV text is reused by source path and content
-hash. Editing a CV converts that file again; unchanged files reuse their text
-when refreshing the index, changing the indexing model, or retrying a failed
-index request. Source files are still read and hashed on each freshness check,
-and the complete collection is verified again before saving an index. This reuse
-does not change the evidence sent to the model or skip index inference.
-
 Only complete descriptions verified against the selected job are checked. Unsupported layouts wait for a matching description.
 
 **Enable blocker checks** controls both automatic checks and the manual **Check now** and **Recheck** actions. **Off** means checking is disabled. **Paused** means checking is enabled but needs attention before it can resume.
 
-Automatic checks begin after a 1.5-second dwell in a visible tab. One model request runs at a time. Recent eligible selections take precedence over waiting jobs, with at most ten waiting checks. Already-running checks finish when selection changes; turning checks off, clearing findings, shutdown, and account changes cancel work. Identical checks share a task across tabs. Requests time out after 90 seconds. Result polling waits in the bridge for completion (up to eight seconds per poll), so finished checks appear without an additional polling delay. Disconnected tabs release their wait without cancelling the shared check. A completed response with a non-verbatim requirement quote gets one corrective request within the same 90-second deadline. The complete inventory is validated again; a second quote failure shows a specific error. Other failed checks require an explicit retry; transient failures do not retry automatically or switch billing.
+Automatic checks begin after you view a selected job for 1.5 seconds. Recent selections
+are checked first; a running check continues when you select another job. Checks
+have a 90-second timeout. Turning checking off, clearing results, changing
+accounts, or stopping the bridge cancels pending work.
 
-The model inventories candidate requirements in introductory prose and Experience/Requirements sections before the bridge derives findings. Requested sector and specialist compliance experience count even without “must”; missing CV/profile evidence blocks essential requirements while requirements whose necessity is unclear produce no findings. Explicitly preferred/optional experience does not produce a blocker. Personality, motivation and generic soft-skill statements (such as self-driven, empathetic, resilient, curious or a clear communicator) are excluded, even when described as essential. Duties explaining those qualities do not imply prior specialist experience. Mixed statements still check separately stated concrete prerequisites such as sales experience, qualifications or work constraints. The model writes explanations only for requirements that produce findings; all other entries retain their quotes, classifications and evidence IDs with a null explanation. All requirement quotes and evidence IDs are validated. This reduces omissions but remains a model-based check, not a guarantee that every requirement was recognised.
+A failed check needs an explicit retry. If checking pauses, review the message in
+settings, resolve the connection or model issue, and choose **Resume checks**.
 
-The selected detail shows **Blocker check**, with either **Blocker** findings or **No blockers found**. Only clear mandatory requirements can produce blockers. Concrete essential eligibility prerequisites show **Blocker** whenever the current evidence is missing, conflicting or incompatible. The explanation distinguishes undocumented experience from a confirmed shortfall; missing evidence is not proof that the candidate lacks experience. Vague general knowledge statements, such as knowledge of UK geographical locations, are excluded. Onsite attendance, working hours, location, commute, relocation, travel availability and contract duration block only with explicit incompatible profile evidence. Missing or conflicting availability produces no finding. A stated willingness for one arrangement does not imply refusal of other arrangements. Standalone application questions do not establish a required answer: “Have you lived in the UK for the last 3 years?” is unclear unless the advert explicitly establishes the prerequisite or required answer. Required form completion does not make a particular answer mandatory. Born-and-raised background, citizenship and current location do not establish continuous recent residence. Requirements whose necessity is unclear, supported requirements and preferences produce no findings. Checker version 12 invalidates older cached results so they are checked again. The result contract uses `blocker` for both confirmed shortfalls and undocumented or conflicting evidence. Completed cards receive compact badges; unopened cards can show **Previously checked** but are never claimed current before their description is verified. Manual marks and job visibility are not changed.
+The selected detail shows **Blocker check**, with **Potential blocker** findings
+or **No blockers found**. A potential blocker means an essential requirement is
+not established by the supplied evidence. Its explanation distinguishes missing
+or conflicting evidence from an explicit incompatibility. It does not prove that
+you lack the experience or qualification.
+
+- Only clear mandatory requirements produce findings; preferences and unclear
+  requirements do not.
+- Personality traits and generic soft skills are excluded.
+- Work arrangements such as hours, travel, and onsite attendance produce findings
+  only when your profile explicitly conflicts with the requirement.
+- Application questions alone do not establish a mandatory answer.
+
+The check does not establish overall fit or guarantee that every requirement was
+recognised. Full CV analysis remains a separate action.
+
+Cards show saved results. **Previously checked** means the description and current
+evidence have not yet been verified together. Manual application marks and job
+visibility are unchanged. Checker version 13 invalidates older saved check results;
+application marks and completed CV-fit analyses are retained.
+
+See [requirement policy](design.md#requirement-policy) and
+[scheduling details](design.md#scheduling-and-storage-contracts) for implementation rules.
 
 ## Challenging a blocker
 
@@ -94,7 +107,13 @@ When no fallback can continue, the check fails and queued checks pause. Use **Ma
 
 ## Cache and account data
 
-Each store retains at most 300 findings for reuse, and findings expire after 30 days. Expiry makes findings unavailable for reuse; expired records are removed when a later result is saved. **Clear saved findings** removes all findings from both the bridge cache and extension records without changing manual marks. Older findings may appear as **Previously checked** until their description and profile are verified again.
+Each store retains at most 300 saved check results. A result may contain several
+findings or none. Results expire after 30 days and are removed from persisted
+storage when a later result is saved.
+
+**Clear saved findings** removes saved check results from both the bridge cache
+and extension records without changing manual marks. Older results may appear as
+**Previously checked** until their description and evidence are verified again.
 
 The index is saved privately as `cv-index.json` in the checker data directory, with exact CV passages, the indexing model and source fingerprints. Full CV text is sent only when refreshing the index; routine checks send the compact excerpts and profile facts.
 

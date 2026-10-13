@@ -4,7 +4,7 @@ import { blockerSources } from "../../shared/blocker-sources.js";
 import { blockerContract } from "../../shared/contracts.js";
 import { sha256 } from "../../shared/sha256.js";
 import { readProfileEvidence } from "../../bridge/blockers/profile.js";
-import { blockerInstructions } from "../../bridge/blockers/inference.js";
+import { blockerInstructions } from "../../bridge/blockers/inference-prompts.js";
 import { cvIndexInstructions, cvIndexVersion } from "../../bridge/blockers/cv-index.js";
 
 export const evaluationVersions = Object.freeze({

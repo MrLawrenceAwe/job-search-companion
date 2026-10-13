@@ -1,7 +1,8 @@
 (() => {
   const companion = globalThis.jobSearchCompanion;
   if (companion.platform !== "indeed") return;
-  const { isRetainableResult, reasoningForModel } = globalThis.jobSearchContracts.blockers;
+  const { isRetainableResult } = globalThis.jobSearchContracts.blockers;
+  const { reasoningForModel } = globalThis.jobSearchContracts.inferenceSettings;
   const recordStore = globalThis.jobSearchBlockerResults.createStore();
   const checks = new Map();
   let checkerState = null;
@@ -9,7 +10,7 @@
   let dwellTimer = null;
   let scanTimer = null;
   let statusRequestInProgress = false;
-  let profileHash = null;
+  let evidenceHash = null;
   let lastStatusReceivedAt = 0;
   const { request } = globalThis.jobSearchBlockerClient;
   const digest = async (text) =>
@@ -20,7 +21,7 @@
     const record = selection && recordStore.get(selection.jobId);
     return isRetainableResult(record) &&
       record.descriptionHash === selection.descriptionHash &&
-      record.profileHash === profileHash &&
+      record.evidenceHash === evidenceHash &&
       record.model === checkerState?.settings.model &&
       record.reasoningEffort === reasoningForModel(checkerState?.settings.model, checkerState?.settings.reasoningEffort)
       ? record
@@ -96,7 +97,7 @@
         updated.settings.enabled !== checkerState?.settings.enabled ||
         updated.settings.model !== checkerState?.settings.model ||
         updated.settings.reasoningEffort !== checkerState?.settings.reasoningEffort ||
-        updated.profile?.hash !== profileHash ||
+        updated.evidence?.hash !== evidenceHash ||
         updated.pausedReason !== checkerState?.pausedReason
       ) {
         selection = null;
@@ -104,7 +105,7 @@
           if (!["checking", "queued"].includes(check.status)) checks.delete(key);
       }
       checkerState = updated;
-      profileHash = checkerState.profile?.hash;
+      evidenceHash = checkerState.evidence?.hash;
       lastStatusReceivedAt = Date.now();
     } catch (error) {
       checkerState = { error: error.message, settings: { enabled: false } };
@@ -154,7 +155,7 @@
     }
     const descriptionHash = await digest(text);
     if (generation !== scanGeneration) return;
-    const signature = `${jobId}:${descriptionHash}:${profileHash}:${checkerState?.settings.model}:${reasoningForModel(checkerState?.settings.model, checkerState?.settings.reasoningEffort)}`;
+    const signature = `${jobId}:${descriptionHash}:${evidenceHash}:${checkerState?.settings.model}:${reasoningForModel(checkerState?.settings.model, checkerState?.settings.reasoningEffort)}`;
     if (selection?.signature !== signature) {
       cancelDwell();
       selection = { jobId, jobUrl, text, descriptionHash, signature };

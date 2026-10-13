@@ -51,7 +51,8 @@ task because submission may have happened before confirmation was saved.
 
 The content scripts are ordered by dependency in the manifest:
 
-- `contracts/job-urls.js`, `contracts/blockers.js`, and `contracts/cv-fit-submissions.js` define shared URL, blocker-result, and CV task-status contracts, also consumed by Node through `shared/contracts.js`;
+- `contracts/job-urls.js`, `contracts/blockers.js`, and `contracts/cv-fit-submissions.js` define shared URL, blocker-result, and CV submission-status contracts, also consumed by Node through `shared/contracts.js`;
+- `contracts/inference-settings.js` defines model reasoning capabilities and request options for checking and CV indexing;
 - `contracts/identifiers.js` supplies UUID validation for request and chat IDs;
 - `contracts/shortcuts.js` defines keyboard bindings used by dispatch and menu hints;
 - `contracts/messages.js` owns extension message names, and `blockers/client.js` sends checker requests for content scripts and settings;
@@ -214,9 +215,10 @@ source content checks and final collection verification still apply.
 `chatgpt-response.js` parses completed JSON streams shared by checking and indexing.
 `inference.js` validates the requirement inventory, exact description quotes, and
 known evidence IDs before deriving findings. The structured schema requires prose
-for findings and null explanations for other entries. See
-[processing and findings](blocker-checker.md#processing-and-findings) for classification
-policy and the current result-contract version.
+for findings and null explanations for other entries. See [requirement policy](#requirement-policy) for classification rules.
+`inference-prompts.js` owns instructions, `inference-schemas.js` owns structured
+response shapes, and `inference-validation.js` owns finding, correction, and
+challenge validation. `inference.js` constructs requests and retries only quote errors.
 
 `chatgpt-accounts.js` exposes `openChatGPTAccountManager()` for registrations,
 active-account selection, OAuth, and authenticated requests. `fallbackAccountIds()`
@@ -224,11 +226,15 @@ returns eligible registration IDs. The checker has separate endpoints and status
 from CV Fit submissions.
 
 `extension/contracts/blockers.js` defines result labels, version, retention,
-record bounds, and retention eligibility for both runtimes. It also owns model
+record bounds, and retention eligibility for both runtimes. `extension/contracts/inference-settings.js` owns model
 reasoning-selection capability and inference request options, shared by settings,
-requirement inference, and CV indexing. The `blocker` result name covers both
-confirmed shortfalls and missing or conflicting evidence; explanations retain
-that distinction.
+requirement inference, and CV indexing. The internal `blocker` result name covers both
+confirmed shortfalls and missing or conflicting evidence; the UI uses **Potential
+blocker**, and explanations retain the distinction. Combined profile and CV
+evidence uses `evidence`, `evidenceHash`, `evidenceFactIds`, and `evidenceFacts`;
+profile terminology is reserved for editable profile sources. Version 13 rejects
+older disposable check results without migrating their fields. Manual marks and
+completed analyses retain their storage contracts.
 
 OAuth attempts use fresh state, nonce and PKCE values, a loopback callback,
 and ID-token signature, issuer, audience, expiry and nonce validation. Refreshes
@@ -241,16 +247,64 @@ fields, quoted description evidence, and known profile fact IDs.
 `checker.js` deduplicates work by cache key and prioritizes recent selections.
 `cancelAllChecks()` invalidates queued and running work; `resetForAccountChange()`
 also disables checking and clears model selection before account operations.
-For timing, queue bounds, cancellation triggers, and account eligibility, see
-[processing](blocker-checker.md#processing-and-findings) and
-[fallback accounts](blocker-checker.md#fallback-accounts).
+For account eligibility, see [fallback accounts](blocker-checker.md#fallback-accounts).
 
-The bridge cache is keyed by Indeed job ID, description hash, profile hash,
+Automatic checks begin after a 1.5-second dwell in a visible tab. One model request runs at a time. Recent eligible selections take precedence over waiting jobs, with at most ten waiting checks. Already-running checks finish when selection changes; turning checks off, clearing findings, shutdown, and account changes cancel work. Identical checks share a task across tabs. Requests time out after 90 seconds. Result polling waits in the bridge for completion (up to eight seconds per poll), so finished checks appear without an additional polling delay. Disconnected tabs release their wait without cancelling the shared check. A completed response with a non-verbatim requirement quote gets one corrective request within the same 90-second deadline. The complete inventory is validated again; a second quote failure shows a specific error. Other failed checks require an explicit retry; transient failures do not retry automatically or switch billing.
+
+The bridge cache is keyed by Indeed job ID, description hash, evidence hash,
 checker version, and model. Retention and record bounds come from
 `extension/contracts/blockers.js`. Private JSON files use atomic writes with
 mode 0600; new directories use 0700. OAuth tokens never go to content scripts
 or extension storage. See [cache and account data](blocker-checker.md#cache-and-account-data)
 for retention, clearing, and sign-out behavior.
+
+### CV extraction and reuse
+
+CV source reads and extraction honour the check's cancellation signal and 90-second
+deadline. Cancellation stops active PDF/Word converters and prevents remaining
+CVs from being extracted or submitted for indexing.
+CV source hashing and conversion each run with at most three files in flight.
+Evidence stays in sorted source order regardless of conversion completion order.
+A failed conversion cancels sibling work and waits for it to stop before a retry.
+Within a bridge session, extracted CV text is reused by source path and content
+hash. Editing a CV converts that file again; unchanged files reuse their text
+when refreshing the index, changing the indexing model, or retrying a failed
+index request. Source files are still read and hashed on each freshness check,
+and the complete collection is verified again before saving an index. This reuse
+does not change the evidence sent to the model or skip index inference.
+
+### Requirement policy
+
+The model inventories candidate requirements across prose and requirement sections.
+The bridge validates each quoted advert excerpt and its evidence IDs, then derives
+findings only from mandatory requirements. Preferences, unclear requirements,
+ordinary duties, personality traits and generic soft skills produce no findings.
+Mixed statements are split so a trait or work arrangement cannot hide a concrete
+eligibility prerequisite. Specialist sector and compliance experience must be
+established by evidence; transferable administration skills do not establish it.
+
+Mandatory eligibility requirements produce findings when evidence is missing,
+conflicting or incompatible. Mandatory work arrangements produce findings only
+when a profile fact explicitly conflicts with them. Availability for one location
+or pattern does not imply refusal of every other arrangement. Unspecified job
+logistics do not create candidate requirements. Application questions alone do
+not establish a required answer; citizenship and current location do not establish
+continuous recent residence.
+
+The schema requires explanations for findings and null explanations for other
+entries. Every entry retains its quote, classifications and evidence IDs. The
+local validator checks quotes and IDs but cannot guarantee that the model found
+or correctly classified every requirement. Findings use the internal `blocker`
+kind and the **Potential blocker** label; their explanation distinguishes missing
+or conflicting evidence from an established incompatibility.
+
+The inference API accepts one optional `challenge`. Its reusable factual correction
+is validated against editable profile facts; CV excerpts cannot be replaced.
+The `blockerChallenge` input and `candidateClarification` use the single `CH1` ID.
+See `inference-prompts.js` for the full policy and examples,
+`inference-schemas.js` for response shapes, and `inference-validation.js` for
+local checks. The inference tests cover the classification combinations and
+specialist, personal-quality, work-arrangement and residency cases.
 
 ### Validation and processing tier
 

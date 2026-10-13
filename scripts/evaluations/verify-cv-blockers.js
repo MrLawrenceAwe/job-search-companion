@@ -16,7 +16,7 @@ const cvIndex = await openCvIndex({ directory, cvDirectory, chatgpt });
 const index = await cvIndex.ensureCurrent({ model: indexModel, reasoningEffort: "medium" });
 const indexingMs = Math.round(performance.now() - started);
 const base = await readEvaluationProfile();
-const profile = combineProfileAndCvEvidence(base, index);
+const evidence = combineProfileAndCvEvidence(base, index);
 const cases = [
   { name: "renewables-specialist", description: await readFile(new URL("../../test-support/renewables-administrator.txt", import.meta.url), "utf8"), expected: "blocker" },
   { name: "documented-qualification", description: "Remote software tester. You must have a BSc Computer Science degree and ISTQB Foundation certification. Manual testing experience is essential. Commercial automation experience is desirable but not required. No driving or travel required.", expected: "no_blockers_found" },
@@ -25,7 +25,7 @@ const cases = [
 const runs = [];
 for (const fixture of cases) {
   const start = performance.now();
-  const result = await runBlockerInference({ chatgpt, model: "gpt-6-luna", reasoningEffort, profile,
+  const result = await runBlockerInference({ chatgpt, model: "gpt-6-luna", reasoningEffort, evidence,
     description: fixture.description, signal: AbortSignal.timeout(90_000) });
   const run = { case: fixture.name, durationMs: Math.round(performance.now() - start), outcome: result.outcome,
     expected: fixture.expected, passed: result.outcome === fixture.expected, findings: result.findings };

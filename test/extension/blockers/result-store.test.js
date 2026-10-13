@@ -11,7 +11,7 @@ const makeRecord = (jobId, checkedAt = new Date().toISOString()) => ({
   outcome: "no_blockers_found",
   findings: [],
   descriptionHash: "description",
-  profileHash: "profile",
+  evidenceHash: "profile",
   model: "test",
   checkedAt,
 });

@@ -2,7 +2,7 @@
   globalThis.jobSearchContracts ??= {};
   globalThis.jobSearchContracts.messages = Object.freeze({
     submitCvFitTask: "SUBMIT_CV_FIT_TASK",
-    getCvFitTaskStatus: "GET_CV_FIT_TASK_STATUS",
+    getCvFitSubmissionStatus: "GET_CV_FIT_SUBMISSION_STATUS",
     syncJobAnalyses: "SYNC_JOB_ANALYSES",
     openJobAnalysis: "OPEN_JOB_ANALYSIS",
     indeedDescription: "jsc-indeed-description-v1",

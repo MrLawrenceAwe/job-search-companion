@@ -10,7 +10,7 @@ const secondJob = 'https://uk.indeed.com/viewjob?jk=fixture222';
 const analysis = { jobUrl: firstJob, threadId: '01a11fef-d2cd-7410-953a-37e6497346d8', analyzedAt: new Date().toISOString() };
 const result = {
   jobId: 'fixture111', outcome: 'no_blockers_found', findings: [],
-  descriptionHash: 'description', profileHash: 'profile', model: 'test',
+  descriptionHash: 'description', evidenceHash: 'profile', model: 'test',
   checkerVersion: blockerContract.version, checkedAt: new Date().toISOString(),
 };
 

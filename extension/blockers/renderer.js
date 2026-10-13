@@ -103,7 +103,7 @@
         if (result.challengeReview) {
           const review = element("div", null, "jsc-blocker-review");
           review.setAttribute("role", "status");
-          review.append(element("strong", result.challengeReview.accepted ? "Challenge accepted" : "Blocker retained"),
+          review.append(element("strong", result.challengeReview.accepted ? "Challenge accepted" : "Finding retained"),
             element("p", result.challengeReview.response));
           if (result.challengeReview.profileUpdated) review.append(element("p", "Your profile has been updated for future checks."));
           panel.append(review);
@@ -127,9 +127,9 @@
           );
           appendExplanation(summary, finding);
           details.append(summary);
-          for (const fact of finding.profileFacts || [])
+          for (const fact of finding.evidenceFacts || [])
             details.append(element("p", `${fact.source}: ${fact.text}`));
-          if (!finding.profileFacts?.length)
+          if (!finding.evidenceFacts?.length)
             details.append(
               element("p", "Your profile and CV evidence do not establish this requirement."),
             );
@@ -138,7 +138,7 @@
           const form = element("form", null, "jsc-blocker-challenge");
           form.hidden = true;
           const draftKey = `${selection.signature}:${finding.requirementQuote}`;
-          const inputLabel = element("label", "Why should this blocker be reconsidered?");
+          const inputLabel = element("label", "Why should this finding be reconsidered?");
           const input = element("textarea");
           input.required = true;
           input.maxLength = 2000;
@@ -161,7 +161,7 @@
             event.preventDefault();
             event.stopPropagation();
             if (!input.value.trim()) {
-              input.setCustomValidity("Explain why this blocker should be reconsidered.");
+              input.setCustomValidity("Explain why this finding should be reconsidered.");
               input.reportValidity();
               return;
             }
