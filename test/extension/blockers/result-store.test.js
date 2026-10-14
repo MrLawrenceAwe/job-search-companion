@@ -73,7 +73,7 @@ test("initial storage reads cannot overwrite newer results or resurrect removed 
   const store = fixture.createStore();
   const changes = [];
   store.subscribe((batch) => changes.push(...batch));
-  const latest = { ...makeRecord("first111"), outcome: "blocker", findings: [{ kind: "blocker" }] };
+  const latest = { ...makeRecord("first111"), outcome: "blocker", findings: [{ kind: "blocker", suggestedChallenge: "Please reconsider this finding against the advert." }] };
   fixture.notify({ "blocker-result:first111": { newValue: latest } });
   fixture.notify({ "blocker-result:second111": {} });
   resolveRead({
@@ -136,4 +136,35 @@ test("saving removes persisted expired findings before a quota-limited write", a
   assert.deepEqual(Object.keys(fixture.storage).sort(), [
     "applied-job:indeed:first111", "blocker-result:newest111",
   ]);
+});
+
+test("finding overrides persist, synchronize, reject stale decisions and reset with fresh results", async () => {
+  const fixture = await createStoreFixture();
+  const first = fixture.createStore();
+  const second = fixture.createStore();
+  await Promise.all([first.ready, second.ready]);
+  const result = { ...makeRecord("first111"), outcome: "blocker", findings: [
+    { kind: "blocker", requirementQuote: "full UK driving licence", suggestedChallenge: "Does the advert permit alternative travel?" },
+    { kind: "blocker", requirementQuote: "required experience", suggestedChallenge: "What experience evidence would resolve this finding?" },
+  ], challengeReview: { accepted: false, requirementQuote: "full UK driving licence", response: "The full licence is still required." } };
+  await first.saveResult(result);
+  await assert.rejects(first.setFindingOverride(result, "required experience", true), /rejected challenge/);
+  await first.setFindingOverride(result, "full UK driving licence", true);
+  await Promise.resolve();
+  assert.deepEqual(Array.from(second.get("first111").overriddenRequirementQuotes), ["full UK driving licence"]);
+  const reopened = fixture.createStore();
+  await reopened.ready;
+  assert.deepEqual(Array.from(reopened.get("first111").overriddenRequirementQuotes), ["full UK driving licence"]);
+  assert.equal(blockerContract.getRemainingFindings(reopened.get("first111")).length, 1);
+  await second.setFindingOverride(second.get("first111"), "full UK driving licence", false);
+  await Promise.resolve();
+  assert.deepEqual(Array.from(first.get("first111").overriddenRequirementQuotes), []);
+  await first.setFindingOverride(first.get("first111"), "full UK driving licence", true);
+  const fresh = { ...result, checkedAt: new Date(Date.parse(result.checkedAt) + 1).toISOString() };
+  await first.saveResult(fresh);
+  await assert.rejects(first.setFindingOverride(result, "full UK driving licence", true), /check has changed/);
+  assert.equal(first.get("first111").overriddenRequirementQuotes, undefined);
+  const accepted = { ...fresh, challengeReview: { ...fresh.challengeReview, accepted: true } };
+  await first.saveResult(accepted);
+  await assert.rejects(first.setFindingOverride(accepted, "full UK driving licence", true), /rejected challenge/);
 });

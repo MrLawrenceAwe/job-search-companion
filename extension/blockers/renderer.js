@@ -1,8 +1,13 @@
 (() => {
   const companion = globalThis.jobSearchCompanion;
-  const { labels: LABELS, isRetainableResult } = globalThis.jobSearchContracts.blockers;
+  const { labels: LABELS, isRetainableResult, getRemainingFindings, canOverrideFinding } = globalThis.jobSearchContracts.blockers;
   companion.blockers.registerRenderer = ({ recordStore, checks, getCurrentResult, startCheck, getContext }) => {
     const drafts = new Map();
+    const presentation = (result) => {
+      if (result.findings.length && !getRemainingFindings(result).length)
+        return { outcome: "overridden", label: "Blockers overridden by you" };
+      return { outcome: result.outcome, label: LABELS[result.outcome] };
+    };
     const keyFromUrl = (url) => {
       try {
         return new URL(url).searchParams.get("jk");
@@ -48,10 +53,11 @@
         const record = recordStore.get(jobId);
         if (!isRetainableResult(record)) continue;
         const verified = selection?.jobId === jobId && getCurrentResult() === record;
+        const display = presentation(record);
         const badge = element(
           "span",
-          `${LABELS[record.outcome]}${verified ? "" : " · Previously checked"}`,
-          `jsc-blocker-badge jsc-${record.outcome}`,
+          `${display.label}${verified ? "" : " · Previously checked"}`,
+          `jsc-blocker-badge jsc-${display.outcome}`,
         );
         badge.title = `Checked ${new Date(record.checkedAt).toLocaleString()}. Open this job to verify its description against the current profile.`;
         card.append(badge);
@@ -70,14 +76,14 @@
         findings.append(panel);
         return;
       }
-      const renderSignature = `${selection.jobId}:${selection.descriptionHash}:${JSON.stringify(checks.get(selection.signature))}:${getCurrentResult()?.checkedAt}:${checkerState?.settings.enabled}:${checkerState?.pausedReason}:${checkerState?.error}`;
+      const renderSignature = `${selection.jobId}:${selection.descriptionHash}:${JSON.stringify(checks.get(selection.signature))}:${getCurrentResult()?.checkedAt}:${JSON.stringify(getCurrentResult()?.overriddenRequirementQuotes)}:${checkerState?.settings.enabled}:${checkerState?.pausedReason}:${checkerState?.error}`;
       if (panel && panel.dataset.signature === renderSignature) return;
       panel?.remove();
       panel = element("section", null, "jsc-blocker-panel");
       panel.dataset.signature = renderSignature;
       panel.setAttribute("aria-label", "Job Search Companion blocker check");
       const result = getCurrentResult();
-      if (result) panel.classList.add(`jsc-${result.outcome}`);
+      if (result) panel.classList.add(`jsc-${presentation(result).outcome}`);
       const check = checks.get(selection.signature);
       let label = result
         ? "Blocker check"
@@ -94,6 +100,7 @@
       if (result && busy) panel.append(element("p", "Reviewing…"));
       if (result && check?.error) panel.append(element("p", check.error, "jsc-blocker-error"));
       if (result) {
+        if (presentation(result).outcome === "overridden") panel.append(element("p", "Blockers overridden by you for this job. Recheck assesses them again."));
         panel.append(
           element(
             "p",
@@ -116,6 +123,7 @@
             ),
           );
         for (const finding of result.findings) {
+          const overridden = result.overriddenRequirementQuotes?.includes(finding.requirementQuote);
           const details = element("details");
           const summary = element("summary");
           summary.append(
@@ -135,6 +143,7 @@
             );
           const row = element("div", null, "jsc-blocker-finding");
           row.append(details);
+          if (overridden) row.append(element("p", "Overridden by you for this job. The AI finding is retained."));
           const form = element("form", null, "jsc-blocker-challenge");
           form.hidden = true;
           const draftKey = `${selection.signature}:${finding.requirementQuote}`;
@@ -143,7 +152,7 @@
           input.required = true;
           input.maxLength = 2000;
           input.rows = 3;
-          input.value = drafts.get(draftKey) || "";
+          input.value = drafts.get(draftKey) ?? finding.suggestedChallenge;
           input.placeholder = "Explain the mistake or add a factual correction. Accepted reusable facts update your profile.";
           input.addEventListener("input", () => {
             input.setCustomValidity("");
@@ -171,9 +180,24 @@
             form.hidden = false;
             toggle.hidden = true;
             input.focus();
+            input.select();
           });
           toggle.disabled = submit.disabled;
-          row.append(toggle, form);
+          if (!overridden) row.append(toggle, form);
+          if (overridden || canOverrideFinding(result, finding.requirementQuote)) {
+            const override = button(overridden ? "Undo override" : "Override for this job", async () => {
+              override.disabled = true;
+              try {
+                await recordStore.setFindingOverride(result, finding.requirementQuote, !overridden);
+              } catch (error) {
+                row.append(element("p", error.message, "jsc-blocker-error"));
+                override.disabled = busy;
+              }
+            });
+            override.disabled = busy;
+            override.title = overridden ? "Restore this blocker." : "Dismiss this blocker for this check only. Your profile stays unchanged; rechecking resets the override.";
+            row.append(override);
+          }
           panel.append(row);
         }
       }

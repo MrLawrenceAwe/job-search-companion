@@ -228,7 +228,7 @@ test("cached profile mismatches never display a current clean result", async () 
     "blocker-result:first1111": {
       jobId: "first1111",
       outcome: "blocker",
-      findings: [{ kind: "blocker", requirementQuote: "Full UK licence required", explanation: "Only a provisional licence is documented.", evidenceFacts: [] }],
+      findings: [{ kind: "blocker", suggestedChallenge: "Please reconsider whether this requirement blocks me using the full advert and my existing evidence.", requirementQuote: "Full UK licence required", explanation: "Only a provisional licence is documented.", evidenceFacts: [] }],
       descriptionHash: "old",
       evidenceHash: "old",
       model: "test",
@@ -318,7 +318,7 @@ test("an essential evidence gap shows Potential blocker on the card and panel", 
       const check = await createCompletedCheck(message.body);
       check.result.outcome = "blocker";
       check.result.findings = [
-        { kind: "blocker", requirementQuote: "Three years repairing iPhones and Android devices is essential", explanation: "Your evidence does not establish three years repairing both device types.", evidenceFacts: [] },
+        { kind: "blocker", suggestedChallenge: "Please reconsider whether this requirement blocks me using the full advert and my existing evidence.", requirementQuote: "Three years repairing iPhones and Android devices is essential", explanation: "Your evidence does not establish three years repairing both device types.", evidenceFacts: [] },
       ];
       return { ok: true, check };
     };
@@ -377,7 +377,7 @@ test("challenging a blocker sends the objection, shows the reply, and does not r
       const check = await createCompletedCheck(message.body);
       if (calls.length === 1) {
         check.result.outcome = "blocker";
-        check.result.findings = [{ kind: "blocker", requirementQuote: "full UK driving licence", explanation: "Only a provisional licence is documented.", evidenceFacts: [] }];
+        check.result.findings = [{ kind: "blocker", suggestedChallenge: "Please reconsider whether this requirement blocks me using the full advert and my existing evidence.", requirementQuote: "full UK driving licence", explanation: "Only a provisional licence is documented.", evidenceFacts: [] }];
       } else if (message.body.challenge) check.result.challengeReview = {
         accepted: true, profileUpdated: false, requirementQuote: message.body.challenge.requirementQuote,
         response: "The clarification resolves this job-specific blocker.",
@@ -390,6 +390,11 @@ test("challenging a blocker sends the objection, shows the reply, and does not r
     doc.querySelector(".jsc-blocker-finding > button").click();
     assert.equal(doc.querySelector(".jsc-blocker-challenge").hidden, false);
     const input = doc.querySelector(".jsc-blocker-challenge textarea");
+    assert.equal(input.value, fixture.storage["blocker-result:first1111"].findings[0].suggestedChallenge);
+    assert.equal(doc.activeElement, input);
+    assert.equal(input.selectionStart, 0);
+    assert.equal(input.selectionEnd, input.value.length);
+    assert.equal(calls.length, 1, "opening the prepared suggestion makes no request");
     input.value = "The job allows non-driving travel elsewhere in the advert.";
     input.dispatchEvent(new fixture.window.Event("input"));
     doc.querySelector(".jsc-blocker-challenge button").click();
@@ -398,8 +403,95 @@ test("challenging a blocker sends the objection, shows the reply, and does not r
     assert.match(doc.querySelector(".jsc-blocker-review").textContent, /Challenge accepted.*clarification resolves/);
     assert.match(doc.querySelector(".jsc-blocker-badge").textContent, /No blockers found/);
     [...doc.querySelectorAll(".jsc-blocker-controls button")].find((node) => node.textContent === "Recheck").click();
-    await waitUntil(() => calls.length === 3);
+    await waitUntil(() => calls.length === 3 && !doc.querySelector(".jsc-blocker-review") &&
+      doc.querySelector(".jsc-blocker-panel")?.textContent.includes("No blockers found"));
     assert.equal(calls[2].challenge, undefined);
+  } finally { fixture.close(); }
+});
+
+test("check and recheck prepare selectable challenges that can be sent unchanged", async () => {
+  const fixture = await createBlockerFixture({}, { initiallyHidden: true });
+  try {
+    const original = fixture.window.chrome.runtime.sendMessage;
+    const calls = [];
+    const suggestions = ["Does the advert allow travel without driving?", "What licence evidence would resolve this blocker?"];
+    fixture.window.chrome.runtime.sendMessage = async (message) => {
+      if (message.action !== "check") return original(message);
+      calls.push(message.body);
+      const check = await createCompletedCheck(message.body);
+      if (!message.body.challenge) {
+        check.result.outcome = "blocker";
+        check.result.findings = [{ kind: "blocker", requirementQuote: "full UK driving licence",
+          explanation: "Only a provisional licence is documented.", evidenceFacts: [],
+          suggestedChallenge: suggestions[calls.length === 1 ? 0 : 1] }];
+      }
+      return { ok: true, check };
+    };
+    fixture.setHidden(false);
+    const doc = fixture.window.document;
+    await waitUntil(() => doc.querySelector(".jsc-blocker-finding > button"));
+    for (const [index, suggestion] of suggestions.entries()) {
+      doc.querySelector(".jsc-blocker-finding > button").click();
+      const input = doc.querySelector(".jsc-blocker-challenge textarea");
+      assert.equal(input.value, suggestion);
+      assert.equal(input.selectionStart, 0);
+      assert.equal(input.selectionEnd, suggestion.length);
+      assert.equal(calls.length, index * 2 + 1);
+      input.setSelectionRange(suggestion.length, suggestion.length);
+      assert.equal(input.value, suggestion, "clearing selection keeps the suggestion");
+      doc.querySelector(".jsc-blocker-challenge button").click();
+      await waitUntil(() => doc.querySelector(".jsc-blocker-panel")?.textContent.includes("No blockers found"));
+      assert.equal(calls.at(-1).challenge.reason, suggestion);
+      if (index === 0) {
+        [...doc.querySelectorAll(".jsc-blocker-controls button")].find((node) => node.textContent === "Recheck").click();
+        await waitUntil(() => doc.querySelector(".jsc-blocker-finding > button"));
+      }
+    }
+  } finally { fixture.close(); }
+});
+
+test("selected suggestions can be deleted or replaced and cancelled edits survive reopening", async () => {
+  const fixture = await createBlockerFixture({}, { initiallyHidden: true });
+  try {
+    const original = fixture.window.chrome.runtime.sendMessage;
+    const calls = [];
+    fixture.window.chrome.runtime.sendMessage = async (message) => {
+      if (message.action !== "check") return original(message);
+      calls.push(message.body);
+      const check = await createCompletedCheck(message.body);
+      if (!message.body.challenge) {
+        check.result.outcome = "blocker";
+        check.result.findings = [{ kind: "blocker", requirementQuote: "full UK driving licence",
+          explanation: "Only a provisional licence is documented.", evidenceFacts: [],
+          suggestedChallenge: "What evidence would resolve this licence finding?" }];
+      }
+      return { ok: true, check };
+    };
+    fixture.setHidden(false);
+    const doc = fixture.window.document;
+    await waitUntil(() => doc.querySelector(".jsc-blocker-finding > button"));
+    const toggle = doc.querySelector(".jsc-blocker-finding > button");
+    toggle.click();
+    const input = doc.querySelector(".jsc-blocker-challenge textarea");
+    const cancel = [...doc.querySelectorAll(".jsc-blocker-challenge button")].find((node) => node.textContent === "Cancel");
+    input.setRangeText("", input.selectionStart, input.selectionEnd, "end");
+    input.dispatchEvent(new fixture.window.Event("input"));
+    cancel.click();
+    toggle.click();
+    assert.equal(input.value, "");
+    doc.querySelector(".jsc-blocker-challenge button").click();
+    assert.equal(calls.length, 1, "empty drafts cannot be sent");
+    input.value = "I now hold a full UK driving licence.";
+    input.dispatchEvent(new fixture.window.Event("input"));
+    cancel.click();
+    toggle.click();
+    assert.equal(input.selectionStart, 0);
+    assert.equal(input.selectionEnd, input.value.length);
+    input.setRangeText("Please check whether alternative travel is allowed.", input.selectionStart, input.selectionEnd, "end");
+    input.dispatchEvent(new fixture.window.Event("input"));
+    doc.querySelector(".jsc-blocker-challenge button").click();
+    await waitUntil(() => doc.querySelector(".jsc-blocker-panel")?.textContent.includes("No blockers found"));
+    assert.equal(calls[1].challenge.reason, input.value);
   } finally { fixture.close(); }
 });
 
@@ -420,7 +512,7 @@ test("an accepted profile correction refreshes evidence and keeps its reply visi
       const check = await createCompletedCheck(message.body);
       if (!message.body.challenge) {
         check.result.outcome = "blocker";
-        check.result.findings = [{ kind: "blocker", requirementQuote: "full UK driving licence", explanation: "A full licence is not documented.", evidenceFacts: [] }];
+        check.result.findings = [{ kind: "blocker", suggestedChallenge: "Please reconsider whether this requirement blocks me using the full advert and my existing evidence.", requirementQuote: "full UK driving licence", explanation: "A full licence is not documented.", evidenceFacts: [] }];
       } else {
         corrected = true;
         check.result.evidenceHash = "profile-corrected";
@@ -441,5 +533,92 @@ test("an accepted profile correction refreshes evidence and keeps its reply visi
     await new Promise((resolve) => setTimeout(resolve, 40));
     assert.equal(starts, 2);
     assert.match(doc.querySelector(".jsc-blocker-review").textContent, /full licence resolves/);
+  } finally { fixture.close(); }
+});
+
+test("a rejected challenge can be overridden and undone without changing evidence or hiding other blockers", async () => {
+  const fixture = await createBlockerFixture({}, { initiallyHidden: true });
+  try {
+    const original = fixture.window.chrome.runtime.sendMessage;
+    const calls = [];
+    fixture.window.chrome.runtime.sendMessage = async (message) => {
+      if (message.action !== "check") return original(message);
+      calls.push(message.body);
+      const check = await createCompletedCheck(message.body);
+      check.result.outcome = "blocker";
+      check.result.findings = [
+        { kind: "blocker", requirementQuote: "full UK driving licence", explanation: "Only a provisional licence is documented.",
+          evidenceFacts: [], suggestedChallenge: "Does this job allow alternative travel?" },
+        { kind: "blocker", requirementQuote: "regular client visits by car", explanation: "Travel arrangements conflict with the requirement.",
+          evidenceFacts: [], suggestedChallenge: "What evidence of travel availability would resolve this finding?" },
+      ];
+      if (message.body.challenge) check.result.challengeReview = {
+        accepted: false, profileUpdated: false, requirementQuote: message.body.challenge.requirementQuote,
+        response: "The advert still requires driving.",
+      };
+      return { ok: true, check };
+    };
+    fixture.setHidden(false);
+    const doc = fixture.window.document;
+    const button = (label) => [...doc.querySelectorAll(".jsc-blocker-panel button")].find((node) => node.textContent === label);
+    await waitUntil(() => button("Challenge"));
+    assert.equal(button("Override for this job"), undefined);
+    button("Challenge").click();
+    button("Send challenge").click();
+    await waitUntil(() => button("Override for this job"));
+    const prior = fixture.storage["blocker-result:first1111"];
+    button("Override for this job").click();
+    await waitUntil(() => button("Undo override"));
+    assert.equal(calls.length, 2, "override makes no inference request");
+    const overridden = fixture.storage["blocker-result:first1111"];
+    assert.deepEqual(Array.from(overridden.overriddenRequirementQuotes), ["full UK driving licence"]);
+    assert.equal(overridden.evidenceHash, prior.evidenceHash);
+    assert.deepEqual(overridden.findings, prior.findings);
+    assert.deepEqual(overridden.challengeReview, prior.challengeReview);
+    assert.match(doc.querySelector(".jsc-blocker-review").textContent, /Finding retained.*still requires driving/);
+    assert.match(doc.querySelector(".jsc-blocker-badge").textContent, /Potential blocker/);
+    assert.equal(doc.querySelectorAll(".jsc-blocker-finding").length, 2);
+    button("Undo override").click();
+    await waitUntil(() => button("Override for this job"));
+    assert.deepEqual(Array.from(fixture.storage["blocker-result:first1111"].overriddenRequirementQuotes), []);
+    assert.equal(calls.length, 2);
+  } finally { fixture.close(); }
+});
+
+test("overriding the last rejected blocker labels the user's decision; recheck resets it", async () => {
+  const fixture = await createBlockerFixture({}, { initiallyHidden: true });
+  try {
+    const original = fixture.window.chrome.runtime.sendMessage;
+    const calls = [];
+    fixture.window.chrome.runtime.sendMessage = async (message) => {
+      if (message.action !== "check") return original(message);
+      calls.push(message.body);
+      const check = await createCompletedCheck(message.body);
+      check.result.outcome = "blocker";
+      check.result.findings = [{ kind: "blocker", requirementQuote: "full UK driving licence",
+        explanation: "Only a provisional licence is documented.", evidenceFacts: [],
+        suggestedChallenge: "Does this job allow alternative travel?" }];
+      if (message.body.challenge) check.result.challengeReview = {
+        accepted: false, profileUpdated: false, requirementQuote: "full UK driving licence", response: "A full licence is still required.",
+      };
+      return { ok: true, check };
+    };
+    fixture.setHidden(false);
+    const doc = fixture.window.document;
+    const button = (label) => [...doc.querySelectorAll(".jsc-blocker-panel button")].find((node) => node.textContent === label);
+    await waitUntil(() => button("Challenge"));
+    button("Challenge").click();
+    button("Send challenge").click();
+    await waitUntil(() => button("Override for this job"));
+    button("Override for this job").click();
+    await waitUntil(() => button("Undo override"));
+    assert.match(doc.querySelector(".jsc-blocker-badge").textContent, /Blockers overridden by you/);
+    assert.equal(doc.querySelector(".jsc-blocker-panel").classList.contains("jsc-blocker"), false);
+    assert.equal(fixture.storage["blocker-result:first1111"].outcome, "blocker", "original AI outcome is retained");
+    button("Recheck").click();
+    await waitUntil(() => calls.length === 3 && button("Challenge") && !button("Undo override"));
+    assert.equal(fixture.storage["blocker-result:first1111"].overriddenRequirementQuotes, undefined);
+    assert.match(doc.querySelector(".jsc-blocker-badge").textContent, /Potential blocker/);
+    assert.equal(button("Override for this job"), undefined, "the new check needs a rejected challenge before overriding");
   } finally { fixture.close(); }
 });

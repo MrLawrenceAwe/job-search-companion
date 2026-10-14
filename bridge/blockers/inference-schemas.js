@@ -7,9 +7,10 @@ const requirementSchema = (category, necessity, evidence, explanationType) => ({
     evidence: { type: "string", enum: evidence },
     requirementQuote: { type: "string" },
     explanation: { type: explanationType },
+    suggestedChallenge: explanationType === "string" ? { type: "string", maxLength: 300 } : { type: "null" },
     evidenceFactIds: { type: "array", items: { type: "string" } },
   },
-  required: ["category", "necessity", "evidence", "requirementQuote", "explanation", "evidenceFactIds"],
+  required: ["category", "necessity", "evidence", "requirementQuote", "explanation", "suggestedChallenge", "evidenceFactIds"],
 });
 // Bind explanation shape to classifications in the schema, not only the prompt.
 const inventoryEntrySchema = { anyOf: [

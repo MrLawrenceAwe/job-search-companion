@@ -65,7 +65,7 @@ recognised. Full CV analysis remains a separate action.
 
 Cards show saved results. **Previously checked** means the description and current
 evidence have not yet been verified together. Manual application marks and job
-visibility are unchanged. Checker version 13 invalidates older saved check results;
+visibility are unchanged. Checker version 14 invalidates older saved check results;
 application marks and completed CV-fit analyses are retained.
 
 See [requirement policy](design.md#requirement-policy) and
@@ -73,9 +73,15 @@ See [requirement policy](design.md#requirement-policy) and
 
 ## Challenging a blocker
 
-Choose **Challenge** beneath a finding, explain the objection or
-provide a factual correction, and choose **Send challenge**. The model reviews
-the full advert again and gives a direct response explaining whether the
+Each check and recheck prepares a concise suggested challenge (one sentence,
+at most 25 words) alongside every blocker.
+Choose **Challenge** beneath a finding to open that draft immediately, with all
+its text selected. Type or delete to replace it, or click in the field to clear
+the selection and keep or edit the suggestion, then choose **Send challenge**.
+Suggestions use the advert and existing evidence without inventing candidate
+facts; generating a suggestion does not change your profile. Edited drafts,
+including an emptied field, are preserved when you cancel and reopen the form.
+The model reviews the full advert again and gives a direct response explaining whether the
 challenge is accepted or the blocker remains. Other requirements are still
 checked. A challenge is evidence to assess, not an automatic override.
 
@@ -94,6 +100,13 @@ history. **Recheck** uses the current profile without replaying the objection.
 A failed request leaves the prior findings visible and shows an error so the
 challenge can be retried. Accepted profile corrections remain when saved
 findings are cleared.
+
+If a challenge is rejected, choose **Override for this job** to dismiss that
+specific blocker yourself. The original finding and AI reply remain visible,
+and **Undo override** restores it. Other blockers still count. When every
+blocker is overridden, the card says **Blockers overridden by you**. Overrides
+are saved with this check, sync across tabs, and do not change your profile.
+A completed recheck or another challenge replaces the check and resets its overrides.
 
 ## Fallback accounts
 

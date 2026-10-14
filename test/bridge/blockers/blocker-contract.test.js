@@ -38,3 +38,24 @@ test("shared blocker validation rejects expired, unknown and incomplete records"
     false,
   );
 });
+
+test("saved blockers require concise prepared suggestions", () => {
+  const finding = { kind: "blocker", suggestedChallenge: "What evidence would resolve this finding?" };
+  const blocker = { ...record, outcome: "blocker", findings: [finding] };
+  assert.equal(blockerContract.isRetainableResult(blocker), true);
+  for (const suggestedChallenge of [undefined, null, "", "  ", "a".repeat(301), "word ".repeat(26)]) {
+    assert.equal(blockerContract.isRetainableResult({ ...blocker,
+      findings: [{ ...finding, suggestedChallenge }] }), false);
+  }
+});
+
+test("overrides reference actual findings without changing the original outcome", () => {
+  const finding = { kind: "blocker", requirementQuote: "full licence required", suggestedChallenge: "What licence evidence would resolve this finding?" };
+  const blocker = { ...record, outcome: "blocker", findings: [finding],
+    overriddenRequirementQuotes: [finding.requirementQuote] };
+  assert.equal(blockerContract.isRetainableResult(blocker), true);
+  assert.deepEqual(blockerContract.getRemainingFindings(blocker), []);
+  for (const overriddenRequirementQuotes of [null, "full licence required", ["invented requirement"], [finding.requirementQuote, finding.requirementQuote]]) {
+    assert.equal(blockerContract.isRetainableResult({ ...blocker, overriddenRequirementQuotes }), false);
+  }
+});

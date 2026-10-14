@@ -29,7 +29,7 @@ export const deriveValidatedFindings = (output, description, evidence) => {
     if (
       !requirement ||
       Object.keys(requirement).sort().join(",") !==
-        "category,evidence,evidenceFactIds,explanation,necessity,requirementQuote" ||
+        "category,evidence,evidenceFactIds,explanation,necessity,requirementQuote,suggestedChallenge" ||
       !["eligibility", "work_arrangement"].includes(requirement.category) ||
       !["mandatory", "unclear", "preferred", "excluded"].includes(requirement.necessity) ||
       !["supported", "incompatible", "missing", "conflicting"].includes(requirement.evidence) ||
@@ -39,6 +39,9 @@ export const deriveValidatedFindings = (output, description, evidence) => {
       (producesFinding
         ? typeof requirement.explanation !== "string" || !requirement.explanation.trim() || requirement.explanation.length > 2000
         : requirement.explanation !== null) ||
+      (producesFinding
+        ? typeof requirement.suggestedChallenge !== "string" || !requirement.suggestedChallenge.trim() || requirement.suggestedChallenge.length > 300 || requirement.suggestedChallenge.trim().split(/\s+/).length > 25
+        : requirement.suggestedChallenge !== null) ||
       !Array.isArray(requirement.evidenceFactIds) ||
       requirement.evidenceFactIds.some((id) => !facts.has(id)) ||
       (["supported", "incompatible", "conflicting"].includes(requirement.evidence) && !requirement.evidenceFactIds.length) ||
@@ -52,6 +55,7 @@ export const deriveValidatedFindings = (output, description, evidence) => {
       kind: "blocker",
       requirementQuote: requirement.requirementQuote,
       explanation: requirement.explanation,
+      suggestedChallenge: requirement.suggestedChallenge.trim(),
       evidenceFacts: [...new Set(requirement.evidenceFactIds)].map((id) => facts.get(id)),
     });
   }

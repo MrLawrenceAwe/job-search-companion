@@ -1,5 +1,5 @@
 (() => {
-  const { storagePrefix, isRetainableResult, maximumRecords } = globalThis.jobSearchContracts.blockers;
+  const { storagePrefix, isRetainableResult, maximumRecords, canOverrideFinding } = globalThis.jobSearchContracts.blockers;
 
   const createStore = () => {
     const records = new Map();
@@ -59,6 +59,22 @@
         if (!retainedKeys.has(key)) return;
         await chrome.storage.local.set({ [key]: result });
         records.set(result.jobId, result);
+      },
+      async setFindingOverride(result, requirementQuote, overridden) {
+        await ready;
+        const current = records.get(result.jobId);
+        if (!isRetainableResult(current) || current.checkedAt !== result.checkedAt ||
+            current.descriptionHash !== result.descriptionHash || current.evidenceHash !== result.evidenceHash ||
+            current.model !== result.model || current.reasoningEffort !== result.reasoningEffort)
+          throw new Error("This check has changed. Use the latest finding.");
+        if (!current.findings.some((finding) => finding.requirementQuote === requirementQuote) ||
+            (overridden && !canOverrideFinding(current, requirementQuote)))
+          throw new Error("Only a finding with a rejected challenge can be overridden.");
+        const quotes = new Set(current.overriddenRequirementQuotes || []);
+        if (overridden) quotes.add(requirementQuote);
+        else quotes.delete(requirementQuote);
+        await this.saveResult({ ...current, overriddenRequirementQuotes: [...quotes] });
+        notify([{ jobId: current.jobId, removed: false }]);
       },
       async clear() {
         await ready;
