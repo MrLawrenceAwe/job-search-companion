@@ -22,7 +22,7 @@ in [setup](setup.md).
 
 New CV-fit submissions include a job-specific completion command. When Codex
 finishes the assessment, it records the chat ID with the local bridge. The
-extension then shows **Analysed · Open analysis** on the job card and in the
+extension then shows **Open analysis** on the job card and in the
 job detail controls, normally within 30 seconds. The action opens the saved
 chat through macOS using the bridge, like task submission; it does not use
 Chrome’s external-app confirmation.

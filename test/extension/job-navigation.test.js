@@ -20,7 +20,7 @@ for (const platform of ["indeed", "linkedin"]) {
     const dom = new JSDOM(`<ul>
       <li><a href="${firstUrl}">First job</a></li>
       <li><a href="${secondUrl}">Second job</a>
-        <button class="jsc-analysis-button"><span>Analysed · Open analysis</span></button>
+        <button class="jsc-analysis-button"><span>Open analysis</span></button>
       </li>
     </ul>`, { url: pageUrl, runScripts: "outside-only" });
     try {

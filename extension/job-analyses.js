@@ -20,7 +20,7 @@
     const button = document.createElement("button");
     button.type = "button";
     button.className = "jsc-analysis-button";
-    button.textContent = "Analysed · Open analysis";
+    button.textContent = "Open analysis";
     button.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();

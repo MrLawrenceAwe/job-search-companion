@@ -33,7 +33,7 @@ test("a completed analysis renders on the card and detail pane and opens through
   const { window, messages } = await fixture(t, { [key]: record });
   await waitUntil(() => window.document.querySelector(".jsc-analysis-detail"));
   const badge = window.document.querySelector(".jsc-analyzed-badge");
-  assert.equal(badge.textContent, "Analysed · Open analysis");
+  assert.equal(badge.textContent, "Open analysis");
   for (const button of [badge, window.document.querySelector(".jsc-analysis-detail")]) {
     button.click();
     assert.equal(JSON.stringify(messages.at(-1)), JSON.stringify({ type: "OPEN_JOB_ANALYSIS", jobUrl }));
