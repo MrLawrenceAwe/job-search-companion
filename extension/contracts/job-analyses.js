@@ -5,7 +5,8 @@
     "no suitable base CV", "not enough information", "do not apply yet",
   ]);
   const colorFor = (verdict) => ({
-    "use as-is": "green", "edit the CV": "yellow", "do not apply yet": "red",
+    "use as-is": "green", "edit the CV": "yellow",
+    "no suitable base CV": "red", "do not apply yet": "red",
   }[verdict] || "blue");
   const keyFor = (jobUrl) => {
     const url = new URL(jobUrl);

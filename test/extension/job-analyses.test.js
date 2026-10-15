@@ -57,7 +57,7 @@ test("pending jobs have no analysed mark; storage updates and selection changes 
   await waitUntil(() => !window.document.querySelector(".jsc-analyzed-badge"));
 });
 
-for (const [verdict, color] of [["use as-is", "green"], ["edit the CV", "yellow"], ["do not apply yet", "red"], ["not enough information", "blue"]]) {
+for (const [verdict, color] of [["use as-is", "green"], ["edit the CV", "yellow"], ["no suitable base CV", "red"], ["do not apply yet", "red"], ["not enough information", "blue"]]) {
   test(`analysis verdict ${verdict} colours both controls ${color} and updates an existing badge`, async (t) => {
     const { window, change } = await fixture(t, { [key]: { ...record, verdict } });
     await waitUntil(() => window.document.querySelector(".jsc-analysis-detail"));
