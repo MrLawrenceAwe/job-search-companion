@@ -22,6 +22,9 @@ results, and checking job requirements and CV fit through a local bridge.
 
 Marks are manual local records. After applying on an employer's website, mark its
 listing yourself; this does not submit an application or update the job board.
+On Indeed, the manual applied option is hidden for jobs identified as Easily
+apply or Indeed Apply, in both the detail controls and job menu. It remains
+available for applications through another website or email.
 See [usage](docs/usage.md) and [blocker checking](docs/blocker-checker.md).
 
 ## Install

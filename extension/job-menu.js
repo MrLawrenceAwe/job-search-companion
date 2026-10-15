@@ -54,7 +54,8 @@
     const jobUrl = companion.jobs.consumeMenuJobUrl(source);
     return [
       createCvFitAction(jobUrl),
-      companion.jobMarks.createButton(jobUrl, "applied", true),
+      ...(companion.jobMarks.canMarkApplied(jobUrl)
+        ? [companion.jobMarks.createButton(jobUrl, "applied", true)] : []),
       companion.jobMarks.createButton(jobUrl, "unsuitable", true),
     ];
   };

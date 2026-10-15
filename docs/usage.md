@@ -4,6 +4,11 @@ Applied and unsuitable marks are manual records in this Chrome profile. Mark a
 listing after applying on the employer's website; marks do not update Indeed or
 LinkedIn's application history. Removing the extension clears these local records.
 
+On Indeed, **Mark as applied** is hidden in the detail pane and menu when the
+job has an Easily apply badge or Indeed Apply control. Use it for jobs that
+require an employer website, email, or another application route. Saved badges
+remain visible, and **Mark as unsuitable** stays available.
+
 Use **J/K** to navigate rendered results, **H** to hide a result on the current
 page, and **U** to undo navigation or hiding. Shortcuts ignore editable fields;
 hidden results return after reload.

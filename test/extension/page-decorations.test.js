@@ -14,8 +14,8 @@ const result = {
   checkerVersion: blockerContract.version, checkedAt: new Date().toISOString(),
 };
 
-const fixture = async (t) => {
-  const dom = new JSDOM('<body><li><a href="/viewjob?jk=fixture111">Job</a></li><h1 data-testid="vj-job-title">Job</h1></body>', {
+const fixture = async (t, { applyMarkup = "", cardMarkup = "" } = {}) => {
+  const dom = new JSDOM(`<body><li><a href="/viewjob?jk=fixture111">Job</a>${cardMarkup}</li><div data-testid="viewjob-main-content"><h1 data-testid="vj-job-title">Job</h1><section id="apply-controls">${applyMarkup}</section></div></body>`, {
     url: firstJob, runScripts: 'outside-only', pretendToBeVisual: true,
   });
   t.after(() => dom.window.close());
@@ -39,7 +39,9 @@ const fixture = async (t) => {
   const companion = window.jobSearchCompanion;
   let selectedJob = firstJob;
   let scans = 0;
-  companion.dom.getRenderedRect = () => ({ width: 100, height: 30 });
+  companion.dom.getRenderedRect = (element) => element.hidden ? null : ({ width: 100, height: 30 });
+  companion.dom.getViewportRect = companion.dom.getRenderedRect;
+  companion.dom.queryIncludingRoot = (root, selector) => [ ...(root.matches(selector) ? [root] : []), ...root.querySelectorAll(selector) ];
   companion.jobs.collectJobCarriers = () => {
     scans++;
     return [{ element: window.document.querySelector('a'), jobUrl: firstJob }];
@@ -112,4 +114,83 @@ test('page-change subscribers share DOM and navigation events and ignore extensi
   unsubscribe();
   window.dispatchEvent(new window.PopStateEvent('popstate'));
   assert.equal(changes, 3);
+});
+
+const openJobMenu = async (window, companion, jobUrl = firstJob) => {
+  await runScriptsInDom(window, ['contracts/shortcuts.js', 'job-menu.js']);
+  companion.jobs.consumeMenuJobUrl = () => jobUrl;
+  const menu = window.document.createElement('div');
+  const row = window.document.createElement('button');
+  row.textContent = 'WhatsApp';
+  menu.append('Copy link Email ', row);
+  window.document.body.append(menu);
+  assert.equal(companion.jobMenu.insertJobMenuActions(menu), true);
+  return menu;
+};
+
+for (const [label, applyMarkup, cardMarkup] of [
+  ['Indeed Apply control', '<a data-testid="viewjob-indeed-apply" href="/apply">Apply now</a>', ''],
+  ['Smart Apply link', '<a href="https://smartapply.indeed.com/beta/indeedapply/applybyapplyablejobid?indeedApplyableJobId=fixture">Apply now</a>', ''],
+  ['classic Indeed Apply button', '<button id="indeedApplyButton">Apply now</button>', ''],
+  ['Easily apply card badge', '', '<span>Easily apply</span>'],
+]) {
+  test(`Indeed ${label}: omits applied controls and menu option while retaining other actions and saved badges`, async (t) => {
+    const { window, companion } = await fixture(t, { applyMarkup, cardMarkup });
+    assert.equal(window.document.querySelector('.jsc-applied-action'), null);
+    assert.ok(window.document.querySelector('.jsc-unsuitable-action'));
+    assert.ok(window.document.querySelector('.jsc-applied-badge'), 'saved record remains visible');
+    const menu = await openJobMenu(window, companion);
+    assert.equal(menu.querySelector('.jsc-applied-action'), null);
+    assert.ok(menu.querySelector('.jsc-unsuitable-action'));
+    assert.equal(menu.querySelectorAll('.jsc-menu-item').length, 2);
+  });
+}
+
+for (const [label, applyMarkup] of [
+  ['employer website', '<a href="https://careers.example.org/apply">Apply on company site</a>'],
+  ['email', '<a href="mailto:recruitment@example.org">Apply by email</a>'],
+  ['Indeed external redirect', '<a href="https://uk.indeed.com/rc/clk?jk=fixture111">Apply now</a>'],
+]) {
+  test(`Indeed ${label}: keeps applied controls and menu option`, async (t) => {
+    const { window, companion } = await fixture(t, { applyMarkup });
+    assert.ok(window.document.querySelector('.jsc-applied-action'));
+    const menu = await openJobMenu(window, companion);
+    assert.ok(menu.querySelector('.jsc-applied-action'));
+    assert.ok(menu.querySelector('.jsc-unsuitable-action'));
+  });
+}
+
+test('Indeed route changes update controls and an already open menu, then restore manual marking for an external job', async (t) => {
+  const { window, companion, select } = await fixture(t);
+  const menu = await openJobMenu(window, companion);
+  const controls = window.document.querySelector('#apply-controls');
+  controls.innerHTML = '<a data-testid="viewjob-indeed-apply" href="https://smartapply.indeed.com/apply">Apply now</a>';
+  await waitUntil(() => !window.document.querySelector('.jsc-applied-action'));
+  assert.equal(menu.querySelector('.jsc-applied-action'), null);
+  select(secondJob);
+  controls.innerHTML = '<a href="mailto:recruitment@example.org">Apply by email</a>';
+  await waitUntil(() => window.document.querySelector('.jsc-applied-action')?.dataset.jobUrl === secondJob);
+});
+
+test('Indeed detection uses the menu job, not a different selected pane or card', async (t) => {
+  const { window, companion, select } = await fixture(t, {
+    applyMarkup: '<a data-testid="viewjob-indeed-apply" href="https://smartapply.indeed.com/apply">Apply now</a>',
+  });
+  // The selected pane is native Apply; a menu for a different job keeps manual tracking.
+  const menu = await openJobMenu(window, companion, secondJob);
+  assert.ok(menu.querySelector('.jsc-applied-action'));
+  // A badge on the first card must not affect a second, externally applied job.
+  menu.remove();
+  window.document.querySelector('li').insertAdjacentHTML('beforeend', '<span>Easily apply</span>');
+  select(secondJob);
+  window.document.querySelector('#apply-controls').innerHTML = '<a href="https://example.org/apply">Apply now</a>';
+  companion.pageDecorations.schedule();
+  await waitUntil(() => window.document.querySelector('.jsc-applied-action')?.dataset.jobUrl === secondJob);
+});
+
+test('LinkedIn manual applied action remains available regardless of Indeed-like labels', async (t) => {
+  const { window, companion } = await fixture(t, { cardMarkup: '<span>Easily apply</span>' });
+  companion.platform = 'linkedin';
+  companion.pageDecorations.schedule();
+  await waitUntil(() => window.document.querySelector('.jsc-applied-action'));
 });

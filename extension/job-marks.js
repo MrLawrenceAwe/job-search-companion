@@ -13,6 +13,42 @@
   const store = companion.jobMarks.createStore();
   const { ready, isMarked } = store;
 
+  const canMarkApplied = (jobUrl, cards = null) => {
+    if (companion.platform !== "indeed") return true;
+
+    // Read only this job's card; another result's Easily apply badge must
+    // never decide whether the selected job supports manual tracking.
+    const jobCards = cards || new Map(companion.jobs.collectJobCarriers().map(
+      ({ element, jobUrl }) => [element.closest(companion.selectors.jobCard), jobUrl],
+    ));
+    for (const [card, cardJobUrl] of jobCards) {
+      if (cardJobUrl === jobUrl && [...card?.querySelectorAll('span, div') || []].some(
+        (element) => /^(?:easily|quick|indeed)\s+apply$/i.test(element.textContent.trim()),
+      )) {
+        return false;
+      }
+    }
+
+    // The detail pane can belong to a different job from an open card menu.
+    try {
+      if (companion.jobs.resolveSelectedJobUrl() !== jobUrl) return true;
+    } catch { return true; }
+    const heading = [...document.querySelectorAll(companion.selectors.jobDetailTitle)]
+      .find((element) => companion.dom.getRenderedRect(element));
+    const pane = heading?.closest('[data-testid="viewjob-main-content"], #jobsearch-ViewjobPaneWrapper, .jobsearch-ViewJobLayout');
+    if (!pane) return true;
+    for (const control of pane.querySelectorAll('a[href], [data-testid="viewjob-indeed-apply"], #indeedApplyButton')) {
+      if (!companion.dom.getRenderedRect(control)) continue;
+      if (control.matches('[data-testid="viewjob-indeed-apply"], #indeedApplyButton')) return false;
+      try {
+        const url = new URL(control.getAttribute("href"), window.location.href);
+        if ((url.hostname === "indeed.com" || url.hostname.endsWith(".indeed.com")) &&
+            (url.hostname === "smartapply.indeed.com" || /\/indeedapply(?:\/|$)/i.test(url.pathname))) return false;
+      } catch { /* Non-URL controls provide no application-route signal. */ }
+    }
+    return true;
+  };
+
   const updateButton = (button, jobUrl, kind) => {
     button.dataset.jobUrl = jobUrl;
     button.dataset.markKind = kind;
@@ -85,11 +121,19 @@
     } else if (actions) {
       for (const kind of Object.keys(marks)) {
         let button = actions.querySelector(`.jsc-${kind}-action`);
+        if (kind === "applied" && !canMarkApplied(jobUrl, cards)) {
+          button?.remove();
+          continue;
+        }
         if (!button) { button = createButton(jobUrl, kind); actions.append(button); }
         updateButton(button, jobUrl, kind);
       }
     }
     for (const button of document.querySelectorAll('.jsc-job-mark-action[role="menuitem"]')) {
+      if (button.dataset.markKind === "applied" && !canMarkApplied(button.dataset.jobUrl, cards)) {
+        button.remove();
+        continue;
+      }
       updateButton(button, button.dataset.jobUrl, button.dataset.markKind);
     }
   };
@@ -124,6 +168,6 @@
       if (button) updateButton(button, button.dataset.jobUrl, kind);
     }
   };
-  Object.assign(companion.jobMarks, { createButton });
+  Object.assign(companion.jobMarks, { createButton, canMarkApplied });
   companion.pageDecorations.register(render, ready);
 })();

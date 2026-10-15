@@ -35,7 +35,7 @@ test("retries document-wide menu discovery throughout the bounded scan window", 
     jobSearchCompanion: {
       dom: { getViewportRect: () => ({ width: 1, height: 1 }) },
       jobs: { captureMenuContext: () => {}, consumeMenuJobUrl: () => "https://uk.indeed.com/viewjob?jk=fixture111" },
-      jobMarks: { createButton() { return new Element(); } },
+      jobMarks: { canMarkApplied: () => true, createButton() { return new Element(); } },
       jobMenu: {
         insertJobMenuActions: () => false,
         mightContainMenu: () => false,
@@ -140,7 +140,7 @@ test("discovers a menu that becomes visible without a child-list mutation", asyn
         queryIncludingRoot: (root, selector) => selector === ".jsc-menu-item" ? [] : [root],
       },
       jobs: { captureMenuContext: () => {}, consumeMenuJobUrl: () => "https://uk.indeed.com/viewjob?jk=fixture111" },
-      jobMarks: { createButton() { return new Element(); } },
+      jobMarks: { canMarkApplied: () => true, createButton() { return new Element(); } },
       jobMenu: {},
       jobMenuDetection: {
         retryIntervalMs: 120,
