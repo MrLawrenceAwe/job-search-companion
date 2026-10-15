@@ -1,9 +1,10 @@
 import { readCompletedJsonResponse } from "./chatgpt-response.js";
 import { inferenceSettingsContract } from "../../shared/contracts.js";
 import { blockerInstructions, challengeInstructions } from "./inference-prompts.js";
-import { requirementInventorySchema, challengeReviewSchema } from "./inference-schemas.js";
+import { createRequirementInventorySchema, createChallengeReviewSchema } from "./inference-schemas.js";
 import {
   RequirementQuoteError,
+  RequirementValidationError,
   deriveValidatedFindings,
   validateInferenceOutput,
   validateProfileCorrections,
@@ -51,7 +52,7 @@ export const runBlockerInference = async ({
             type: "json_schema",
             name: "requirement_inventory",
             strict: true,
-            schema: challenge ? challengeReviewSchema : requirementInventorySchema,
+            schema: (challenge ? createChallengeReviewSchema : createRequirementInventorySchema)(checkEvidence.facts.map((fact) => fact.id)),
           },
         },
       }),
@@ -64,9 +65,9 @@ export const runBlockerInference = async ({
       findings = deriveValidatedFindings({ requirements: output.requirements }, description, checkEvidence);
       if (challenge) validateChallengeDecision(output, findings, challenge);
     } catch (error) {
-      // Retry only a completed response with a bad quote, within the caller's deadline.
-      // Network, account, stream and other evidence errors remain failures.
-      if (!(error instanceof RequirementQuoteError) || attempt === 1) throw error;
+      // Correct one completed inventory with a quote or field validation error.
+      // Keep the same deadline and revalidate everything; never discard a finding.
+      if (!(error instanceof RequirementQuoteError || error instanceof RequirementValidationError) || attempt === 1) throw error;
       validationFeedback = error.feedback;
       continue;
     }

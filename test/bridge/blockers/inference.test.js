@@ -130,6 +130,11 @@ test("a paraphrased contract quote gets one corrective request with unchanged ev
   assert.deepEqual(requests[1].reasoning, { effort: "low" });
   assert.equal(requests[1].service_tier, "priority");
   assert.deepEqual(requests[1].text, requests[0].text);
+  for (const { properties } of requests[0].text.format.schema.properties.requirements.items.anyOf) {
+    assert.deepEqual(properties.evidenceFactIds.items.enum, ["F1"]);
+    assert.equal(properties.evidenceFactIds.maxItems, properties.evidence.enum[0] === "missing" ? 0 : undefined);
+    assert.equal(properties.evidenceFactIds.minItems, properties.evidence.enum[0] === "missing" ? undefined : 1);
+  }
 });
 
 test("a second invalid quote fails specifically instead of dropping the requirement", async () => {
@@ -139,18 +144,17 @@ test("a second invalid quote fails specifically instead of dropping the requirem
     return sse(completed(JSON.stringify({ requirements: [{ category: "eligibility", necessity: "mandatory", evidence: "missing", requirementQuote: "Invented quote", explanation: "Unknown.", suggestedChallenge: "Please reconsider this requirement against the advert and my existing evidence.", evidenceFactIds: [] }] })));
   } };
   await assert.rejects(runBlockerInference({ chatgpt, model: "test", description: job().description, evidence: profile }),
-    { code: "requirement_quote_mismatch", message: "Checker requirement 1 was not quoted exactly from the advert. Retry the check." });
+    { code: "requirement_quote_mismatch", message: "Checker requirement 1 was not quoted exactly from the advert. Blocker status is unknown." });
   assert.equal(calls, 2);
 });
 
-test("evidence, network and stream failures do not trigger a quote correction request", async () => {
-  for (const scenario of ["evidence", "network", "stream"]) {
+test("network and stream failures do not trigger an inventory correction request", async () => {
+  for (const scenario of ["network", "stream"]) {
     let calls = 0;
     const chatgpt = { async request() {
       calls += 1;
       if (scenario === "network") throw new Error("Network failed");
-      if (scenario === "stream") return sse({ type: "response.failed", response: { error: { code: "subscription_sharing_usage_limit_exceeded" } } });
-      return sse(completed(JSON.stringify({ requirements: [{ category: "eligibility", necessity: "mandatory", evidence: "incompatible", requirementQuote: "full UK driving licence", explanation: "Unknown fact.", suggestedChallenge: "Please reconsider this requirement against the advert and my existing evidence.", evidenceFactIds: ["F99"] }] })));
+      return sse({ type: "response.failed", response: { error: { code: "subscription_sharing_usage_limit_exceeded" } } });
     } };
     await assert.rejects(runBlockerInference({ chatgpt, model: "test", description: job().description, evidence: profile }));
     assert.equal(calls, 1, scenario);
@@ -227,16 +231,16 @@ test("null explanations keep non-finding quotes and evidence validated; findings
   const validate = (patch) => deriveValidatedFindings({ requirements: [{ ...requirement, ...patch }] }, job().description, profile);
   assert.deepEqual(validate({}), []);
   assert.throws(() => validate({ requirementQuote: "Invented prerequisite" }), { code: "requirement_quote_mismatch" });
-  assert.throws(() => validate({ evidenceFactIds: ["F99"] }), /supplied evidence/);
-  assert.throws(() => validate({ evidenceFactIds: [] }), /supplied evidence/);
-  assert.throws(() => validate({ explanation: "Unused explanation" }), /supplied evidence/);
+  assert.throws(() => validate({ evidenceFactIds: ["F99"] }), /invalid assessment/);
+  assert.throws(() => validate({ evidenceFactIds: [] }), /invalid assessment/);
+  assert.throws(() => validate({ explanation: "Unused explanation" }), /invalid assessment/);
   for (const necessity of ["mandatory"]) {
     for (const explanation of [null, "", "   "]) {
-      assert.throws(() => validate({ necessity, evidence: "missing", evidenceFactIds: [], explanation }), /supplied evidence/);
+      assert.throws(() => validate({ necessity, evidence: "missing", evidenceFactIds: [], explanation }), /invalid assessment/);
     }
   }
   assert.deepEqual(validate({ necessity: "unclear", evidence: "missing", evidenceFactIds: [] }), []);
-  assert.throws(() => validate({ necessity: "unclear", evidence: "missing", evidenceFactIds: [], explanation: "Unused explanation" }), /supplied evidence/);
+  assert.throws(() => validate({ necessity: "unclear", evidence: "missing", evidenceFactIds: [], explanation: "Unused explanation" }), /invalid assessment/);
   assert.equal(validate({ evidence: "missing", evidenceFactIds: [], explanation: "Licence evidence is missing.",
     suggestedChallenge: "What licence evidence would resolve this finding?" })[0].explanation,
     "Licence evidence is missing.");
@@ -304,7 +308,7 @@ test("inventory schema and local validation agree on every classification's expl
         const findings = deriveValidatedFindings({ requirements: [requirement] }, job().description, profile);
         assert.equal(findings.length, blocker ? 1 : 0, JSON.stringify(classifications));
         assert.throws(() => deriveValidatedFindings({ requirements: [{ ...requirement,
-          explanation: blocker ? null : "Unused explanation" }] }, job().description, profile), /supplied evidence/);
+          explanation: blocker ? null : "Unused explanation" }] }, job().description, profile), /invalid assessment/);
       }
     }
   }
@@ -371,10 +375,81 @@ test("every blocker returns a concise prepared challenge; drafts never become ca
   assert.match(captured.instructions, /at most 25 words/);
   assert.match(captured.instructions, /Never invent candidate experience/);
   for (const invalid of [undefined, null, "", "  ", "a".repeat(301), "word ".repeat(26)]) {
-    assert.throws(() => deriveValidatedFindings({ requirements: [{ ...requirement, suggestedChallenge: invalid }] }, job().description, profile), /supplied evidence/);
+    assert.throws(() => deriveValidatedFindings({ requirements: [{ ...requirement, suggestedChallenge: invalid }] }, job().description, profile), /invalid assessment/);
   }
   const { suggestedChallenge: omitted, ...missingSuggestion } = requirement;
-  assert.throws(() => deriveValidatedFindings({ requirements: [missingSuggestion] }, job().description, profile), /supplied evidence/);
+  assert.throws(() => deriveValidatedFindings({ requirements: [missingSuggestion] }, job().description, profile), /invalid assessment/);
   assert.throws(() => deriveValidatedFindings({ requirements: [{ ...requirement,
-    necessity: "preferred", explanation: null }] }, job().description, profile), /supplied evidence/);
+    necessity: "preferred", explanation: null }] }, job().description, profile), /invalid assessment/);
+});
+
+test("NatCen's empty technology explanation is corrected without losing the driving blocker", async () => {
+  const description = "A full UK driving license and access to a car. Confidence using basic technology";
+  const driving = { category: "eligibility", necessity: "mandatory", evidence: "incompatible",
+    requirementQuote: "A full UK driving license", explanation: "Only a provisional licence is documented.",
+    suggestedChallenge: "What evidence would resolve this licence requirement?", evidenceFactIds: ["F1"] };
+  // Reproduced live response: the model labelled technology missing, but left both prose fields empty.
+  const technology = { category: "eligibility", necessity: "mandatory", evidence: "missing",
+    requirementQuote: "Confidence using basic technology", explanation: "", suggestedChallenge: "", evidenceFactIds: [] };
+  const evidence = { facts: [...profile.facts, { id: "CV1", source: "CV evidence", text: "Manual software testing and digital record keeping." }] };
+  const requests = [];
+  const result = await runBlockerInference({ model: "test", description, evidence,
+    chatgpt: { async request(endpoint, options) {
+      requests.push(JSON.parse(options.body));
+      return sse(completed(JSON.stringify({ requirements: [driving, requests.length === 1 ? technology : {
+        ...technology, evidence: "supported", explanation: null, suggestedChallenge: null, evidenceFactIds: ["CV1"],
+      }] })));
+    } },
+  });
+  assert.equal(requests.length, 2);
+  assert.equal(result.outcome, "blocker");
+  assert.deepEqual(result.findings.map((finding) => finding.requirementQuote), [driving.requirementQuote]);
+  const first = JSON.parse(requests[0].input[0].content);
+  const corrected = JSON.parse(requests[1].input[0].content);
+  assert.deepEqual(corrected.candidateEvidence, first.candidateEvidence);
+  assert.equal(corrected.jobDescription, first.jobDescription);
+  assert.equal(corrected.validationFeedback.requirementIndex, 2);
+  assert.equal(corrected.validationFeedback.rejectedQuote, technology.requirementQuote);
+  assert.match(corrected.validationFeedback.problem, /missing requirement explanation/);
+  assert.match(corrected.validationFeedback.problem, /retaining every candidate requirement/);
+  assert.deepEqual(requests[1].text, requests[0].text);
+  for (const { properties } of requests[0].text.format.schema.properties.requirements.items.anyOf) {
+    assert.deepEqual(properties.evidenceFactIds.items.enum, ["F1", "CV1"]);
+    assert.equal(properties.evidenceFactIds.maxItems, properties.evidence.enum[0] === "missing" ? 0 : undefined);
+    assert.equal(properties.evidenceFactIds.minItems, properties.evidence.enum[0] === "missing" ? undefined : 1);
+  }
+});
+
+test("persistent invalid fields fail after one correction with a specific checker failure", async () => {
+  const requirement = { category: "eligibility", necessity: "mandatory", evidence: "incompatible",
+    requirementQuote: "full UK driving licence", explanation: "Only a provisional licence is documented.",
+    suggestedChallenge: "What licence evidence would resolve this finding?", evidenceFactIds: ["F1"] };
+  for (const [patch, problem] of [
+    [{ explanation: "" }, "missing requirement explanation"],
+    [{ explanation: "   " }, "missing requirement explanation"],
+    [{ suggestedChallenge: "" }, "missing suggested challenge"],
+    [{ suggestedChallenge: "word ".repeat(26) }, "suggested challenge exceeds 25 words or 300 characters"],
+    [{ evidenceFactIds: ["F99"] }, "unknown evidence reference"],
+    [{ evidence: "missing" }, "missing evidence must have no fact references"],
+  ]) {
+    let calls = 0;
+    const chatgpt = { async request() {
+      calls += 1;
+      return sse(completed(JSON.stringify({ requirements: [{ ...requirement, ...patch }] })));
+    } };
+    await assert.rejects(runBlockerInference({ chatgpt, model: "test", description: job().description, evidence: profile }), {
+      code: "requirement_validation_failed",
+      message: `The checker returned an invalid assessment (${problem}). Blocker status is unknown.`,
+    });
+    assert.equal(calls, 2);
+  }
+});
+
+test("blocking schema fields cannot be empty strings", () => {
+  for (const { properties } of requirementInventorySchema.properties.requirements.items.anyOf) {
+    assert.equal(properties.requirementQuote.minLength, 1);
+    if (properties.explanation.type !== "string") continue;
+    assert.equal(properties.explanation.minLength, 1);
+    assert.equal(properties.suggestedChallenge.minLength, 1);
+  }
 });

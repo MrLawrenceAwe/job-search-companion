@@ -2,10 +2,22 @@ const normalizeQuote = (text) => text.replace(/\s+/g, " ").trim();
 
 export class RequirementQuoteError extends Error {
   constructor(index, quote) {
-    super(`Checker requirement ${index + 1} was not quoted exactly from the advert. Retry the check.`);
+    super(`Checker requirement ${index + 1} was not quoted exactly from the advert. Blocker status is unknown.`);
     this.code = "requirement_quote_mismatch";
     this.feedback = { requirementIndex: index + 1, rejectedQuote: quote,
       problem: "This quote is not an exact substring of jobDescription. Copy a contiguous excerpt verbatim. Return the complete requirement inventory, retaining every candidate requirement." };
+  }
+}
+
+export class RequirementValidationError extends Error {
+  constructor(index, requirement, problem) {
+    super(`The checker returned an invalid assessment (${problem}). Blocker status is unknown.`);
+    this.code = "requirement_validation_failed";
+    this.feedback = {
+      requirementIndex: index + 1,
+      rejectedQuote: requirement?.requirementQuote ?? null,
+      problem: `${problem}. Correct this entry against jobDescription and candidateEvidence. Return the complete requirement inventory, retaining every candidate requirement. Do not drop a requirement to bypass validation.`,
+    };
   }
 }
 
@@ -26,28 +38,34 @@ export const deriveValidatedFindings = (output, description, evidence) => {
     const producesFinding = requirement &&
       requirement.necessity === "mandatory" && requirement.evidence !== "supported" &&
       (requirement.category === "eligibility" || requirement.evidence === "incompatible");
-    if (
-      !requirement ||
-      Object.keys(requirement).sort().join(",") !==
-        "category,evidence,evidenceFactIds,explanation,necessity,requirementQuote,suggestedChallenge" ||
-      !["eligibility", "work_arrangement"].includes(requirement.category) ||
-      !["mandatory", "unclear", "preferred", "excluded"].includes(requirement.necessity) ||
-      !["supported", "incompatible", "missing", "conflicting"].includes(requirement.evidence) ||
-      typeof requirement.requirementQuote !== "string" ||
-      !requirement.requirementQuote.trim() ||
-      requirement.requirementQuote.length > 2000 ||
-      (producesFinding
-        ? typeof requirement.explanation !== "string" || !requirement.explanation.trim() || requirement.explanation.length > 2000
-        : requirement.explanation !== null) ||
-      (producesFinding
-        ? typeof requirement.suggestedChallenge !== "string" || !requirement.suggestedChallenge.trim() || requirement.suggestedChallenge.length > 300 || requirement.suggestedChallenge.trim().split(/\s+/).length > 25
-        : requirement.suggestedChallenge !== null) ||
-      !Array.isArray(requirement.evidenceFactIds) ||
-      requirement.evidenceFactIds.some((id) => !facts.has(id)) ||
-      (["supported", "incompatible", "conflicting"].includes(requirement.evidence) && !requirement.evidenceFactIds.length) ||
-      (requirement.evidence === "missing" && requirement.evidenceFactIds.length)
-    )
-      throw new Error("Checker requirements did not match the supplied evidence");
+    const reject = (problem) => { throw new RequirementValidationError(index, requirement, problem); };
+    if (!requirement || Object.keys(requirement).sort().join(",") !==
+        "category,evidence,evidenceFactIds,explanation,necessity,requirementQuote,suggestedChallenge")
+      reject("invalid requirement fields");
+    if (!["eligibility", "work_arrangement"].includes(requirement.category) ||
+        !["mandatory", "unclear", "preferred", "excluded"].includes(requirement.necessity) ||
+        !["supported", "incompatible", "missing", "conflicting"].includes(requirement.evidence))
+      reject("invalid requirement classification");
+    if (typeof requirement.requirementQuote !== "string" || !requirement.requirementQuote.trim() ||
+        requirement.requirementQuote.length > 2000)
+      reject("missing or oversized advert quote");
+    if (producesFinding) {
+      if (typeof requirement.explanation !== "string" || !requirement.explanation.trim())
+        reject("missing requirement explanation");
+      if (requirement.explanation.length > 2000) reject("requirement explanation is too long");
+      if (typeof requirement.suggestedChallenge !== "string" || !requirement.suggestedChallenge.trim())
+        reject("missing suggested challenge");
+      if (requirement.suggestedChallenge.length > 300 || requirement.suggestedChallenge.trim().split(/\s+/).length > 25)
+        reject("suggested challenge exceeds 25 words or 300 characters");
+    } else if (requirement.explanation !== null || requirement.suggestedChallenge !== null) {
+      reject("non-blocking requirement must have null explanation and suggested challenge");
+    }
+    if (!Array.isArray(requirement.evidenceFactIds)) reject("invalid evidence reference list");
+    if (requirement.evidenceFactIds.some((id) => !facts.has(id))) reject("unknown evidence reference");
+    if (["supported", "incompatible", "conflicting"].includes(requirement.evidence) && !requirement.evidenceFactIds.length)
+      reject("evidence classification requires supplied fact references");
+    if (requirement.evidence === "missing" && requirement.evidenceFactIds.length)
+      reject("missing evidence must have no fact references");
     if (!normalizedDescription.includes(normalizeQuote(requirement.requirementQuote)))
       throw new RequirementQuoteError(index, requirement.requirementQuote);
     if (!producesFinding) continue;

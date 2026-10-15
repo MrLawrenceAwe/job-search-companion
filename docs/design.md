@@ -214,11 +214,13 @@ source content checks and final collection verification still apply.
 
 `chatgpt-response.js` parses completed JSON streams shared by checking and indexing.
 `inference.js` validates the requirement inventory, exact description quotes, and
-known evidence IDs before deriving findings. The structured schema requires prose
+known evidence IDs before deriving findings. Each request binds evidence references
+to the supplied fact IDs, requires references for supported/incompatible/conflicting
+evidence, and forbids references for missing evidence. The structured schema requires prose
 for findings and null explanations for other entries. See [requirement policy](#requirement-policy) for classification rules.
 `inference-prompts.js` owns instructions, `inference-schemas.js` owns structured
 response shapes, and `inference-validation.js` owns finding, correction, and
-challenge validation. `inference.js` constructs requests and retries only quote errors.
+challenge validation. `inference.js` constructs requests and allows one corrective request for an invalid quote or requirement entry.
 
 `chatgpt-accounts.js` exposes `openChatGPTAccountManager()` for registrations,
 active-account selection, OAuth, and authenticated requests. `fallbackAccountIds()`
@@ -249,7 +251,7 @@ fields, quoted description evidence, and known profile fact IDs.
 also disables checking and clears model selection before account operations.
 For account eligibility, see [fallback accounts](blocker-checker.md#fallback-accounts).
 
-Automatic checks begin after a 1.5-second dwell in a visible tab. One model request runs at a time. Recent eligible selections take precedence over waiting jobs, with at most ten waiting checks. Already-running checks finish when selection changes; turning checks off, clearing findings, shutdown, and account changes cancel work. Identical checks share a task across tabs. Requests time out after 90 seconds. Result polling waits in the bridge for completion (up to eight seconds per poll), so finished checks appear without an additional polling delay. Disconnected tabs release their wait without cancelling the shared check. A completed response with a non-verbatim requirement quote gets one corrective request within the same 90-second deadline. The complete inventory is validated again; a second quote failure shows a specific error. Other failed checks require an explicit retry; transient failures do not retry automatically or switch billing.
+Automatic checks begin after a 1.5-second dwell in a visible tab. One model request runs at a time. Recent eligible selections take precedence over waiting jobs, with at most ten waiting checks. Already-running checks finish when selection changes; turning checks off, clearing findings, shutdown, and account changes cancel work. Identical checks share a task across tabs. Requests time out after 90 seconds. Result polling waits in the bridge for completion (up to eight seconds per poll), so finished checks appear without an additional polling delay. Disconnected tabs release their wait without cancelling the shared check. A completed response with a non-verbatim requirement quote or invalid requirement fields gets one corrective request within the same 90-second deadline. Feedback identifies the rejected entry and validation problem, including empty explanations, invalid evidence references and oversized suggested challenges. The complete inventory is validated again; a second validation failure shows a specific checker error and says blocker status is unknown. Other failed checks require an explicit retry; transient failures do not retry automatically or switch billing.
 
 The bridge cache is keyed by Indeed job ID, description hash, evidence hash,
 checker version, and model. Retention and record bounds come from
@@ -291,9 +293,9 @@ logistics do not create candidate requirements. Application questions alone do
 not establish a required answer; citizenship and current location do not establish
 continuous recent residence.
 
-The schema requires explanations for findings and null explanations for other
-entries. Every entry retains its quote, classifications and evidence IDs. The
-local validator checks quotes and IDs but cannot guarantee that the model found
+The schema requires non-empty explanations and suggested challenges for findings,
+and null values for other entries. Every entry retains its quote, classifications
+and evidence IDs. The local validator checks quotes and IDs but cannot guarantee that the model found
 or correctly classified every requirement. Findings use the internal `blocker`
 kind and the **Potential blocker** label; their explanation distinguishes missing
 or conflicting evidence from an established incompatibility.
