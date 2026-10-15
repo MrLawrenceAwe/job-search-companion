@@ -354,6 +354,64 @@ test("rejected challenges explain the remaining blocker without proposing profil
   assert.deepEqual(result.profileUpdates, []);
 });
 
+test("fitness clarification repairs inconsistent challenge decisions and retains unrelated blockers", async () => {
+  const fitnessQuote = "This role involves heavy manual handling, so applicants must be physically fit and prepared for demanding work.";
+  const referencesQuote = "We require good employment references.";
+  const description = `${fitnessQuote} ${referencesQuote}`;
+  const challenge = { requirementQuote: fitnessQuote, reason: "I am physically fit and prepared for demanding work." };
+  const evidence = { facts: [{ id: "F1", text: "Comfortable with physical work.", source: "Profile evidence" }] };
+  const fitness = { category: "eligibility", necessity: "mandatory", evidence: "supported",
+    requirementQuote: fitnessQuote, explanation: null, suggestedChallenge: null, evidenceFactIds: ["CH1"] };
+  const references = { category: "eligibility", necessity: "mandatory", evidence: "missing",
+    requirementQuote: referencesQuote, explanation: "Employment references are not established.",
+    suggestedChallenge: "What evidence would establish suitable employment references?", evidenceFactIds: [] };
+  const corrected = { requirements: [fitness, references], challengeAccepted: true,
+    challengeResponse: "Your confirmation establishes fitness and readiness. Employment references remain unconfirmed.",
+    profileUpdates: [{ text: "Physically fit and prepared for demanding work.", replacesFactIds: ["F1"] }] };
+  for (const first of [
+    { ...corrected, requirements: [{ ...fitness, requirementQuote: "physically fit and prepared for demanding work" }, references] },
+    { ...corrected, requirements: [{ ...fitness, evidence: "missing", evidenceFactIds: [],
+      explanation: "Fitness is not established.", suggestedChallenge: "Please reconsider my confirmation of physical fitness." }, references] },
+    { ...corrected, challengeAccepted: false, profileUpdates: [] },
+  ]) {
+    const requests = [];
+    const controller = new AbortController();
+    const result = await runBlockerInference({ chatgpt: { async request(endpoint, options) {
+      requests.push(JSON.parse(options.body));
+      assert.equal(options.signal, controller.signal);
+      return sse(completed(JSON.stringify(requests.length === 1 ? first : corrected)));
+    } }, model: "test", description, evidence, challenge, signal: controller.signal });
+    assert.equal(requests.length, 2);
+    assert.equal(result.challengeReview.accepted, true);
+    assert.deepEqual(result.profileUpdates, corrected.profileUpdates);
+    assert.deepEqual(result.findings.map((finding) => finding.requirementQuote), [referencesQuote]);
+    const initial = JSON.parse(requests[0].input[0].content);
+    const retry = JSON.parse(requests[1].input[0].content);
+    assert.equal(retry.validationFeedback.challengedQuote, fitnessQuote);
+    assert.deepEqual(retry.candidateEvidence, initial.candidateEvidence);
+    assert.deepEqual(retry.candidateClarification, initial.candidateClarification);
+    assert.deepEqual(retry.blockerChallenge, challenge && { ...challenge, factId: "CH1" });
+    assert.deepEqual(requests[1].text, requests[0].text);
+    assert.match(requests[0].instructions, /explicit confirmation does/);
+    assert.match(requests[0].instructions, /unless the advert explicitly requires such proof/);
+  }
+});
+
+test("a persistently inconsistent challenge fails after one repair rather than dismissing a blocker", async () => {
+  let calls = 0;
+  const challenge = { requirementQuote: "full UK driving licence", reason: "I now hold a full UK driving licence." };
+  const output = { requirements: [{ category: "eligibility", necessity: "mandatory", evidence: "missing",
+    requirementQuote: challenge.requirementQuote, explanation: "Licence not established.",
+    suggestedChallenge: "Please reconsider my confirmation of a full licence.", evidenceFactIds: [] }],
+    challengeAccepted: true, challengeResponse: "Accepted.", profileUpdates: [] };
+  await assert.rejects(runBlockerInference({ chatgpt: { async request() {
+    calls += 1;
+    return sse(completed(JSON.stringify(output)));
+  } }, model: "test", description: job().description, evidence: profile, challenge }),
+  { code: "challenge_decision_mismatch" });
+  assert.equal(calls, 2);
+});
+
 test("every blocker returns a concise prepared challenge; drafts never become candidate evidence", async () => {
   const suggestedChallenge = "  Does the full advert allow visiting sites without driving?  ";
   const requirement = { category: "eligibility", necessity: "mandatory", evidence: "incompatible",

@@ -87,7 +87,12 @@ facts; generating a suggestion does not change your profile. Edited drafts,
 including an emptied field, are preserved when you cancel and reopen the form.
 The model reviews the full advert again and gives a direct response explaining whether the
 challenge is accepted or the blocker remains. Other requirements are still
-checked. A challenge is evidence to assess, not an automatic override.
+checked. A challenge is evidence to assess, not an automatic override. A direct
+confirmation of physical fitness and readiness for demanding work can resolve that
+general requirement without a CV entry or medical certificate, unless the advert
+explicitly requires proof. It does not establish separate employment references
+or work history. An inconsistent challenge decision receives one corrective review
+before the request fails; all requirements are retained and validated again.
 
 When accepted, concrete reusable factual corrections are integrated into the
 configured profile files for future checks. Superseded facts are removed from

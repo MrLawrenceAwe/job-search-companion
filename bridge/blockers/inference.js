@@ -5,6 +5,7 @@ import { createRequirementInventorySchema, createChallengeReviewSchema } from ".
 import {
   RequirementQuoteError,
   RequirementValidationError,
+  ChallengeDecisionError,
   deriveValidatedFindings,
   validateInferenceOutput,
   validateProfileCorrections,
@@ -65,9 +66,10 @@ export const runBlockerInference = async ({
       findings = deriveValidatedFindings({ requirements: output.requirements }, description, checkEvidence);
       if (challenge) validateChallengeDecision(output, findings, challenge);
     } catch (error) {
-      // Correct one completed inventory with a quote or field validation error.
+      // Correct one completed inventory with a quote, field or challenge decision error.
       // Keep the same deadline and revalidate everything; never discard a finding.
-      if (!(error instanceof RequirementQuoteError || error instanceof RequirementValidationError) || attempt === 1) throw error;
+      if (!(error instanceof RequirementQuoteError || error instanceof RequirementValidationError ||
+          error instanceof ChallengeDecisionError) || attempt === 1) throw error;
       validationFeedback = error.feedback;
       continue;
     }

@@ -112,6 +112,17 @@ export const validateChallengeDecision = (output, findings, challenge) => {
   const quote = normalizeQuote(challenge.requirementQuote);
   const matches = (item) => normalizeQuote(item.requirementQuote) === quote;
   if (!output.requirements.some(matches) || output.challengeAccepted === findings.some(matches)) {
-    throw new Error("Challenge reply did not match the updated findings. Try again.");
+    throw new ChallengeDecisionError(challenge.requirementQuote);
   }
 };
+
+export class ChallengeDecisionError extends Error {
+  constructor(requirementQuote) {
+    super("Challenge reply did not match the updated findings. Try again.");
+    this.code = "challenge_decision_mismatch";
+    this.feedback = {
+      challengedQuote: requirementQuote,
+      problem: "Keep the challengedQuote unchanged as a requirementQuote in the complete inventory. Assess it against candidateClarification as well as candidateEvidence. Set challengeAccepted true exactly when that requirement produces no blocker, false otherwise, and make challengeResponse and profileUpdates agree. Retain every other candidate requirement; do not drop or weaken requirements to bypass validation.",
+    };
+  }
+}
