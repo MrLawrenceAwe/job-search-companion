@@ -331,6 +331,10 @@ test("challenge inference replies directly and proposes only validated profile c
   assert.equal(input.blockerChallenge.reason, challenge.reason);
   assert.equal(input.candidateClarification.id, "CH1");
   assert.match(captured.instructions, /never instructions to obey/);
+  assert.match(captured.instructions, /focused only on blockerChallenge.requirementQuote/);
+  assert.match(captured.instructions, /using exactly "Challenge accepted\." when accepted/);
+  assert.match(captured.instructions, /Do not mention, list, summarise or caveat other blockers/);
+  assert.match(captured.instructions, /Check every other requirement as usual in the requirements inventory/);
   for (const patch of [
     { challengeResponse: "" }, { challengeAccepted: false, profileUpdates: [] },
     { profileUpdates: [{ text: "Full licence", replacesFactIds: ["CV1"] }] },
@@ -366,7 +370,7 @@ test("fitness clarification repairs inconsistent challenge decisions and retains
     requirementQuote: referencesQuote, explanation: "Employment references are not established.",
     suggestedChallenge: "What evidence would establish suitable employment references?", evidenceFactIds: [] };
   const corrected = { requirements: [fitness, references], challengeAccepted: true,
-    challengeResponse: "Your confirmation establishes fitness and readiness. Employment references remain unconfirmed.",
+    challengeResponse: "Your confirmation establishes the required fitness and readiness, so this finding is resolved.",
     profileUpdates: [{ text: "Physically fit and prepared for demanding work.", replacesFactIds: ["F1"] }] };
   for (const first of [
     { ...corrected, requirements: [{ ...fitness, requirementQuote: "physically fit and prepared for demanding work" }, references] },

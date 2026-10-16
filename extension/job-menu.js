@@ -64,7 +64,7 @@
 
   const removeHiddenItems = () => {
     for (const item of document.querySelectorAll(`.${companion.ui.menuItemClass}`)) {
-      if (!companion.dom.getViewportRect(item)) {
+      if (!companion.dom.getRenderedRect(item)) {
         item.remove();
       }
     }
@@ -73,7 +73,7 @@
   const hasVisibleItem = (root) => {
     const selector = `.${companion.ui.menuItemClass}`;
     const items = companion.dom.queryIncludingRoot(root, selector);
-    return items.some((item) => companion.dom.getViewportRect(item));
+    return items.some((item) => companion.dom.getRenderedRect(item));
   };
 
   const resolveMenuRow = (element) => {
@@ -86,7 +86,7 @@
 
     for (let parent = element.parentElement; parent; parent = parent.parentElement) {
       const text = parent.textContent?.trim() || "";
-      const rect = companion.dom.getViewportRect(parent);
+      const rect = companion.dom.getRenderedRect(parent);
 
       if (!/^WhatsApp$/i.test(text) || !rect || rect.width > 420 || rect.height > 80) {
         break;
@@ -111,7 +111,7 @@
       }
 
       const row = resolveMenuRow(element);
-      const rect = companion.dom.getViewportRect(row);
+      const rect = companion.dom.getRenderedRect(row);
       if (!rect || rect.width > 420 || rect.height > 80) {
         continue;
       }
@@ -215,7 +215,16 @@
 
     const insertionRow = findWhatsAppRow(root) || findLinkedInShareRow(root);
     if (insertionRow) {
-      insertionRow.after(...createMenuItems(insertionRow));
+      const menu = insertionRow.closest?.('[role="menu"]');
+      if (companion.platform === "indeed" && menu) {
+        menu.prepend(...createMenuItems(insertionRow));
+        menu.classList.add("jsc-share-menu");
+        const rect = menu.getBoundingClientRect();
+        menu.style.top = `${Math.max(8, Math.min(rect.top, window.innerHeight - rect.height - 8))}px`;
+        menu.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - rect.width - 8))}px`;
+      } else {
+        insertionRow.after(...createMenuItems(insertionRow));
+      }
       return true;
     }
 

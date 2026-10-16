@@ -44,7 +44,7 @@ export const createChallengeReviewSchema = (factIds) => {
     ...inventory,
     properties: {
       ...inventory.properties,
-      challengeResponse: { type: "string" },
+      challengeResponse: { type: "string", description: "Reply only about blockerChallenge.requirementQuote and the candidate clarification. If accepted, return only Challenge accepted. If rejected, explain why this finding remains without discussing other blockers or challenges." },
       challengeAccepted: { type: "boolean" },
       profileUpdates: {
         type: "array",

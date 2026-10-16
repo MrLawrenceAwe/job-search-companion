@@ -194,3 +194,22 @@ test('LinkedIn manual applied action remains available regardless of Indeed-like
   companion.pageDecorations.schedule();
   await waitUntil(() => window.document.querySelector('.jsc-applied-action'));
 });
+
+test('Indeed puts CV fit first and keeps actions when the last native row is below the viewport', async (t) => {
+  const { window, companion } = await fixture(t);
+  await runScriptsInDom(window, ['contracts/shortcuts.js', 'job-menu.js']);
+  companion.jobs.consumeMenuJobUrl = () => firstJob;
+  const menu = window.document.createElement('div');
+  menu.setAttribute('role', 'menu');
+  menu.innerHTML = '<div role="menuitem">Copy link</div><div role="menuitem">Email</div><div role="menuitem">Text message</div><div role="menuitem">WhatsApp</div>';
+  window.document.body.append(menu);
+  menu.getBoundingClientRect = () => ({ top: 700, left: 200, width: 300, height: 320 });
+  companion.dom.getViewportRect = (element) => element.textContent === 'WhatsApp' || element.matches('.jsc-menu-item')
+    ? null : companion.dom.getRenderedRect(element);
+  assert.equal(companion.jobMenu.insertJobMenuActions(menu), true);
+  assert.match(menu.firstElementChild.textContent, /Analyse with CV Fit Advisor/);
+  assert.ok(menu.classList.contains('jsc-share-menu'));
+  assert.equal(menu.style.top, `${window.innerHeight - 320 - 8}px`);
+  assert.equal(companion.jobMenu.insertJobMenuActions(menu), true);
+  assert.equal(menu.querySelectorAll('.jsc-menu-item').length, 3);
+});

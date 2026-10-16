@@ -5,6 +5,10 @@
   const { reasoningForModel } = globalThis.jobSearchContracts.inferenceSettings;
   const recordStore = globalThis.jobSearchBlockerResults.createStore();
   const checks = new Map();
+  const challenges = [];
+  let running = false;
+  const sameDescription = (left, right) => left.jobId === right.jobId && left.descriptionHash === right.descriptionHash;
+  const signatureFor = (job) => `${job.jobId}:${job.descriptionHash}:${evidenceHash}:${checkerState?.settings.model}:${reasoningForModel(checkerState?.settings.model, checkerState?.settings.reasoningEffort)}`;
   let checkerState = null;
   let selection = null;
   let dwellTimer = null;
@@ -27,8 +31,7 @@
       ? record
       : null;
   };
-  const startCheck = async (force = false, challenge) => {
-    const captured = selection;
+  const runCheck = async (captured, force, challenge) => {
     if (
       !captured ||
       !checkerState?.settings.enabled || checkerState?.pausedReason ||
@@ -36,7 +39,6 @@
       (!force && document.hidden)
     )
       return;
-    if (!force && (getCurrentResult() || checks.has(captured.signature))) return;
     checks.set(captured.signature, { status: "queued" });
     scheduleRender();
     try {
@@ -64,12 +66,57 @@
         if (selection?.signature === captured.signature) schedule();
       }
       scheduleRender();
+      return check;
     } catch (error) {
       checks.set(captured.signature, {
         status: "failed",
         error: error.message,
       });
       scheduleRender();
+      return { status: "failed", error: error.message };
+    }
+  };
+  const drainChallenges = async () => {
+    if (running || !challenges.some((entry) => entry.status === "queued")) return;
+    running = true;
+    try {
+      for (let entry; (entry = challenges.find((item) => item.status === "queued"));) {
+        entry.status = "reviewing";
+        scheduleRender();
+        const captured = { ...entry.job, signature: signatureFor(entry.job) };
+        const check = await runCheck(captured, true, entry.challenge);
+        entry.status = check?.status || "cancelled";
+        entry.error = check?.error || (check ? null : checkerState?.pausedReason || "Checking is unavailable. Submit this challenge again when checks resume.");
+        scheduleRender();
+      }
+    } finally {
+      running = false;
+      schedule();
+      scheduleRender();
+    }
+  };
+  const startCheck = async (force = false, challenge) => {
+    const captured = selection;
+    if (!captured) return;
+    if (challenge) {
+      if (challenges.some((entry) => sameDescription(entry.job, captured) &&
+          entry.challenge.requirementQuote === challenge.requirementQuote &&
+          ["queued", "reviewing"].includes(entry.status))) return;
+      // Keep only the newest submission state for this finding.
+      const old = challenges.findIndex((entry) => sameDescription(entry.job, captured) &&
+        entry.challenge.requirementQuote === challenge.requirementQuote);
+      if (old !== -1) challenges.splice(old, 1);
+      challenges.push({ job: { ...captured }, challenge: { ...challenge }, status: "queued" });
+      scheduleRender();
+      return drainChallenges();
+    }
+    if (running || (!force && (getCurrentResult() || checks.has(captured.signature)))) return;
+    running = true;
+    try { await runCheck(captured, force); }
+    finally {
+      running = false;
+      if (selection && selection.signature !== captured.signature) schedule();
+      void drainChallenges();
     }
   };
   const cancelDwell = () => {
@@ -78,7 +125,7 @@
   };
   const scheduleDwell = () => {
     if (
-      dwellTimer !== null || !selection || document.hidden ||
+      running || dwellTimer !== null || !selection || document.hidden ||
       !checkerState?.settings.enabled || checkerState?.pausedReason ||
       !checkerState?.connectionStatus.planUsageEnabled ||
       getCurrentResult() || checks.has(selection.signature)
@@ -100,12 +147,12 @@
         updated.evidence?.hash !== evidenceHash ||
         updated.pausedReason !== checkerState?.pausedReason
       ) {
-        selection = null;
         for (const [key, check] of checks)
           if (!["checking", "queued"].includes(check.status)) checks.delete(key);
       }
       checkerState = updated;
       evidenceHash = checkerState.evidence?.hash;
+      if (selection) selection = { ...selection, signature: signatureFor(selection) };
       lastStatusReceivedAt = Date.now();
     } catch (error) {
       checkerState = { error: error.message, settings: { enabled: false } };
@@ -155,7 +202,7 @@
     }
     const descriptionHash = await digest(text);
     if (generation !== scanGeneration) return;
-    const signature = `${jobId}:${descriptionHash}:${evidenceHash}:${checkerState?.settings.model}:${reasoningForModel(checkerState?.settings.model, checkerState?.settings.reasoningEffort)}`;
+    const signature = signatureFor({ jobId, descriptionHash });
     if (selection?.signature !== signature) {
       cancelDwell();
       selection = { jobId, jobUrl, text, descriptionHash, signature };
@@ -177,7 +224,7 @@
     checks,
     getCurrentResult,
     startCheck,
-    getContext: () => ({ selection, checkerState }),
+    getContext: () => ({ selection, checkerState, challenges: challenges.filter((entry) => selection && sameDescription(entry.job, selection)) }),
   });
   const initialize = async () => {
     await recordStore.ready;
@@ -188,6 +235,12 @@
   recordStore.subscribe((changes) => {
     for (const { jobId, removed } of changes) {
       if (!removed) continue;
+      for (const entry of challenges) {
+        if (entry.job.jobId === jobId && entry.status === "queued") {
+          entry.status = "cancelled";
+          entry.error = "Saved results were cleared. Submit this challenge again after a new check.";
+        }
+      }
       for (const [signature, check] of checks)
         if (signature.startsWith(`${jobId}:`) && !["checking", "queued"].includes(check.status))
           checks.delete(signature);

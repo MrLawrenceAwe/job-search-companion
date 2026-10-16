@@ -51,7 +51,7 @@ blocker. A failed check then needs an explicit retry. If checking pauses, review
 the message in settings, resolve the connection or model issue, and choose
 **Resume checks**.
 
-The selected detail shows **Blocker check**, with **Potential blocker** findings
+The selected detail shows **Blocker check** with a collapsed finding count. Expand **Show findings** to review results in a scrollable area, challenge them, or override eligible findings. **Recheck** stays visible when results are collapsed. The expanded results show **Potential blocker** findings
 or **No blockers found**. A potential blocker means an essential requirement is
 not established by the supplied evidence. Its explanation distinguishes missing
 or conflicting evidence from an explicit incompatibility. It does not prove that
@@ -154,3 +154,20 @@ Evaluation commands, methodology and historical measurements are documented in [
 See [checker internals and validation notes](design.md#blocker-checking-internals) for description capture, storage contracts, and automated coverage.
 
 Official documentation: [Sign-in](https://developers.openai.com/siwc/token-sharing-open-source/sign-in), [models/inference](https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference), [preview limitations](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations), [recovery](https://developers.openai.com/siwc/token-sharing-open-source/errors-and-recovery).
+
+### Preparing and queuing challenges
+
+While a challenge is being reviewed, you can open other findings, edit their
+prepared objections, and choose **Queue challenge**. Only the queued or currently
+reviewed finding is locked against duplicate submission. Reviews run one at a
+time in submission order, and each starts with the latest profile and CV evidence,
+including corrections accepted by earlier reviews. Open drafts retain their text
+and cursor position as results update. **Recheck** waits until the queue finishes.
+A failed review is shown with its requirement; other queued reviews can continue
+unless checking is unavailable. Accepted reviews show **Challenge accepted** without an explanation. Rejected
+reviews explain only why the challenged requirement remains a blocker; other
+findings stay in the findings list.
+
+The queue and unsent drafts belong to the current page session. Reloading or
+closing the page discards waiting challenges and drafts. A review already sent
+to the bridge can still finish.

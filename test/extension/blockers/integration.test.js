@@ -325,10 +325,19 @@ test("an essential evidence gap shows Potential blocker on the card and panel", 
     fixture.setHidden(false);
     await waitUntil(() => fixture.window.document.querySelector(".jsc-blocker-panel.jsc-blocker"));
     assert.equal(fixture.window.document.querySelector(".jsc-blocker-badge").textContent, "Potential blocker");
-    const summaries = [...fixture.window.document.querySelectorAll(".jsc-blocker-panel summary")];
+    const summaries = [...fixture.window.document.querySelectorAll(".jsc-blocker-finding summary")];
     assert.equal(summaries[0].querySelector("strong").textContent, "Potential blocker");
     assert.match(summaries[0].textContent, /Your evidence does not establish three years/);
     assert.equal(summaries.length, 1);
+    const results = fixture.window.document.querySelector(".jsc-blocker-results");
+    assert.equal(results.open, false);
+    assert.match(results.querySelector("summary").textContent, /1 potential blocker/);
+    assert.ok(fixture.window.document.querySelector(".jsc-blocker-panel > .jsc-blocker-controls"));
+    results.open = true;
+    fixture.window.jobSearchCompanion.pageDecorations.schedule();
+    await new Promise((resolve) => fixture.window.setTimeout(resolve, 100));
+    assert.equal(fixture.window.document.querySelector(".jsc-blocker-results").open, true);
+
     assert.equal(fixture.window.document.querySelector(".jsc-blocker-panel > strong").textContent, "Blocker check");
   } finally {
     fixture.close();
@@ -400,7 +409,8 @@ test("challenging a blocker sends the objection, shows the reply, and does not r
     doc.querySelector(".jsc-blocker-challenge button").click();
     await waitUntil(() => doc.querySelector(".jsc-blocker-review"));
     assert.equal(calls[1].challenge.reason, input.value);
-    assert.match(doc.querySelector(".jsc-blocker-review").textContent, /Challenge accepted.*clarification resolves/);
+    assert.match(doc.querySelector(".jsc-blocker-review").textContent, /Challenge accepted/);
+    assert.doesNotMatch(doc.querySelector(".jsc-blocker-review").textContent, /clarification resolves/);
     assert.match(doc.querySelector(".jsc-blocker-badge").textContent, /No blockers found/);
     [...doc.querySelectorAll(".jsc-blocker-controls button")].find((node) => node.textContent === "Recheck").click();
     await waitUntil(() => calls.length === 3 && !doc.querySelector(".jsc-blocker-review") &&
@@ -532,7 +542,8 @@ test("an accepted profile correction refreshes evidence and keeps its reply visi
     assert.equal(fixture.storage["blocker-result:first1111"].evidenceHash, "profile-corrected");
     await new Promise((resolve) => setTimeout(resolve, 40));
     assert.equal(starts, 2);
-    assert.match(doc.querySelector(".jsc-blocker-review").textContent, /full licence resolves/);
+    assert.match(doc.querySelector(".jsc-blocker-review").textContent, /Challenge accepted/);
+    assert.doesNotMatch(doc.querySelector(".jsc-blocker-review").textContent, /full licence resolves/);
   } finally { fixture.close(); }
 });
 
@@ -620,5 +631,93 @@ test("overriding the last rejected blocker labels the user's decision; recheck r
     assert.equal(fixture.storage["blocker-result:first1111"].overriddenRequirementQuotes, undefined);
     assert.match(doc.querySelector(".jsc-blocker-badge").textContent, /Potential blocker/);
     assert.equal(button("Override for this job"), undefined, "the new check needs a rejected challenge before overriding");
+  } finally { fixture.close(); }
+});
+
+for (const failSecond of [false, true]) test(`challenges run in order with fresh evidence and preserved drafts${failSecond ? ' after a failed review' : ''}`, async () => {
+  const fixture = await createBlockerFixture({}, { initiallyHidden: true });
+  try {
+    const { window } = fixture;
+    const doc = window.document;
+    const original = window.chrome.runtime.sendMessage;
+    const quotes = ['full UK driving licence', 'regular client visits', 'car'];
+    const findings = quotes.map((requirementQuote) => ({ kind: 'blocker', requirementQuote,
+      explanation: 'The evidence does not establish this requirement.', evidenceFacts: [],
+      suggestedChallenge: `Please reconsider ${requirementQuote}.` }));
+    const requests = [];
+    const releases = [];
+    let evidenceHash = 'profile';
+    window.chrome.runtime.sendMessage = async (message) => {
+      if (message.action === 'status') {
+        const response = await original(message);
+        response.evidence.hash = evidenceHash;
+        return response;
+      }
+      if (message.action !== 'check') return original(message);
+      const check = await createCompletedCheck(message.body);
+      check.result.outcome = 'blocker';
+      check.result.findings = findings;
+      if (!message.body.challenge) return { ok: true, check };
+      requests.push({ ...message.body.challenge, evidenceHash });
+      const index = requests.length - 1;
+      return new Promise((resolve) => {
+        releases[index] = () => {
+          if (failSecond && index === 1) return resolve({ ok: false, error: 'Review failed. Try again.' });
+          if (index === 0) evidenceHash = 'updated-profile';
+          check.result.evidenceHash = evidenceHash;
+          check.result.findings = findings.slice(index + 1);
+          check.result.outcome = check.result.findings.length ? 'blocker' : 'no_blockers_found';
+          check.result.challengeReview = { accepted: true, profileUpdated: index === 0,
+            requirementQuote: quotes[index], response: 'Your clarification resolves this finding.' };
+          resolve({ ok: true, check });
+        };
+      });
+    };
+    fixture.setHidden(false);
+    const rows = () => [...doc.querySelectorAll('.jsc-blocker-finding')];
+    const row = (quote) => rows().find((node) => node.querySelector('summary').textContent.includes(`“${quote}”`));
+    const prepare = (quote, value) => {
+      row(quote).querySelector(':scope > button').click();
+      const input = row(quote).querySelector('textarea');
+      input.value = value;
+      input.dispatchEvent(new window.Event('input'));
+      return input;
+    };
+    const send = (quote) => row(quote).querySelector('form button').click();
+    await waitUntil(() => rows().length === 3);
+    doc.querySelector('.jsc-blocker-results').open = true;
+    prepare(quotes[0], 'First clarification');
+    send(quotes[0]);
+    await waitUntil(() => releases[0] && row(quotes[0]).querySelector(':scope > button').disabled);
+    assert.equal(row(quotes[1]).querySelector(':scope > button').disabled, false);
+    prepare(quotes[1], 'Second clarification');
+    const oldForm = row(quotes[1]).querySelector('form');
+    assert.equal(oldForm.querySelector('button').textContent, 'Queue challenge');
+    send(quotes[1]);
+    oldForm.dispatchEvent(new window.Event('submit', { cancelable: true }));
+    await waitUntil(() => row(quotes[1]).querySelector(':scope > button').textContent === 'Challenge queued');
+    assert.equal(requests.length, 1, 'queued work must not start during a review');
+    const draft = prepare(quotes[2], 'Unfinished third clarification');
+    draft.setSelectionRange(5, 9);
+    releases[0]();
+    await waitUntil(() => releases[1] && !row(quotes[0]));
+    assert.equal(requests[1].evidenceHash, 'updated-profile');
+    const restored = row(quotes[2]).querySelector('textarea');
+    assert.equal(restored.value, 'Unfinished third clarification');
+    assert.equal(restored.closest('form').hidden, false);
+    assert.equal(doc.activeElement, restored);
+    assert.equal(restored.selectionStart, 5);
+    assert.equal(doc.querySelector('.jsc-blocker-results').open, true);
+    send(quotes[2]);
+    await waitUntil(() => row(quotes[2]).querySelector(':scope > button').textContent === 'Challenge queued');
+    assert.equal(requests.length, 2);
+    releases[1]();
+    await waitUntil(() => releases[2]);
+    assert.equal(requests[2].reason, 'Unfinished third clarification');
+    assert.equal(requests[2].evidenceHash, 'updated-profile');
+    releases[2]();
+    await waitUntil(() => doc.querySelector('.jsc-blocker-results > summary').textContent.includes('No blockers found'));
+    assert.deepEqual(requests.map((item) => item.requirementQuote), quotes);
+    if (failSecond) assert.match(doc.querySelector('.jsc-blocker-panel').textContent, /Review failed/);
   } finally { fixture.close(); }
 });

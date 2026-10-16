@@ -133,6 +133,7 @@ export const createMenuFixture = async ({
   ]);
   Object.assign(context.jobSearchCompanion.dom, {
     getViewportRect: () => ({ width: 200, height: 40 }),
+    getRenderedRect: () => ({ width: 200, height: 40 }),
     queryIncludingRoot: (root, selector) => selector === ".jsc-menu-item" ? [] : [root],
   });
   context.jobSearchCompanion.jobs.consumeMenuJobUrl = () => jobUrl;

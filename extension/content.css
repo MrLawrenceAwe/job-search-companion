@@ -191,3 +191,15 @@
 .jsc-blocker-challenge textarea { display: block; box-sizing: border-box; width: 100%; margin-top: 6px; padding: 8px; border: 1px solid #8292a9; border-radius: 5px; background: white; color: #202936; font: inherit; resize: vertical; }
 .jsc-blocker-review { margin: 8px 0; padding: 10px; border: 1px solid #8292a9; border-radius: 5px; background: white; color: #202936; }
 .jsc-blocker-error { font-weight: 600; }
+
+/* Keep injected share actions reachable near the bottom of the page. */
+.jsc-share-menu {
+  position: fixed !important;
+  max-height: calc(100dvh - 16px);
+  max-width: calc(100vw - 16px);
+  overflow-y: auto !important;
+}
+
+.jsc-blocker-panel .jsc-blocker-results { border-top: 0; padding: 4px 0; }
+.jsc-blocker-results > summary { font-weight: 600; }
+.jsc-blocker-result-body { max-height: 50vh; overflow-y: auto; padding-right: 8px; }
