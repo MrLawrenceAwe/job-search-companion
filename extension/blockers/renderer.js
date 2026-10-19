@@ -46,6 +46,98 @@
       });
       return node;
     };
+    const createChallengeControls = (finding, { selection, checkerState, challenges, busy }) => {
+      const form = element("form", null, "jsc-blocker-challenge");
+      const draftKey = `${selection.jobId}:${selection.descriptionHash}:${finding.requirementQuote}`;
+      const challengeState = challenges.find((entry) => entry.challenge.requirementQuote === finding.requirementQuote);
+      const pending = ["queued", "reviewing"].includes(challengeState?.status);
+      form.hidden = !openDrafts.has(draftKey) || pending;
+      const inputLabel = element("label", "Why should this finding be reconsidered?");
+      const input = element("textarea");
+      input.required = true;
+      input.maxLength = 2000;
+      input.rows = 3;
+      input.dataset.draftKey = draftKey;
+      input.value = drafts.get(draftKey) ?? (pending || challengeState?.error ? challengeState.challenge.reason : finding.suggestedChallenge);
+      input.placeholder = "Explain the mistake or add a factual correction. Accepted reusable facts update your profile.";
+      input.addEventListener("input", () => {
+        input.setCustomValidity("");
+        drafts.set(draftKey, input.value);
+        if (drafts.size > 20) drafts.delete(drafts.keys().next().value);
+      });
+      inputLabel.append(input);
+      const actions = element("div", null, "jsc-blocker-controls");
+      const submit = button(busy ? "Queue challenge" : "Send challenge", () => form.requestSubmit());
+      submit.disabled = pending || !checkerState?.settings.enabled || !checkerState?.connectionStatus.planUsageEnabled || Boolean(checkerState?.pausedReason);
+      const cancel = button("Cancel", () => { openDrafts.delete(draftKey); form.hidden = true; toggle.hidden = false; });
+      actions.append(submit, cancel);
+      form.append(inputLabel, actions);
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!input.value.trim()) {
+          input.setCustomValidity("Explain why this finding should be reconsidered.");
+          input.reportValidity();
+          return;
+        }
+        if (submit.disabled) return;
+        drafts.delete(draftKey);
+        openDrafts.delete(draftKey);
+        void startCheck(true, { requirementQuote: finding.requirementQuote, reason: input.value.trim() });
+      });
+      const toggle = button(pending ? challengeState.status === "queued" ? "Challenge queued" : "Reviewing challenge…" : "Challenge", () => {
+        openDrafts.add(draftKey);
+        form.hidden = false;
+        toggle.hidden = true;
+        input.focus();
+        input.select();
+      });
+      toggle.disabled = submit.disabled;
+      toggle.hidden = !form.hidden;
+      return [toggle, form];
+    };
+    const appendOverrideControl = (row, result, finding, overridden, busy) => {
+      if (overridden || canOverrideFinding(result, finding.requirementQuote)) {
+        const override = button(overridden ? "Undo override" : "Override for this job", async () => {
+          override.disabled = true;
+          try {
+            await recordStore.setFindingOverride(result, finding.requirementQuote, !overridden);
+          } catch (error) {
+            row.append(element("p", error.message, "jsc-blocker-error"));
+            override.disabled = busy;
+          }
+        });
+        override.disabled = busy;
+        override.title = overridden ? "Restore this blocker." : "Dismiss this blocker for this check only. Your profile stays unchanged; rechecking resets the override.";
+        row.append(override);
+      }
+    };
+    const createFindingRow = (result, finding, context) => {
+      const overridden = result.overriddenRequirementQuotes?.includes(finding.requirementQuote);
+      const details = element("details");
+      const summary = element("summary");
+      summary.append(
+        element("strong", LABELS[finding.kind]),
+        document.createTextNode(" — "),
+        element("strong", `Job requirement: “${finding.requirementQuote}”`),
+        element("br"),
+        document.createTextNode("Your evidence: "),
+      );
+      appendExplanation(summary, finding);
+      details.append(summary);
+      for (const fact of finding.evidenceFacts || [])
+        details.append(element("p", `${fact.source}: ${fact.text}`));
+      if (!finding.evidenceFacts?.length)
+        details.append(
+          element("p", "Your profile and CV evidence do not establish this requirement."),
+        );
+      const row = element("div", null, "jsc-blocker-finding");
+      row.append(details);
+      if (overridden) row.append(element("p", "Overridden by you for this job. The AI finding is retained."));
+      if (!overridden) row.append(...createChallengeControls(finding, context));
+      appendOverrideControl(row, result, finding, overridden, context.busy);
+      return row;
+    };
     const render = ({ cards, findings }) => {
       const { selection, checkerState, challenges = [] } = getContext();
       for (const badge of document.querySelectorAll(".jsc-blocker-badge")) badge.remove();
@@ -115,9 +207,12 @@
         const results = element("details", null, "jsc-blocker-results");
         results.open = Boolean(keepResultsOpen);
         const count = getRemainingFindings(result).length;
-        results.append(element("summary", result.findings.length
-          ? `${count} potential blocker${count === 1 ? "" : "s"} · Show findings`
-          : "No blockers found · Show details"));
+        const summaryLabel = !result.findings.length
+          ? "No blockers found · Show details"
+          : count === 0
+            ? "All blockers overridden by you · Show findings"
+            : `${count} potential blocker${count === 1 ? "" : "s"} · Show findings`;
+        results.append(element("summary", summaryLabel));
         const resultBody = element("div", null, "jsc-blocker-result-body");
         results.append(resultBody);
         panel.append(results);
@@ -145,90 +240,7 @@
             ),
           );
         for (const finding of result.findings) {
-          const overridden = result.overriddenRequirementQuotes?.includes(finding.requirementQuote);
-          const details = element("details");
-          const summary = element("summary");
-          summary.append(
-            element("strong", LABELS[finding.kind]),
-            document.createTextNode(" — "),
-            element("strong", `Job requirement: “${finding.requirementQuote}”`),
-            element("br"),
-            document.createTextNode("Your evidence: "),
-          );
-          appendExplanation(summary, finding);
-          details.append(summary);
-          for (const fact of finding.evidenceFacts || [])
-            details.append(element("p", `${fact.source}: ${fact.text}`));
-          if (!finding.evidenceFacts?.length)
-            details.append(
-              element("p", "Your profile and CV evidence do not establish this requirement."),
-            );
-          const row = element("div", null, "jsc-blocker-finding");
-          row.append(details);
-          if (overridden) row.append(element("p", "Overridden by you for this job. The AI finding is retained."));
-          const form = element("form", null, "jsc-blocker-challenge");
-          const draftKey = `${selection.jobId}:${selection.descriptionHash}:${finding.requirementQuote}`;
-          const challengeState = challenges.find((entry) => entry.challenge.requirementQuote === finding.requirementQuote);
-          const pending = ["queued", "reviewing"].includes(challengeState?.status);
-          form.hidden = !openDrafts.has(draftKey) || pending;
-          const inputLabel = element("label", "Why should this finding be reconsidered?");
-          const input = element("textarea");
-          input.required = true;
-          input.maxLength = 2000;
-          input.rows = 3;
-          input.dataset.draftKey = draftKey;
-          input.value = drafts.get(draftKey) ?? (pending || challengeState?.error ? challengeState.challenge.reason : finding.suggestedChallenge);
-          input.placeholder = "Explain the mistake or add a factual correction. Accepted reusable facts update your profile.";
-          input.addEventListener("input", () => {
-            input.setCustomValidity("");
-            drafts.set(draftKey, input.value);
-            if (drafts.size > 20) drafts.delete(drafts.keys().next().value);
-          });
-          inputLabel.append(input);
-          const actions = element("div", null, "jsc-blocker-controls");
-          const submit = button(busy ? "Queue challenge" : "Send challenge", () => form.requestSubmit());
-          submit.disabled = pending || !checkerState?.settings.enabled || !checkerState?.connectionStatus.planUsageEnabled || Boolean(checkerState?.pausedReason);
-          const cancel = button("Cancel", () => { openDrafts.delete(draftKey); form.hidden = true; toggle.hidden = false; });
-          actions.append(submit, cancel);
-          form.append(inputLabel, actions);
-          form.addEventListener("submit", (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            if (!input.value.trim()) {
-              input.setCustomValidity("Explain why this finding should be reconsidered.");
-              input.reportValidity();
-              return;
-            }
-            if (submit.disabled) return;
-            drafts.delete(draftKey);
-            openDrafts.delete(draftKey);
-            void startCheck(true, { requirementQuote: finding.requirementQuote, reason: input.value.trim() });
-          });
-          const toggle = button(pending ? challengeState.status === "queued" ? "Challenge queued" : "Reviewing challenge…" : "Challenge", () => {
-            openDrafts.add(draftKey);
-            form.hidden = false;
-            toggle.hidden = true;
-            input.focus();
-            input.select();
-          });
-          toggle.disabled = submit.disabled;
-          toggle.hidden = !form.hidden;
-          if (!overridden) row.append(toggle, form);
-          if (overridden || canOverrideFinding(result, finding.requirementQuote)) {
-            const override = button(overridden ? "Undo override" : "Override for this job", async () => {
-              override.disabled = true;
-              try {
-                await recordStore.setFindingOverride(result, finding.requirementQuote, !overridden);
-              } catch (error) {
-                row.append(element("p", error.message, "jsc-blocker-error"));
-                override.disabled = busy;
-              }
-            });
-            override.disabled = busy;
-            override.title = overridden ? "Restore this blocker." : "Dismiss this blocker for this check only. Your profile stays unchanged; rechecking resets the override.";
-            row.append(override);
-          }
-          resultBody.append(row);
+          resultBody.append(createFindingRow(result, finding, { selection, checkerState, challenges, busy }));
         }
       }
       const controls = element("div", null, "jsc-blocker-controls");

@@ -16,7 +16,9 @@ Quick Apply and archived applications. Drafts, apply starts, and an Easily
 apply badge do not count as submitted applications. History refreshes on
 returning to Indeed and every minute while a tab is visible. If the history
 cannot be refreshed, the list shows a notice and uses saved detections.
-Only detections and titles for jobs with saved analyses are retained locally.
+Application detections and history-derived titles are retained only for jobs with
+saved analyses. Titles from rendered cards and the selected job are also saved
+while browsing, including jobs without an analysis.
 Missing titles are fetched from the original job listings and cached. While a
 title loads, the link says **Loading job title…**. If Indeed no longer provides
 the listing, it says **Job title unavailable — open listing** and stays clickable.
@@ -54,5 +56,5 @@ running; existing marks remain visible while it is offline. Earlier chats
 without a completion callback are not automatically marked.
 
 Analysed marks are green for **use as-is**, yellow for **edit the CV**, and red
-for **do not apply yet**. Other verdicts and earlier records without a verdict
-are blue. Hover over a mark to see its recorded verdict.
+for **no suitable base CV** and **do not apply yet**. Other verdicts and earlier
+records without a verdict are blue. Hover over a mark to see its recorded verdict.

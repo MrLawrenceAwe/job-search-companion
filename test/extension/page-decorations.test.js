@@ -48,7 +48,7 @@ const fixture = async (t, { applyMarkup = "", cardMarkup = "" } = {}) => {
   };
   companion.jobs.resolveSelectedJobUrl = () => selectedJob;
   companion.showToast = () => {};
-  await runScriptsInDom(window, ['page-decorations.js', 'job-mark-store.js', 'job-marks.js', 'job-analyses.js', 'blockers/renderer.js']);
+  await runScriptsInDom(window, ['page-decorations.js', 'job-mark-store.js', 'job-marks.js', 'job-analysis-store.js', 'job-analyses.js', 'blockers/renderer.js']);
   const scheduleFindings = companion.pageDecorations.schedule;
   companion.blockers.registerRenderer({
     recordStore: { get: () => result }, checks: new Map(),

@@ -4,7 +4,7 @@
   const contract = globalThis.jobSearchContracts.jobAnalyses;
   const keys = globalThis.jobSearchContracts.jobStorageKeys;
   const indeedKey = (kind, id) => keys.forJob(kind, { platform: "indeed", id });
-  const records = new Map();
+  const analyses = companion.jobAnalysisStore;
   const titles = new Map();
   const applied = new Set();
   const unsuitable = new Set();
@@ -22,10 +22,7 @@
     if (identity?.platform !== "indeed") return;
     const { kind, id } = identity;
     const analysisKey = indeedKey("analysis", id);
-    if (kind === "analysis") {
-      if (contract.isRecord(value)) records.set(analysisKey, value);
-      else records.delete(analysisKey);
-    } else if (["applied", "unsuitable", "indeedDismissed", "indeedApplied"].includes(kind)) {
+    if (["applied", "unsuitable", "indeedDismissed", "indeedApplied"].includes(kind)) {
       const [entries, timestamp] = {
         applied: [applied, "appliedAt"], unsuitable: [unsuitable, "unsuitableAt"],
         indeedDismissed: [dismissed, "dismissedAt"], indeedApplied: [indeedApplied, "detectedAt"],
@@ -40,9 +37,12 @@
       else titles.delete(key);
     }
   };
-  const ready = chrome.storage.local.get(null).then((stored) => {
-    for (const [key, value] of Object.entries(stored)) read(key, value);
-  });
+  const ready = Promise.all([
+    analyses.ready,
+    chrome.storage.local.get(null).then((stored) => {
+      for (const [key, value] of Object.entries(stored)) read(key, value);
+    }),
+  ]);
   const rememberTitle = (jobUrl, title, updates) => {
     const key = keys.forUrl("title", jobUrl);
     const clean = title?.replace(/\s+/g, " ").replace(/\s*-\s*job post\s*$/i, "").trim();
@@ -104,7 +104,8 @@
       void chrome.storage.local.set(updates).catch((error) => console.debug("Job titles could not be saved:", error));
     }
     const jobs = [];
-    for (const [key, record] of records) {
+    for (const [key, record] of analyses.entries()) {
+      if (keys.parse(key).platform !== "indeed") continue;
       if (applied.has(key) || indeedApplied.has(key) || unsuitable.has(key) || dismissed.has(key)
         || !["use as-is", "edit the CV"].includes(record.verdict)) continue;
       // Derive links from the validated identity, never from stored arbitrary URLs.
@@ -121,7 +122,7 @@
     jobs.sort((a, b) => Date.parse(b.date) - Date.parse(a.date) || a.url.localeCompare(b.url));
     if (!panel?.isConnected) {
       panel = document.createElement("details");
-      panel.className = "jsc-pending-applications";
+      panel.className = "jsc-to-apply";
       panel.append(document.createElement("summary"), document.createElement("div"));
       document.body.append(panel);
       signature = null;
@@ -163,7 +164,7 @@
     const undo = button.getAttribute("aria-pressed") === "true";
     void ready.then(async () => {
       const analysisKey = contract.keyFor(jobUrl);
-      if (!records.has(analysisKey)) return;
+      if (!analyses.get(jobUrl)) return;
       const key = keys.forUrl("indeedDismissed", jobUrl);
       if (undo) {
         await chrome.storage.local.remove(key);
@@ -182,6 +183,7 @@
       companion.pageDecorations.schedule();
     });
   });
+  analyses.subscribe(companion.pageDecorations.schedule);
   companion.pageDecorations.register(render, ready);
   const sync = () => {
     if (document.visibilityState === "hidden") return;

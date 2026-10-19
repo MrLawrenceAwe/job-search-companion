@@ -4,7 +4,7 @@ import { JSDOM } from 'jsdom';
 import { runScriptsInDom } from '../../test-support/extension-scripts.js';
 
 const analysis = (verdict) => ({ threadId: '01a11fef-d2cd-7410-953a-37e6497346d8', analyzedAt: '2026-10-19T09:00:00Z', verdict });
-const fixture = async (t, platform = 'indeed', stored = {}, resolveTitle = null) => {
+const fixture = async (t, platform = 'indeed', stored = {}, resolveTitle = null, { includeAnalysisActions = false } = {}) => {
   const dom = new JSDOM('<body><h1>Support Advisor</h1></body>', { url: 'https://uk.indeed.com/', runScripts: 'outside-only' });
   t.after(() => dom.window.close());
   const { window } = dom;
@@ -19,25 +19,33 @@ const fixture = async (t, platform = 'indeed', stored = {}, resolveTitle = null)
     'analyzed-job:linkedin:123456789': analysis('use as-is'),
     ...stored,
   };
-  let changed;
-  let render;
-  let ready;
+  const changes = [];
+  const renderers = [];
+  const readiness = [];
+  const render = (page) => { for (const renderer of renderers) renderer(page); };
   const page = { cards: new Map(), jobUrl: 'https://uk.indeed.com/viewjob?jk=fixture111', heading: window.document.querySelector('h1') };
+  if (includeAnalysisActions) {
+    const card = window.document.createElement('article');
+    card.innerHTML = '<h2>Support Advisor</h2>';
+    window.document.body.append(card);
+    page.cards.set(card, page.jobUrl);
+  }
   window.chrome = { runtime: { sendMessage: (message, callback) => {
     if (message.type === 'GET_INDEED_JOB_TITLE' && resolveTitle) resolveTitle(message, callback);
     else callback({ ok: message.type !== 'GET_INDEED_JOB_TITLE' });
   } }, storage: {
     local: { get: async () => saved, set: async (values) => Object.assign(saved, values), remove: async (key) => { delete saved[key]; } },
-    onChanged: { addListener: (fn) => { changed = fn; } },
+    onChanged: { addListener: (fn) => { changes.push(fn); } },
   } };
   await runScriptsInDom(window, ['contracts/job-urls.js', 'contracts/job-storage-keys.js', 'contracts/identifiers.js', 'contracts/job-analyses.js', 'contracts/messages.js']);
   window.jobSearchCompanion = { platform, pageDecorations: {
-    register: (fn, promise) => { render = fn; ready = promise; },
+    register: (fn, promise) => { renderers.push(fn); readiness.push(promise); },
     schedule: () => render(page),
   } };
-  await runScriptsInDom(window, ['pending-applications.js']);
-  if (ready) { await ready; render(page); }
-  return { window, saved, page, render, change: async (values) => { changed(values, 'local'); await Promise.resolve(); } };
+  await runScriptsInDom(window, ['job-analysis-store.js', ...(includeAnalysisActions ? ['job-analyses.js'] : []), 'indeed-to-apply.js']);
+  await Promise.all(readiness);
+  render(page);
+  return { window, saved, page, render, change: async (values) => { for (const listener of changes) listener(values, 'local'); await Promise.resolve(); } };
 };
 
 test('Indeed counter includes only unapplied positive verdicts, with safe job links and remembered titles', async (t) => {
@@ -193,4 +201,18 @@ test('availability changes update the list across tabs and allow confirmed reope
   assert.equal(window.document.querySelector('summary').textContent, 'To apply · 1');
   await change({ 'indeed-job-availability:fixture222': { newValue: { status: 'active', checkedAt: new Date().toISOString() } } });
   assert.equal(window.document.querySelector('summary').textContent, 'To apply · 2');
+});
+
+test('one analysis storage change updates both the badge and To apply list', async (t) => {
+  const { window, change } = await fixture(t, 'indeed', {}, null, { includeAnalysisActions: true });
+  const badge = () => window.document.querySelector('.jsc-analyzed-badge');
+  const summary = () => window.document.querySelector('.jsc-to-apply > summary').textContent;
+  assert.equal(badge().dataset.verdictColor, 'green');
+  assert.equal(summary(), 'To apply · 2');
+  await change({ 'analyzed-job:indeed:fixture111': { newValue: analysis('no suitable base CV') } });
+  assert.equal(badge().dataset.verdictColor, 'red');
+  assert.equal(summary(), 'To apply · 1');
+  await change({ 'analyzed-job:indeed:fixture111': { newValue: undefined } });
+  assert.equal(badge(), null);
+  assert.equal(summary(), 'To apply · 1');
 });

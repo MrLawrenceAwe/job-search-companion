@@ -70,12 +70,15 @@ The content scripts are ordered by dependency in the manifest:
 - `job-mark-store.js` owns manual mark identity, persistence, pending writes, and storage synchronization;
 - `page-decorations.js` batches page observation, scans cards and the selected heading once per render, owns stable action/findings containers, and lets the blocker checker subscribe to page changes through the same observer and navigation listeners;
 - `job-marks.js` decorates cards, job headers, and menu actions using that store;
+- `job-analysis-store.js` owns the shared completed-analysis records, validation, and storage notifications;
+- `job-analyses.js` renders analysis actions from that store;
+- `indeed-to-apply.js` uses the same store to list eligible jobs awaiting application and tracks Indeed exclusions and listing metadata;
 - `shortcuts.js` dispatches the N/J/K/H/U keyboard actions and ignores editable targets, modifier keys, repeated key events and composition;
 - `job-menu.js` creates and inserts the CV fit and job-record actions;
 - `job-menu-observer.js` detects newly opened job menus;
 - `blockers/indeed-description-store.js` observes captured descriptions and extracts inert text;
 - `blockers/result-store.js` owns local findings and storage-change notifications;
-- `blockers/renderer.js` registers the badge, findings, and checker-control renderer with page decorations; and
+- `blockers/renderer.js` registers the page renderer and uses local helpers for finding rows, challenge forms, and override controls; and
 - `blockers/checker.js` coordinates selection verification, dwell timing, and request polling.
 
 The separate `blockers/indeed-description-capture.js` MAIN-world script observes descriptions before the isolated content scripts start. `service-worker.js` loads `bridge-config.js` and the installer-generated `local-config.js` for private bridge settings. It registers feature handlers from `worker/`. `worker/bridge-client.js` owns bridge
@@ -359,7 +362,9 @@ callback is idempotent; changing its chat ID is rejected.
 without callback credentials. A service-worker alarm synchronizes records
 every 30 seconds, and visible pages request a sync on load or visibility
 changes. Saved records use `analyzed-job:<platform>:<job-id>` storage keys.
-`job-analyses.js` renders the card badge and detail action from these records.
+`job-analysis-store.js` reads and validates these records once for the content page.
+`job-analyses.js` renders the card badge and detail action from this shared store;
+`indeed-to-apply.js` uses it for the **To apply** list.
 An unfinished reanalysis preserves the existing completed result.
 
 `POST /analyses/open` accepts a job URL, looks up its stored chat, and invokes

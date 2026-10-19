@@ -2,7 +2,7 @@
   const companion = globalThis.jobSearchCompanion;
   const renderers = new Set();
   const pageChangeListeners = new Set();
-  const ownedElements = '.jsc-detail-controls, .jsc-job-mark-badge, .jsc-blocker-badge, .jsc-menu-item, .jsc-pending-applications';
+  const ownedElements = '.jsc-detail-controls, .jsc-job-mark-badge, .jsc-blocker-badge, .jsc-menu-item, .jsc-to-apply';
   let renderTimer = null;
   let detailHeading = null;
   let detailControls = null;

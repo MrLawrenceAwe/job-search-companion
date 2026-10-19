@@ -1,16 +1,9 @@
 (() => {
   const companion = globalThis.jobSearchCompanion;
   const contract = globalThis.jobSearchContracts.jobAnalyses;
-  const records = new Map();
-  const read = (key, record) => {
-    if (globalThis.jobSearchContracts.jobStorageKeys.parse(key)?.kind !== "analysis") return;
-    if (contract.isRecord(record)) records.set(key, record);
-    else records.delete(key);
-  };
-  const ready = chrome.storage.local.get(null).then((stored) => {
-    for (const [key, record] of Object.entries(stored)) read(key, record);
-  });
-  const recordFor = (url) => records.get(contract.keyFor(url));
+  const store = companion.jobAnalysisStore;
+  const { ready } = store;
+  const recordFor = store.get;
   const updateAnalysisButton = (button, jobUrl, record) => {
     button.dataset.jobUrl = jobUrl;
     button.dataset.verdictColor = contract.colorFor(record.verdict);
@@ -67,13 +60,7 @@
       updateAnalysisButton(button, jobUrl, record);
     }
   };
-  chrome.storage.onChanged.addListener((changes, area) => {
-    if (area !== "local") return;
-    void ready.then(() => {
-      for (const [key, { newValue }] of Object.entries(changes)) read(key, newValue);
-      companion.pageDecorations.schedule();
-    });
-  });
+  store.subscribe(companion.pageDecorations.schedule);
   const sync = () => {
     if (document.visibilityState === "hidden") return;
     chrome.runtime.sendMessage({ type: globalThis.jobSearchContracts.messages.syncJobAnalyses }, () => {

@@ -115,7 +115,8 @@ findings are cleared.
 If a challenge is rejected, choose **Override for this job** to dismiss that
 specific blocker yourself. The original finding and AI reply remain visible,
 and **Undo override** restores it. Other blockers still count. When every
-blocker is overridden, the card says **Blockers overridden by you**. Overrides
+blocker is overridden, the card says **Blockers overridden by you** and the
+collapsed findings summary says **All blockers overridden by you**. Overrides
 are saved with this check, sync across tabs, and do not change your profile.
 A completed recheck or another challenge replaces the check and resets its overrides.
 

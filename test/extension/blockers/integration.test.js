@@ -104,9 +104,9 @@ const createBlockerFixture = async (initialStorage = {}, { initiallyHidden = fal
   const pendingDigests = new Set();
   Object.defineProperty(window.crypto, "subtle", { value: {
     digest(...args) {
-      const pending = webcrypto.subtle.digest(...args);
+      const pending = webcrypto.subtle.digest(...args).finally(() => pendingDigests.delete(pending));
       pendingDigests.add(pending);
-      return pending.finally(() => pendingDigests.delete(pending));
+      return pending;
     },
   } });
   window.TextEncoder = TextEncoder;
@@ -162,6 +162,8 @@ const createBlockerFixture = async (initialStorage = {}, { initiallyHidden = fal
     async close() {
       // Native crypto can outlive JSDOM timers; finish scans before destroying document.
       await Promise.allSettled([...pendingDigests]);
+      // Let scan continuations finish before JSDOM removes window.document.
+      await new Promise((resolve) => setImmediate(resolve));
       window.close();
     },
   };
@@ -599,6 +601,8 @@ test("a rejected challenge can be overridden and undone without changing evidenc
     assert.deepEqual(overridden.challengeReview, prior.challengeReview);
     assert.match(doc.querySelector(".jsc-blocker-review").textContent, /Finding retained.*still requires driving/);
     assert.match(doc.querySelector(".jsc-blocker-badge").textContent, /Potential blocker/);
+    assert.equal(doc.querySelector(".jsc-blocker-results > summary").textContent,
+      "1 potential blocker · Show findings");
     assert.equal(doc.querySelectorAll(".jsc-blocker-finding").length, 2);
     button("Undo override").click();
     await waitUntil(() => button("Override for this job"));
@@ -635,12 +639,16 @@ test("overriding the last rejected blocker labels the user's decision; recheck r
     button("Override for this job").click();
     await waitUntil(() => button("Undo override"));
     assert.match(doc.querySelector(".jsc-blocker-badge").textContent, /Blockers overridden by you/);
+    assert.equal(doc.querySelector(".jsc-blocker-results > summary").textContent,
+      "All blockers overridden by you · Show findings");
     assert.equal(doc.querySelector(".jsc-blocker-panel").classList.contains("jsc-blocker"), false);
     assert.equal(fixture.storage["blocker-result:first1111"].outcome, "blocker", "original AI outcome is retained");
     button("Recheck").click();
     await waitUntil(() => calls.length === 3 && button("Challenge") && !button("Undo override"));
     assert.equal(fixture.storage["blocker-result:first1111"].overriddenRequirementQuotes, undefined);
     assert.match(doc.querySelector(".jsc-blocker-badge").textContent, /Potential blocker/);
+    assert.equal(doc.querySelector(".jsc-blocker-results > summary").textContent,
+      "1 potential blocker · Show findings");
     assert.equal(button("Override for this job"), undefined, "the new check needs a rejected challenge before overriding");
   } finally { await fixture.close(); }
 });

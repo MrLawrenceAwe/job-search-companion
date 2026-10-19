@@ -321,7 +321,7 @@ test("undo reverses mixed navigation and hide actions in order", async () => {
       card,
       children: [],
       click: () => clicked.push(jobKey),
-      closest: (selector) => selector === ".jsc-pending-applications" ? null : card,
+      closest: (selector) => selector === ".jsc-to-apply" ? null : card,
       focus() {},
       getAttribute: (name) => name === "href" ? `/viewjob?jk=${jobKey}` : null,
       matches: (selector) => selector.includes("a[href]") || selector.includes("[href]"),

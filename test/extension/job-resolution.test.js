@@ -25,7 +25,7 @@ test("saved job links in the pending applications panel do not become navigable 
   const { companion, document } = await createJobFixture({ href: "https://uk.indeed.com/" });
   const result = visibleJobCarrier("current111", "Current result");
   const saved = visibleJobCarrier("savedjob11", "Saved job");
-  saved.closest = (selector) => selector === ".jsc-pending-applications" ? {} : null;
+  saved.closest = (selector) => selector === ".jsc-to-apply" ? {} : null;
   document.querySelectorAll = () => [result, saved];
   assert.deepEqual(Array.from(companion.jobs.collectJobCarriers(), ({ jobUrl }) => jobUrl), [
     "https://uk.indeed.com/viewjob?jk=current111",
