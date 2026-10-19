@@ -192,8 +192,203 @@ const handleAnalysisMessage = (message, sender, sendResponse) => {
   action.then(sendResponse, (error) => sendResponse({ ok: false, error: error.message }));
   return true;
 };
+let indeedApplicationsSync = null;
+let lastIndeedApplicationsSync = 0;
+const syncIndeedApplications = () => {
+  if (indeedApplicationsSync) return indeedApplicationsSync;
+  if (Date.now() - lastIndeedApplicationsSync < 30_000) return Promise.resolve({ ok: true });
+  indeedApplicationsSync = (async () => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      // Read the same history as My jobs, including archived applications. Never
+      // request application forms or treat an apply start as a submitted job.
+      const groups = await Promise.all(["POST_APPLY", "ARCHIVED"].map(async (type) => {
+        const response = await fetch(
+          `https://myjobs.indeed.com/api/v1/appStatusJobs?type=${type}&applyUpdateStartTime=0`,
+          { credentials: "include", cache: "no-store", signal: controller.signal },
+        );
+        if (!response.ok) throw new Error("Indeed application history unavailable");
+        const body = await response.json();
+        if (body.success !== true || !Array.isArray(body.body?.appStatusJobs)) {
+          throw new Error("Indeed application history unavailable");
+        }
+        return body.body.appStatusJobs;
+      }));
+      const stored = await chrome.storage.local.get(null);
+      const values = {};
+      const completed = new Set(["APPLIED", "VIEWED", "REVIEWED", "PHONE_SCREENED", "INTERVIEW", "OFFER", "HIRED", "REJECTED"]);
+      const detectedAt = new Date().toISOString();
+      for (const job of groups.flat()) {
+        const id = job?.jobKey;
+        if (!globalThis.jobSearchContracts.jobUrls.indeedJobKeyPattern.test(id || "")) continue;
+        // Retain only the jobs that have a saved analysis, not the full account history.
+        if (!stored[`analyzed-job:indeed:${id}`]) continue;
+        if (typeof job.jobTitle === "string" && job.jobTitle.trim()) {
+          const key = `job-title:indeed:${id}`;
+          const title = job.jobTitle.trim();
+          if (stored[key] !== title) values[key] = title;
+        }
+        const statuses = job.statuses;
+        if (![statuses?.candidateStatus?.status, statuses?.selfReportedStatus?.status].some((status) => completed.has(status))) continue;
+        const key = `indeed-applied-job:${id}`;
+        if (!stored[key]) values[key] = { detectedAt };
+      }
+      if (Object.keys(values).length) await chrome.storage.local.set(values);
+      lastIndeedApplicationsSync = Date.now();
+      return { ok: true };
+    } finally {
+      clearTimeout(timer);
+    }
+  })().finally(() => { indeedApplicationsSync = null; });
+  return indeedApplicationsSync;
+};
+const handleIndeedApplicationsMessage = (message, sender, sendResponse) => {
+  if (message?.type !== messages.syncIndeedApplications) return false;
+  if (!isJobSiteSender(sender, ["indeed"])) {
+    sendResponse({ ok: false, error: "Indeed application request is not allowed" });
+    return false;
+  }
+  syncIndeedApplications().then(sendResponse, () => sendResponse({ ok: false, error: "Couldn’t refresh Indeed applications" }));
+  return true;
+};
+const indeedTitleRequests = new Map();
+const titleFromIndeedHtml = (html) => {
+  for (const script of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)) {
+    if (!/\btype\s*=\s*["']application\/ld\+json["']/i.test(script[1])) continue;
+    let nodes;
+    try { nodes = [JSON.parse(script[2])]; }
+    catch { continue; }
+    while (nodes.length) {
+      const node = nodes.pop();
+      if (Array.isArray(node)) { nodes.push(...node); continue; }
+      if (!node || typeof node !== "object") continue;
+      if (Array.isArray(node["@graph"])) nodes.push(...node["@graph"]);
+      const types = Array.isArray(node["@type"]) ? node["@type"] : [node["@type"]];
+      if (!types.includes("JobPosting") || typeof node.title !== "string") continue;
+      const title = node.title.replace(/\s+/g, " ").trim();
+      if (title && title.length <= 300) return title;
+    }
+  }
+  // Some listings omit JobPosting data but retain the job/location page title.
+  // Require Indeed's complete listing-title format so login and error pages
+  // cannot become job names. Preserve hyphens within the job title itself.
+  const pageTitle = html.match(/<title\b[^>]*>([^<]*)<\/title\s*>/i)?.[1];
+  const rawTitle = pageTitle?.match(/^(.+)\s+-\s+.+?\s+-\s+Indeed\.(?:com|co\.uk)\s*$/i)?.[1];
+  if (rawTitle) {
+    const entities = { amp: "&", quot: '"', apos: "'", lt: "<", gt: ">", nbsp: " " };
+    const title = rawTitle.replace(/&(?:#(x[0-9a-f]+|\d+)|(amp|quot|apos|lt|gt|nbsp));/gi, (match, numeric, named) => {
+      if (named) return entities[named.toLowerCase()];
+      const point = numeric[0].toLowerCase() === "x" ? parseInt(numeric.slice(1), 16) : Number(numeric);
+      return point > 0 && point <= 0x10ffff ? String.fromCodePoint(point) : match;
+    }).replace(/\s+/g, " ").trim();
+    if (title && title.length <= 300) return title;
+  }
+  throw new Error("Job title unavailable");
+};
+const getIndeedJobTitle = (id) => {
+  if (indeedTitleRequests.has(id)) return indeedTitleRequests.get(id);
+  const request = (async () => {
+    const key = `job-title:indeed:${id}`;
+    const stored = await chrome.storage.local.get(null);
+    if (!globalThis.jobSearchContracts.jobAnalyses.isRecord(stored[`analyzed-job:indeed:${id}`])) {
+      throw new Error("No saved analysis for this job");
+    }
+    if (typeof stored[key] === "string" && stored[key].trim()) return { ok: true, title: stored[key] };
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      const response = await fetch(`https://uk.indeed.com/viewjob?jk=${id}`, {
+        credentials: "include", signal: controller.signal,
+      });
+      if (!response.ok || globalThis.jobSearchContracts.jobUrls.identityFromUrl(new URL(response.url))?.id !== id) {
+        throw new Error("Job listing unavailable");
+      }
+      const title = titleFromIndeedHtml(await response.text());
+      await chrome.storage.local.set({ [key]: title });
+      return { ok: true, title };
+    } finally { clearTimeout(timer); }
+  })().finally(() => indeedTitleRequests.delete(id));
+  indeedTitleRequests.set(id, request);
+  return request;
+};
+const indeedAvailabilityRequests = new Map();
+const availabilityFromIndeedHtml = (html) => {
+  const markup = html.replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, "");
+  for (const heading of markup.matchAll(/<h[1-6]\b[^>]*>([\s\S]*?)<\/h[1-6]\s*>/gi)) {
+    if (heading[1].replace(/<[^>]*>/g, "").trim() === "This job has expired on Indeed") return "expired";
+  }
+  for (const script of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)) {
+    if (!/\btype\s*=\s*["']application\/ld\+json["']/i.test(script[1])) continue;
+    let nodes;
+    try { nodes = [JSON.parse(script[2])]; } catch { continue; }
+    while (nodes.length) {
+      const node = nodes.pop();
+      if (Array.isArray(node)) { nodes.push(...node); continue; }
+      if (!node || typeof node !== "object") continue;
+      if (Array.isArray(node["@graph"])) nodes.push(...node["@graph"]);
+      const types = Array.isArray(node["@type"]) ? node["@type"] : [node["@type"]];
+      if (!types.includes("JobPosting") || typeof node.title !== "string") continue;
+      const until = Date.parse(node.validThrough);
+      if (Number.isFinite(until)) return until < Date.now() ? "expired" : "active";
+    }
+  }
+  // A retained title alone is not evidence that applications are still open.
+  if (/\bhref\s*=\s*["'][^"']*\/applystart\?/i.test(markup)) {
+    titleFromIndeedHtml(html);
+    return "active";
+  }
+  throw new Error("Job availability could not be confirmed");
+};
+const getIndeedJobAvailability = (id) => {
+  if (indeedAvailabilityRequests.has(id)) return indeedAvailabilityRequests.get(id);
+  const request = (async () => {
+    const key = `indeed-job-availability:${id}`;
+    const stored = await chrome.storage.local.get(null);
+    if (!globalThis.jobSearchContracts.jobAnalyses.isRecord(stored[`analyzed-job:indeed:${id}`])) throw new Error("No saved analysis for this job");
+    const cached = stored[key];
+    if (["active", "expired"].includes(cached?.status) && Date.now() - Date.parse(cached.checkedAt) < 3_600_000) {
+      return { ok: true, availability: cached };
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      const response = await fetch(`https://uk.indeed.com/viewjob?jk=${id}`, { credentials: "include", cache: "no-store", signal: controller.signal });
+      const url = new URL(response.url);
+      if (!isJobSiteSender({ url: url.href }, ["indeed"]) || globalThis.jobSearchContracts.jobUrls.identityFromUrl(url)?.id !== id) throw new Error("Unexpected job redirect");
+      if (!response.ok) throw new Error("Job listing unavailable");
+      const value = { status: availabilityFromIndeedHtml(await response.text()), checkedAt: new Date().toISOString() };
+      await chrome.storage.local.set({ [key]: value });
+      return { ok: true, availability: value };
+    } finally { clearTimeout(timer); }
+  })().finally(() => indeedAvailabilityRequests.delete(id));
+  indeedAvailabilityRequests.set(id, request);
+  return request;
+};
+const handleIndeedJobAvailabilityMessage = (message, sender, sendResponse) => {
+  if (message?.type !== messages.getIndeedJobAvailability) return false;
+  if (!isJobSiteSender(sender, ["indeed"]) || typeof message.jobId !== "string" || !globalThis.jobSearchContracts.jobUrls.indeedJobKeyPattern.test(message.jobId)) {
+    sendResponse({ ok: false, error: "Job availability request is not allowed" });
+    return false;
+  }
+  getIndeedJobAvailability(message.jobId).then(sendResponse, () => sendResponse({ ok: false, error: "Job availability could not be confirmed" }));
+  return true;
+};
+const handleIndeedJobTitleMessage = (message, sender, sendResponse) => {
+  if (message?.type !== messages.getIndeedJobTitle) return false;
+  if (!isJobSiteSender(sender, ["indeed"]) || typeof message.jobId !== "string" ||
+      !globalThis.jobSearchContracts.jobUrls.indeedJobKeyPattern.test(message.jobId)) {
+    sendResponse({ ok: false, error: "Job title request is not allowed" });
+    return false;
+  }
+  getIndeedJobTitle(message.jobId).then(sendResponse, () => sendResponse({ ok: false, error: "Job title unavailable" }));
+  return true;
+};
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return (
+    handleIndeedJobAvailabilityMessage(message, sender, sendResponse) ||
+    handleIndeedJobTitleMessage(message, sender, sendResponse) ||
+    handleIndeedApplicationsMessage(message, sender, sendResponse) ||
     handleAnalysisMessage(message, sender, sendResponse) ||
     handleCvFitMessage(message, sender, sendResponse) ||
     handleBlockerMessage(message, sender, sendResponse)

@@ -9,6 +9,26 @@ job has an Easily apply badge or Indeed Apply control. Use it for jobs that
 require an employer website, email, or another application route. Saved badges
 remain visible, and **Mark as unsuitable** stays available.
 
+The collapsible **To apply** counter on Indeed lists analysed jobs with a
+**Use as is** or **Edit CV** verdict. It excludes manual Applied marks and
+completed applications detected in Indeed's My jobs history, including
+Quick Apply and archived applications. Drafts, apply starts, and an Easily
+apply badge do not count as submitted applications. History refreshes on
+returning to Indeed and every minute while a tab is visible. If the history
+cannot be refreshed, the list shows a notice and uses saved detections.
+Only detections and titles for jobs with saved analyses are retained locally.
+Missing titles are fetched from the original job listings and cached. While a
+title loads, the link says **Loading job title…**. If Indeed no longer provides
+the listing, it says **Job title unavailable — open listing** and stays clickable.
+Marking a job as unsuitable or clicking Indeed's **Not interested** thumbs-down
+also removes it from **To apply**. These exclusions are saved across tabs and
+reloads. Undoing the thumbs-down does not clear a separate Unsuitable mark;
+the job returns only when it has no remaining exclusion.
+Expired listings are also excluded, using Indeed's explicit expiry notice or
+the listing's published expiry date. Remaining jobs are checked in the
+background, with results cached for an hour. Opening an expired job removes it
+immediately. Network errors and verification pages preserve the saved status.
+
 Use **J/K** to navigate rendered results, **H** to hide a result on the current
 page, and **U** to undo navigation or hiding. Shortcuts ignore editable fields;
 hidden results return after reload.

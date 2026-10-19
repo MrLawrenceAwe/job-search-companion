@@ -213,6 +213,7 @@
   const collectJobCarriers = (isEligible = () => true) => {
     const jobEntries = [];
     for (const element of document.querySelectorAll(companion.selectors.jobUrlCarrier)) {
+      if (element.closest(".jsc-pending-applications")) continue;
       if (!isEligible(element)) {
         continue;
       }

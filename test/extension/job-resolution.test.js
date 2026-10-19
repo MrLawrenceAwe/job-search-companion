@@ -15,9 +15,21 @@ const visibleJobCarrier = (jobKey, title) => ({
   parentElement: null,
   textContent: title,
   title: "",
+  closest: () => null,
   getBoundingClientRect: () => ({ width: 500, height: 40, left: 0, top: 100 }),
   getAttribute: (name) => name === "href" ? `/viewjob?jk=${jobKey}` : null,
   matches: (selector) => selector.includes("[href]"),
+});
+
+test("saved job links in the pending applications panel do not become navigable search results", async () => {
+  const { companion, document } = await createJobFixture({ href: "https://uk.indeed.com/" });
+  const result = visibleJobCarrier("current111", "Current result");
+  const saved = visibleJobCarrier("savedjob11", "Saved job");
+  saved.closest = (selector) => selector === ".jsc-pending-applications" ? {} : null;
+  document.querySelectorAll = () => [result, saved];
+  assert.deepEqual(Array.from(companion.jobs.collectJobCarriers(), ({ jobUrl }) => jobUrl), [
+    "https://uk.indeed.com/viewjob?jk=current111",
+  ]);
 });
 
 test("Indeed results resolve the displayed job instead of a stale vjk", async () => {

@@ -170,6 +170,7 @@ test("rendered-job navigation starts at the top after page load", async () => {
   const clicked = [];
   const makeJobLink = (jobKey) => ({
     children: [],
+    closest: () => null,
     click: () => clicked.push(jobKey),
     focus() {},
     getAttribute: (name) => name === "href" ? `/viewjob?jk=${jobKey}` : null,
@@ -203,6 +204,7 @@ test("submission resolves the navigated job while the results URL is still stale
   const clicked = [];
   const jobLinks = ["visiblejob1", "visiblejob2"].map((jobKey) => ({
     children: [],
+    closest: () => null,
     click: () => clicked.push(jobKey),
     focus() {},
     scrollIntoView() {},
@@ -230,6 +232,7 @@ test("rendered-job navigation stops at the results boundary", async () => {
   });
   const jobLink = {
     children: [],
+    closest: () => null,
     click() {},
     getAttribute: (name) => name === "href" ? "/viewjob?jk=visiblejob1" : null,
     matches: (selector) => selector.includes("a[href]") || selector.includes("[href]"),
@@ -318,7 +321,7 @@ test("undo reverses mixed navigation and hide actions in order", async () => {
       card,
       children: [],
       click: () => clicked.push(jobKey),
-      closest: () => card,
+      closest: (selector) => selector === ".jsc-pending-applications" ? null : card,
       focus() {},
       getAttribute: (name) => name === "href" ? `/viewjob?jk=${jobKey}` : null,
       matches: (selector) => selector.includes("a[href]") || selector.includes("[href]"),

@@ -75,6 +75,7 @@
         "page-decorations.js",
         "job-marks.js",
         "job-analyses.js",
+        "pending-applications.js",
         "shortcuts.js",
         "job-menu.js",
         "job-menu-observer.js",
