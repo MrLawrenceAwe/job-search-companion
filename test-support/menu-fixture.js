@@ -125,7 +125,7 @@ export const createMenuFixture = async ({
     },
   });
   await runScriptsInVm(context, [
-    "contracts/job-urls.js", "contracts/job-storage-keys.js",
+    "contracts/job-urls.js", "contracts/job-storage-keys.js", "contracts/job-marks.js",
     "contracts/blockers.js",
     "contracts/messages.js",
     "contracts/shortcuts.js",

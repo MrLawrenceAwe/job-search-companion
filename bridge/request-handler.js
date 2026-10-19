@@ -51,8 +51,8 @@ export const createRequestHandler = ({
 
     if (req.method === "GET" && req.url === "/health") {
       const accessibilityHelper = await readHelperHealth();
-      respond(accessibilityHelper.ready ? 200 : 503, {
-        ok: accessibilityHelper.ready,
+      respond(accessibilityHelper.installationVerified ? 200 : 503, {
+        ok: accessibilityHelper.installationVerified,
         service: bridgeConfig.name,
         version: bridgeConfig.version,
         instanceId: bridgeConfig.instanceId,

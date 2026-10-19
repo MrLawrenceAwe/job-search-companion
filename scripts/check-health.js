@@ -43,7 +43,7 @@ const expectedInstanceId = process.env.JSC_BRIDGE_INSTANCE_ID;
 if (expectedInstanceId && body.instanceId !== expectedInstanceId) {
   failures.push(`expected bridge instance ${expectedInstanceId}, got ${JSON.stringify(body.instanceId)}`);
 }
-if (body.accessibilityHelper?.ready !== true
+if (body.accessibilityHelper?.installationVerified !== true
     || body.accessibilityHelper?.protocolVersion !== helperContract.protocolVersion
     || body.accessibilityHelper?.contractVersion !== helperContract.contractVersion
     || body.accessibilityHelper?.hashMatchesInstallState !== true) {

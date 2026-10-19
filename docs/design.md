@@ -55,6 +55,8 @@ The content scripts are ordered by dependency in the manifest:
 - `contracts/inference-settings.js` defines model reasoning capabilities and request options for checking and CV indexing;
 - `contracts/job-storage-keys.js` builds and parses persisted job keys for content scripts,
   worker services, and Node without changing saved key values;
+- `contracts/job-marks.js` shares manual-mark timestamp fields and record validation between badges and list exclusions;
+- `contracts/indeed-availability.js` shares listing statuses, record validation and cache freshness between the content script and worker;
 - `contracts/cv-fit-settings.js` shares the required Codex settings between submission
   automation and the draft-review message;
 - `contracts/identifiers.js` supplies UUID validation for request and chat IDs;

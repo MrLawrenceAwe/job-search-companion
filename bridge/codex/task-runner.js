@@ -36,7 +36,7 @@ export const createAccessibilityHelperArguments = ({ jobUrl, completion }) => [
 
 export const submitCvFitTask = async ({ jobUrl, completion }) => {
   const helperHealth = await readAccessibilityHelperHealth();
-  if (!helperHealth.ready) {
+  if (!helperHealth.installationVerified) {
     throw new Error(`Accessibility helper is not current: ${helperHealth.error || JSON.stringify(helperHealth)}`);
   }
   const result = await runCommand(config.codex.accessibilityHelperPath, createAccessibilityHelperArguments({ jobUrl, completion }), {

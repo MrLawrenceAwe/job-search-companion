@@ -52,7 +52,7 @@ const createHandler = (overrides = {}) => createRequestHandler({
     workspacePath: "/workspace",
   },
   logger: { info() {}, warn() {}, error() {} },
-  readHelperHealth: async () => ({ ready: true }),
+  readHelperHealth: async () => ({ installationVerified: true }),
   submitTask: async () => ({ status: "submitted" }),
   submissionStore: { submissions: new Map(), save: async () => {} },
   analysisStore: { create: async ({ id }) => ({ id, token: "a".repeat(64) }), list: () => [] },

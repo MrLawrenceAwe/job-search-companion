@@ -4,6 +4,7 @@
     const messages = globalThis.jobSearchContracts.messages;
     const contract = globalThis.jobSearchContracts.jobAnalyses;
     const keys = globalThis.jobSearchContracts.jobStorageKeys;
+    const availabilityContract = globalThis.jobSearchContracts.indeedAvailability;
     const requests = new Map();
     const readListing = async (id) => {
       if (requests.has(id)) return requests.get(id);
@@ -43,10 +44,10 @@
       const key = keys.forJob("indeedAvailability", { platform: "indeed", id });
       const stored = await readSavedJob(id);
       const cached = stored[key];
-      if (["active", "expired"].includes(cached?.status) && Date.now() - Date.parse(cached.checkedAt) < 3_600_000)
+      if (availabilityContract.isFresh(cached))
         return { ok: true, availability: cached };
       const { availability } = await readListing(id);
-      if (!availability) throw new Error("Job availability could not be confirmed");
+      if (!availabilityContract.isStatus(availability)) throw new Error("Job availability could not be confirmed");
       const value = { status: availability, checkedAt: new Date().toISOString() };
       await chrome.storage.local.set({ [key]: value });
       return { ok: true, availability: value };

@@ -28,7 +28,7 @@ test("health verification rejects another bridge instance on the same port", asy
     port: 48973,
     instanceId: "another-instance",
     accessibilityHelper: {
-      ready: true,
+      installationVerified: true,
       protocolVersion: helperContract.protocolVersion,
       contractVersion: helperContract.contractVersion,
       hashMatchesInstallState: true,

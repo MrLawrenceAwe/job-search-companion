@@ -11,9 +11,11 @@ remain visible, and **Mark as unsuitable** stays available.
 
 The collapsible **To apply** counter on Indeed lists analysed jobs with a
 **Use as is** or **Edit CV** verdict. It excludes manual Applied marks and
-completed applications detected in Indeed's My jobs history, including
-Quick Apply and archived applications. Drafts, apply starts, and an Easily
-apply badge do not count as submitted applications. History refreshes on
+applications recorded in Indeed's My jobs history, including Quick Apply,
+archived applications and applications you marked as applied in Indeed yourself.
+These self-reported records are not independent confirmation of submission.
+Drafts, apply starts, and an Easily apply badge do not count as submitted
+applications. History refreshes on
 returning to Indeed and every minute while a tab is visible. If the history
 cannot be refreshed, the list shows a notice and uses saved detections.
 Application detections and history-derived titles are retained only for jobs with

@@ -57,6 +57,8 @@
       "js": [
         "contracts/job-urls.js",
         "contracts/job-storage-keys.js",
+        "contracts/job-marks.js",
+        "contracts/indeed-availability.js",
         "contracts/identifiers.js",
         "contracts/job-analyses.js",
         "contracts/blockers.js",

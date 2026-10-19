@@ -72,8 +72,10 @@ to select `~/Library/Application Support/Job Search Companion/accessibility-help
 If macOS requests permission for the terminal or Node process used to launch the
 helper, enable that entry too. The helper requires Accessibility permission to
 inspect Codex and submit tasks; a successful bridge health check alone does not
-confirm this permission. If permission stops working after reinstalling the
-helper, remove and add its Accessibility entry again, then retry verification.
+confirm this permission. Its `accessibilityHelper.installationVerified` result checks
+the installed binary and contract metadata only. If permission stops working after
+reinstalling the helper, remove and add its Accessibility entry again, then retry
+verification.
 
 ### 3. Verify
 

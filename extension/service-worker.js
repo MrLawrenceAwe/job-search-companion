@@ -1,6 +1,6 @@
 importScripts(
   "contracts/job-urls.js", "contracts/job-storage-keys.js", "contracts/identifiers.js",
-  "contracts/job-analyses.js", "contracts/messages.js", "bridge-config.js",
+  "contracts/indeed-availability.js", "contracts/job-analyses.js", "contracts/messages.js", "bridge-config.js",
   "worker/bridge-client.js", "worker/senders.js", "worker/cv-fit.js", "worker/blockers.js",
   "worker/analyses.js", "worker/indeed-applications.js",
   "worker/indeed-listing-parser.js", "worker/indeed-listings.js",

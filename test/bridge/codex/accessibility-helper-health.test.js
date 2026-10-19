@@ -33,7 +33,7 @@ test("Accessibility helper health verifies the managed helper and rejects later 
   const { readAccessibilityHelperHealth } = await import("../../../bridge/codex/helper-health.js");
 
   assert.deepEqual(await readAccessibilityHelperHealth(), {
-    ready: true,
+    installationVerified: true,
     protocolVersion: 6,
     contractVersion: "codex-desktop-en-v6",
     hashMatchesInstallState: true,
@@ -45,7 +45,7 @@ test("Accessibility helper health verifies the managed helper and rejects later 
     `#!/bin/sh\nprintf executed > '${executionMarker}'\n`,
   );
   assert.deepEqual(await readAccessibilityHelperHealth(), {
-    ready: false,
+    installationVerified: false,
     hashMatchesInstallState: false,
     error: "Accessibility helper hash does not match install state",
   });

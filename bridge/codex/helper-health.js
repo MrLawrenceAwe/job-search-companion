@@ -15,7 +15,7 @@ export const readAccessibilityHelperHealth = async () => {
     const actualHash = sha256(binaryContent);
     if (expectedHash !== actualHash) {
       return {
-        ready: false,
+        installationVerified: false,
         hashMatchesInstallState: false,
         error: "Accessibility helper hash does not match install state",
       };
@@ -27,17 +27,17 @@ export const readAccessibilityHelperHealth = async () => {
       { timeoutMs: 1000 },
     );
     const metadata = JSON.parse(metadataText);
-    const ready = metadata.protocolVersion === config.codex.accessibilityProtocolVersion
+    const installationVerified = metadata.protocolVersion === config.codex.accessibilityProtocolVersion
       && metadata.contractVersion === config.codex.accessibilityContractVersion;
     return {
-      ready,
+      installationVerified,
       protocolVersion: metadata.protocolVersion,
       contractVersion: metadata.contractVersion,
       hashMatchesInstallState: true,
     };
   } catch (error) {
     return {
-      ready: false,
+      installationVerified: false,
       error: error.message,
     };
   }

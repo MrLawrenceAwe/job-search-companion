@@ -3,6 +3,9 @@
   if (companion.platform !== "indeed") return;
   const contract = globalThis.jobSearchContracts.jobAnalyses;
   const keys = globalThis.jobSearchContracts.jobStorageKeys;
+  const marks = globalThis.jobSearchContracts.jobMarks;
+  const availabilityContract = globalThis.jobSearchContracts.indeedAvailability;
+  const AVAILABILITY_RETRY_INTERVAL_MS = 3_600_000;
   const indeedKey = (kind, id) => keys.forJob(kind, { platform: "indeed", id });
   const analyses = companion.jobAnalysisStore;
   const titles = new Map();
@@ -22,15 +25,18 @@
     if (identity?.platform !== "indeed") return;
     const { kind, id } = identity;
     const analysisKey = indeedKey("analysis", id);
-    if (["applied", "unsuitable", "indeedDismissed", "indeedApplied"].includes(kind)) {
+    if (Object.hasOwn(marks.timestampFields, kind)) {
+      const entries = kind === "applied" ? applied : unsuitable;
+      if (marks.isRecord(kind, value)) entries.add(analysisKey);
+      else entries.delete(analysisKey);
+    } else if (["indeedDismissed", "indeedApplied"].includes(kind)) {
       const [entries, timestamp] = {
-        applied: [applied, "appliedAt"], unsuitable: [unsuitable, "unsuitableAt"],
         indeedDismissed: [dismissed, "dismissedAt"], indeedApplied: [indeedApplied, "detectedAt"],
       }[kind];
       if (typeof value?.[timestamp] === "string") entries.add(analysisKey);
       else entries.delete(analysisKey);
     } else if (kind === "indeedAvailability") {
-      if (["active", "expired"].includes(value?.status) && Number.isFinite(Date.parse(value.checkedAt))) availability.set(id, value);
+      if (availabilityContract.isRecord(value)) availability.set(id, value);
       else availability.delete(id);
     } else if (kind === "title") {
       if (typeof value === "string") titles.set(key, value);
@@ -68,14 +74,14 @@
     return titles.get(key) || (request.pending ? "Loading job title…" : "Job title unavailable — open listing");
   };
   const checkAvailability = (id) => {
-    if (Date.now() - Date.parse(availability.get(id)?.checkedAt) < 3_600_000) return;
+    if (availabilityContract.isFresh(availability.get(id))) return;
     const request = availabilityRequests.get(id);
-    if (request && (request.pending || Date.now() - request.attemptedAt < 3_600_000)) return;
+    if (request && (request.pending || Date.now() - request.attemptedAt < AVAILABILITY_RETRY_INTERVAL_MS)) return;
     const next = { pending: true, attemptedAt: Date.now() };
     availabilityRequests.set(id, next);
     chrome.runtime.sendMessage({ type: globalThis.jobSearchContracts.messages.getIndeedJobAvailability, jobId: id }, (response) => {
       next.pending = false;
-      if (!chrome.runtime.lastError && response?.ok && ["active", "expired"].includes(response.availability?.status)) {
+      if (!chrome.runtime.lastError && response?.ok && availabilityContract.isRecord(response.availability)) {
         availability.set(id, response.availability);
       }
       companion.pageDecorations.schedule();
@@ -144,7 +150,7 @@
       item.append(link, verdict);
       list.append(item);
     }
-    if (!jobs.length) note.textContent = "No analysed jobs waiting for you to apply.";
+    if (!jobs.length) note.textContent = "No eligible unapplied jobs with a Use as is or Edit CV verdict.";
     const status = document.createElement("p");
     status.setAttribute("role", "status");
     status.textContent = syncState === "checking" ? "Checking Indeed applications…"

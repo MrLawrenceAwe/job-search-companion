@@ -9,9 +9,10 @@
         return { outcome: "overridden", label: "Blockers overridden by you" };
       return { outcome: result.outcome, label: LABELS[result.outcome] };
     };
-    const keyFromUrl = (url) => {
+    const jobIdFromUrl = (url) => {
       try {
-        return new URL(url).searchParams.get("jk");
+        const identity = globalThis.jobSearchContracts.jobUrls.identityFromUrl(new URL(url));
+        return identity?.platform === "indeed" ? identity.id : null;
       } catch {
         return null;
       }
@@ -142,7 +143,7 @@
       const { selection, checkerState, challenges = [] } = getContext();
       for (const badge of document.querySelectorAll(".jsc-blocker-badge")) badge.remove();
       for (const [card, jobUrl] of cards) {
-        const jobId = keyFromUrl(jobUrl);
+        const jobId = jobIdFromUrl(jobUrl);
         const record = recordStore.get(jobId);
         if (!isRetainableResult(record)) continue;
         const verified = selection?.jobId === jobId && getCurrentResult() === record;

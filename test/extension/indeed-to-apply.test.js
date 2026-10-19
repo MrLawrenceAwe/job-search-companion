@@ -37,7 +37,7 @@ const fixture = async (t, platform = 'indeed', stored = {}, resolveTitle = null,
     local: { get: async () => saved, set: async (values) => Object.assign(saved, values), remove: async (key) => { delete saved[key]; } },
     onChanged: { addListener: (fn) => { changes.push(fn); } },
   } };
-  await runScriptsInDom(window, ['contracts/job-urls.js', 'contracts/job-storage-keys.js', 'contracts/identifiers.js', 'contracts/job-analyses.js', 'contracts/messages.js']);
+  await runScriptsInDom(window, ['contracts/job-urls.js', 'contracts/job-storage-keys.js', 'contracts/job-marks.js', 'contracts/indeed-availability.js', 'contracts/identifiers.js', 'contracts/job-analyses.js', 'contracts/messages.js']);
   window.jobSearchCompanion = { platform, pageDecorations: {
     register: (fn, promise) => { renderers.push(fn); readiness.push(promise); },
     schedule: () => render(page),
@@ -73,7 +73,7 @@ test('storage updates remove applied jobs, restore unmarked jobs, and refresh ch
   assert.equal(summary(), 'To apply · 2');
   await change({ 'analyzed-job:indeed:fixture111': { newValue: analysis('no suitable base CV') }, 'analyzed-job:indeed:fixture222': { newValue: undefined } });
   assert.equal(summary(), 'To apply · 0');
-  assert.match(window.document.querySelector('details p').textContent, /No analysed jobs/);
+  assert.equal(window.document.querySelector('details p').textContent, "No eligible unapplied jobs with a Use as is or Edit CV verdict.");
 });
 
 test('counter is absent on LinkedIn', async (t) => {

@@ -35,6 +35,7 @@ document.querySelector('#open-menu').onclick = () => { document.querySelector('#
 
 await import("../extension/contracts/job-urls.js");
 await import("../extension/contracts/job-storage-keys.js");
+await import("../extension/contracts/job-marks.js");
 await import("../extension/contracts/blockers.js");
 await import("../extension/contracts/messages.js");
 await import("../extension/contracts/shortcuts.js");

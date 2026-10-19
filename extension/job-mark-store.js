@@ -1,6 +1,6 @@
 (() => {
   const companion = globalThis.jobSearchCompanion;
-  const timestamps = { applied: "appliedAt", unsuitable: "unsuitableAt" };
+  const { timestampFields, isRecord } = globalThis.jobSearchContracts.jobMarks;
 
   companion.jobMarks.createStore = () => {
     const records = new Map();
@@ -15,8 +15,8 @@
     };
     const readRecord = (key, value) => {
       const kind = globalThis.jobSearchContracts.jobStorageKeys.parse(key)?.kind;
-      if (!Object.hasOwn(timestamps, kind)) return;
-      if (typeof value?.[timestamps[kind]] === "string") records.set(key, value);
+      if (!Object.hasOwn(timestampFields, kind)) return;
+      if (isRecord(kind, value)) records.set(key, value);
       else records.delete(key);
     };
     const ready = chrome.storage.local.get(null).then((stored) => {
@@ -32,7 +32,7 @@
     });
     return {
       ready,
-      isMarked: (jobUrl, kind) => Boolean(records.get(keyFor(jobUrl, kind))?.[timestamps[kind]]),
+      isMarked: (jobUrl, kind) => isRecord(kind, records.get(keyFor(jobUrl, kind))),
       isPending: (jobUrl, kind) => pendingWrites.has(keyFor(jobUrl, kind)),
       subscribe(listener) {
         listeners.add(listener);
@@ -45,11 +45,11 @@
         try {
           await ready;
           const stored = await chrome.storage.local.get(key);
-          const marked = !stored[key]?.[timestamps[kind]];
+          const marked = !isRecord(kind, stored[key]);
           if (marked) {
             const record = {
               jobUrl: companion.jobs.jobUrlFromPageUrl(jobUrl),
-              [timestamps[kind]]: new Date().toISOString(),
+              [timestampFields[kind]]: new Date().toISOString(),
             };
             await chrome.storage.local.set({ [key]: record });
             records.set(key, record);
