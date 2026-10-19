@@ -4,7 +4,7 @@ import { join, resolve } from "node:path";
 
 import { blockerSources } from "../shared/blocker-sources.js";
 import { dataDirectory } from "../shared/data-directory.js";
-import { cvFitSettings } from "../shared/cv-fit-settings.js";
+import { cvFitSettings } from "../shared/contracts.js";
 import { bridgeAddress } from "./address.js";
 import { helperContract } from "./codex/helper-contract.js";
 

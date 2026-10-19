@@ -7,6 +7,6 @@ export const blockerSources = (homePath = homedir()) => ({
   cvDirectory: join(homePath, "Job Hunting"),
   profileSources: [
     { kind: "application", path: join(homePath, "Job Hunting/profile.md") },
-    { kind: "verified", path: join(homePath, ".codex/skills/apply-to-jobs/references/profile.md") },
+    { kind: "skill", path: join(homePath, ".codex/skills/apply-to-jobs/references/profile.md") },
   ],
 });

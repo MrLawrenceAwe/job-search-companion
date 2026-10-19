@@ -8,14 +8,7 @@
     "use as-is": "green", "edit the CV": "yellow",
     "no suitable base CV": "red", "do not apply yet": "red",
   }[verdict] || "blue");
-  const keyFor = (jobUrl) => {
-    const url = new URL(jobUrl);
-    const identity = globalThis.jobSearchContracts.jobUrls.identityFromUrl(url);
-    if (url.protocol !== "https:" || !identity) {
-      throw new Error("Couldn’t identify this job.");
-    }
-    return `analyzed-job:${identity.platform}:${identity.id}`;
-  };
+  const keyFor = (jobUrl) => globalThis.jobSearchContracts.jobStorageKeys.forUrl("analysis", jobUrl);
   const isRecord = (record) => Boolean(record && isUuid(record.threadId)
     && typeof record.analyzedAt === "string" && Number.isFinite(Date.parse(record.analyzedAt))
     && (record.verdict === undefined || verdicts.includes(record.verdict)));

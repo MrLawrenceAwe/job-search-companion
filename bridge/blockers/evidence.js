@@ -5,6 +5,7 @@ export const combineProfileAndCvEvidence = (profile, index, { indexModel, indexP
   if (!index) {
     return {
       ...profile,
+      cvIndexStatus: "pending",
       hash: hashJson({ facts: profile.facts, cvFingerprint: null, indexModel }),
     };
   }
@@ -14,6 +15,7 @@ export const combineProfileAndCvEvidence = (profile, index, { indexModel, indexP
   ];
   return {
     ...profile,
+    cvIndexStatus: "current",
     facts,
     sources: indexPath
       ? [...profile.sources, { name: "CV experience index", path: indexPath }]
@@ -29,13 +31,13 @@ export const createEvidenceProvider = ({ profileSources, cvIndex, indexPath, get
   return {
     async readCurrent() {
       const profile = await readProfileEvidence(profileSources);
-      if (!cvIndex) return profile;
+      if (!cvIndex) return { ...profile, cvIndexStatus: "disabled" };
       const model = getIndexModel();
       return combine(profile, await cvIndex.readCurrent({ model }), model);
     },
     async prepareCurrent({ signal } = {}) {
       const profile = await readProfileEvidence(profileSources);
-      if (!cvIndex) return profile;
+      if (!cvIndex) return { ...profile, cvIndexStatus: "disabled" };
       if (preparationController.signal.aborted) preparationController = new AbortController();
       const model = getIndexModel();
       const workSignal = signal

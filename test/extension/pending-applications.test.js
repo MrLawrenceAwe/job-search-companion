@@ -30,7 +30,7 @@ const fixture = async (t, platform = 'indeed', stored = {}, resolveTitle = null)
     local: { get: async () => saved, set: async (values) => Object.assign(saved, values), remove: async (key) => { delete saved[key]; } },
     onChanged: { addListener: (fn) => { changed = fn; } },
   } };
-  await runScriptsInDom(window, ['contracts/job-urls.js', 'contracts/identifiers.js', 'contracts/job-analyses.js', 'contracts/messages.js']);
+  await runScriptsInDom(window, ['contracts/job-urls.js', 'contracts/job-storage-keys.js', 'contracts/identifiers.js', 'contracts/job-analyses.js', 'contracts/messages.js']);
   window.jobSearchCompanion = { platform, pageDecorations: {
     register: (fn, promise) => { render = fn; ready = promise; },
     schedule: () => render(page),

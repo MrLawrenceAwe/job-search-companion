@@ -40,7 +40,7 @@ test("task submissions use the precompiled Accessibility helper", async () => {
 
 test("bridge requests stay shorter than the Accessibility operation", async () => {
   const serviceWorkerSource = await import("node:fs/promises").then(({ readFile }) =>
-    readFile(new URL("../../../extension/service-worker.js", import.meta.url), "utf8"));
+    readFile(new URL("../../../extension/worker/bridge-client.js", import.meta.url), "utf8"));
   const bridgeRequestTimeout = Number(
     serviceWorkerSource.match(/const REQUEST_TIMEOUT_MS = ([\d_]+);/)?.[1].replaceAll("_", ""),
   );

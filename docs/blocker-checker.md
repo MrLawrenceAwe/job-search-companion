@@ -23,10 +23,11 @@ staged upload copies and application proofs are excluded. Word and PDF variants
 are both checked, and identical text is deduplicated. CV excerpts retain paid-work,
 training, project and qualification context.
 
-The index refreshes automatically on the next check after a CV is added, edited
-or removed, using the selected indexing model/account. **Use checker model** uses
+Settings distinguishes a current CV index from one that will refresh on the next
+check. The index refreshes automatically after a CV is added, edited or removed,
+using the selected indexing model/account. **Use checker model** uses
 the checker model for indexing; an explicit indexing model remains independent.
-Changing the indexing model invalidates the index and saved findings, and rebuilds
+Changing the indexing model invalidates the index and saved blocker checks, and rebuilds
 the index on the next check. Indexing requires Poppler (`brew install poppler`)
 for PDFs and macOS `textutil` for Word documents. The first refresh takes an
 additional model request; unchanged CVs reuse the local index without another
@@ -69,8 +70,9 @@ recognised. Full CV analysis remains a separate action.
 
 Cards show saved results. **Previously checked** means the description and current
 evidence have not yet been verified together. Manual application marks and job
-visibility are unchanged. Checker version 14 invalidates older saved check results;
-application marks and completed CV-fit analyses are retained.
+visibility are unchanged. Results from older checker contracts are discarded;
+application marks and completed CV-fit analyses are retained. See `extension/contracts/blockers.js`
+for the current checker version.
 
 See [requirement policy](design.md#requirement-policy) and
 [scheduling details](design.md#scheduling-and-storage-contracts) for implementation rules.
@@ -117,6 +119,23 @@ blocker is overridden, the card says **Blockers overridden by you**. Overrides
 are saved with this check, sync across tabs, and do not change your profile.
 A completed recheck or another challenge replaces the check and resets its overrides.
 
+### Preparing and queuing challenges
+
+While a challenge is being reviewed, you can open other findings, edit their
+prepared objections, and choose **Queue challenge**. Only the queued or currently
+reviewed finding is locked against duplicate submission. Reviews run one at a
+time in submission order, and each starts with the latest profile and CV evidence,
+including corrections accepted by earlier reviews. Open drafts retain their text
+and cursor position as results update. **Recheck** waits until the queue finishes.
+A failed review is shown with its requirement; other queued reviews can continue
+unless checking is unavailable. Accepted reviews show **Challenge accepted** without an explanation. Rejected
+reviews explain only why the challenged requirement remains a blocker; other
+findings stay in the findings list.
+
+The queue and unsent drafts belong to the current page session. Reloading or
+closing the page discards waiting challenges and drafts. A review already sent
+to the bridge can still finish.
+
 ## Fallback accounts
 
 In **ChatGPT connection**, add your other accounts through **Add account**, completing sign-in with plan usage enabled for each. Enable **Account fallback** and save. Fallback is off by default.
@@ -133,9 +152,10 @@ Each store retains at most 300 saved check results. A result may contain several
 findings or none. Results expire after 30 days and are removed from persisted
 storage when a later result is saved.
 
-**Clear saved findings** removes saved check results from both the bridge cache
-and extension records without changing manual marks. Older results may appear as
-**Previously checked** until their description and evidence are verified again.
+**Clear saved blocker checks** removes saved check results from both the bridge cache
+and extension records without changing manual marks. Cleared badges disappear;
+eligible selected jobs can be checked again automatically. This does not remove
+the CV index or accepted profile corrections.
 
 The index is saved privately as `cv-index.json` in the checker data directory, with exact CV passages, the indexing model and source fingerprints. Full CV text is sent only when refreshing the index; routine checks send the compact excerpts and profile facts.
 
@@ -154,20 +174,3 @@ Evaluation commands, methodology and historical measurements are documented in [
 See [checker internals and validation notes](design.md#blocker-checking-internals) for description capture, storage contracts, and automated coverage.
 
 Official documentation: [Sign-in](https://developers.openai.com/siwc/token-sharing-open-source/sign-in), [models/inference](https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference), [preview limitations](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations), [recovery](https://developers.openai.com/siwc/token-sharing-open-source/errors-and-recovery).
-
-### Preparing and queuing challenges
-
-While a challenge is being reviewed, you can open other findings, edit their
-prepared objections, and choose **Queue challenge**. Only the queued or currently
-reviewed finding is locked against duplicate submission. Reviews run one at a
-time in submission order, and each starts with the latest profile and CV evidence,
-including corrections accepted by earlier reviews. Open drafts retain their text
-and cursor position as results update. **Recheck** waits until the queue finishes.
-A failed review is shown with its requirement; other queued reviews can continue
-unless checking is unavailable. Accepted reviews show **Challenge accepted** without an explanation. Rejected
-reviews explain only why the challenged requirement remains a blocker; other
-findings stay in the findings list.
-
-The queue and unsent drafts belong to the current page session. Reloading or
-closing the page discards waiting challenges and drafts. A review already sent
-to the bridge can still finish.

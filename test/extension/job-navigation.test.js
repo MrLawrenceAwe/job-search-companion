@@ -34,7 +34,7 @@ for (const platform of ["indeed", "linkedin"]) {
       for (const link of window.document.querySelectorAll("a"))
         link.addEventListener("click", (event) => event.preventDefault());
       await runScriptsInDom(window, [
-        "contracts/job-urls.js", "contracts/blockers.js", "extension-context.js",
+        "contracts/job-urls.js", "contracts/job-storage-keys.js", "contracts/blockers.js", "extension-context.js",
         "dom-visibility.js", "job-url.js", "job-resolution.js", "job-navigation.js",
       ]);
       const { jobs, dom: visibility } = window.jobSearchCompanion;
@@ -70,7 +70,7 @@ test("a hidden card reused for another job becomes visible after an identity-onl
     const link = card.querySelector("a");
     link.addEventListener("click", (event) => event.preventDefault());
     await runScriptsInDom(window, [
-      "contracts/job-urls.js", "contracts/blockers.js", "extension-context.js",
+      "contracts/job-urls.js", "contracts/job-storage-keys.js", "contracts/blockers.js", "extension-context.js",
       "dom-visibility.js", "job-url.js", "job-resolution.js", "job-navigation.js",
     ]);
     const companion = window.jobSearchCompanion;

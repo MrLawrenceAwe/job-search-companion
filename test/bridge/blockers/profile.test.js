@@ -8,16 +8,18 @@ import { readProfileEvidence } from "../../../bridge/blockers/profile.js";
 test("profile snapshot selects relevant facts while excluding contact and sensitive data", async () => {
   const { writeFile } = await import("node:fs/promises");
   const directory = await mkdtemp(join(await realpath(tmpdir()), "jsc-profile-"));
-  const p1 = join(directory, "application.md"); const p2 = join(directory, "verified.md");
+  const p1 = join(directory, "application.md"); const p2 = join(directory, "skill-profile.md");
   await writeFile(p1, "## Personal Constraints\n- Provisional licence only.\n## Education\n- BSc Computer Science.\n");
   await writeFile(p2, "## Facts\nContact:\n- Email: private@example.test.\nEligibility:\n- UK background: born and raised in the UK.\nDriving:\n- Driving licence: provisional.\nIdentity and disclosure facts:\n- Religion: private.\n## Preferences\n- Relocation: ask per job.\n- Cover letters: short.\n");
-  const profileSources = [{ kind: "application", path: p1 }, { kind: "verified", path: p2 }];
+  const profileSources = [{ kind: "application", path: p1 }, { kind: "skill", path: p2 }];
   const result = await readProfileEvidence(profileSources);
   const reversed = await readProfileEvidence([...profileSources].reverse());
   const sourceFacts = (profile) => profile.facts.map(({ text, source }) => ({ text, source }))
     .sort((left, right) => left.text.localeCompare(right.text));
   assert.deepEqual(sourceFacts(reversed), sourceFacts(result));
   await assert.rejects(readProfileEvidence([{ kind: "unknown", path: p1 }]), /Unknown profile source kind/);
+  assert.equal(result.sources[1].name, "Application skill profile");
+  assert.ok(result.facts.some((fact) => fact.source === "Application skill profile"));
   assert.equal(result.facts.length, 5); assert.doesNotMatch(JSON.stringify(result.facts), /private|Cover letters/);
   assert.ok(result.facts.some(({ text }) => text === "UK background: born and raised in the UK."));
 });
@@ -26,10 +28,10 @@ test("accepted corrections replace superseded facts across profiles without keep
   const { writeFile, readFile } = await import("node:fs/promises");
   const { integrateProfileUpdates } = await import("../../../bridge/blockers/profile.js");
   const directory = await mkdtemp(join(await realpath(tmpdir()), "jsc-correction-"));
-  const p1 = join(directory, "application.md"), p2 = join(directory, "verified.md");
+  const p1 = join(directory, "application.md"), p2 = join(directory, "skill-profile.md");
   await writeFile(p1, "# Profile\n## Personal Constraints\n- Provisional licence only.\n## Education\n- BSc Computer Science.\n");
   await writeFile(p2, "## Facts\nDriving:\n- Driving licence: provisional.\nContact:\n- Email: private@example.test.\n");
-  const profileSources = [{ kind: "application", path: p1 }, { kind: "verified", path: p2 }];
+  const profileSources = [{ kind: "application", path: p1 }, { kind: "skill", path: p2 }];
   const profile = await readProfileEvidence(profileSources);
   const updates = [{ text: "Holds a full UK driving licence.", replacesFactIds: ["F1", "F3"] }];
   await integrateProfileUpdates({ profile, updates, profileSources });

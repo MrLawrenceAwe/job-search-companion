@@ -19,7 +19,7 @@ const fixture = async (t, saved = {}) => {
     storage: { local: { get: async () => saved }, onChanged: { addListener: (fn) => { storageChange = fn; } } },
     runtime: { sendMessage: (message, callback) => { messages.push(message); callback({ ok: true }); } },
   };
-  await runScriptsInDom(window, ["contracts/job-urls.js", "contracts/identifiers.js", "contracts/job-analyses.js", "contracts/messages.js", "extension-context.js"]);
+  await runScriptsInDom(window, ["contracts/job-urls.js", "contracts/job-storage-keys.js", "contracts/identifiers.js", "contracts/job-analyses.js", "contracts/messages.js", "extension-context.js"]);
   const companion = window.jobSearchCompanion;
   companion.dom.getRenderedRect = () => ({ width: 100, height: 30 });
   companion.jobs.collectJobCarriers = () => [{ element: window.document.querySelector("#job"), jobUrl }];

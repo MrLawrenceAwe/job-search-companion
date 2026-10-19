@@ -118,14 +118,19 @@ test("menu reports when mismatched settings leave a draft ready for review", asy
         : { ok: true, submission: { id: "submission-1", status: "submitting" } });
     },
   };
-  const { button, toasts } = await createMenuFixture({ runtime });
+  const { button, toasts, context } = await createMenuFixture({ runtime });
+  context.jobSearchContracts.cvFitSettings = [
+    { category: "Model", label: "Test model" },
+    { category: "Effort", label: "High" },
+    { category: "Speed", label: "Standard" },
+  ];
 
   click(button);
   await drainEventLoopUntil(() => toasts.length > 0);
 
   assert.equal(
     toasts.at(-1).textContent,
-    "CV Fit Advisor draft is ready—check 6.1 Sol, Medium, and Fast in Codex, then send it.",
+    "CV Fit Advisor draft is ready—check Model: Test model, Effort: High, Speed: Standard in Codex, then send it.",
   );
   assert.equal(toasts.at(-1).role, "status");
 });

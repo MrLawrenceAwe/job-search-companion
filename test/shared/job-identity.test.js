@@ -8,7 +8,7 @@ import { runScriptsInVm } from "../../test-support/extension-scripts.js";
 test("bridge and content adapters use the same identity while keeping their URL boundaries", async () => {
   const location = new URL("https://uk.indeed.com/jobs");
   const context = vm.createContext({ URL, location, window: { location } });
-  await runScriptsInVm(context, ["contracts/job-urls.js", "extension-context.js", "job-url.js"]);
+  await runScriptsInVm(context, ["contracts/job-urls.js", "contracts/job-storage-keys.js", "extension-context.js", "job-url.js"]);
   const fromPage = context.jobSearchCompanion.jobs.jobUrlFromPageUrl;
   for (const [url, platform, id] of [
     ["https://uk.indeed.com/viewjob?vjk=fixture111&from=search", "indeed", "fixture111"],

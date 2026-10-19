@@ -133,8 +133,12 @@ const render = (state, { preserveEdits = false } = {}) => {
   byId("connectChatGPT").hidden = state.connectionStatus.planUsageEnabled && !state.connectionStatus.pending;
   byId("cancelSignIn").hidden = !state.connectionStatus.pending;
   byId("signOut").disabled = !state.connectionStatus.connected;
-  byId("evidence").textContent = state.evidence ? "Evidence available." : state.evidenceError;
-  byId("evidence").dataset.state = state.evidence ? "ready" : "error";
+  byId("evidence").textContent = !state.evidence ? state.evidenceError
+    : state.evidence.cvIndexStatus === "current" ? "Profile loaded. CV index is current."
+      : state.evidence.cvIndexStatus === "pending" ? "Profile loaded. CV index will refresh on the next check."
+        : "Profile loaded. CV indexing is not configured.";
+  byId("evidence").dataset.state = !state.evidence ? "error"
+    : state.evidence.cvIndexStatus === "pending" ? "pending" : "ready";
   if (state.pausedReason || state.connectionStatus.error)
     feedback(state.pausedReason || state.connectionStatus.error, "error");
   updateSave();
@@ -212,11 +216,11 @@ for (const [id, work] of Object.entries({
       saving = false;
     }
   },
-  clearFindings: async () => {
+  clearSavedChecks: async () => {
     await request("clear-cache");
     await recordStore.clear();
     await load();
-    feedback("Saved findings cleared.");
+    feedback("Saved blocker checks cleared.");
   },
 }))
   byId(id).addEventListener("click", () => void perform(work));

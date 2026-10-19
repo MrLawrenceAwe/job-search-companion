@@ -11,11 +11,11 @@
       const normalized = companion.jobs.jobUrlFromPageUrl(jobUrl);
       if (!normalized) throw new Error("Couldn’t identify this job.");
       const { platform, id } = globalThis.jobSearchContracts.jobUrls.identityFromUrl(new URL(normalized));
-      return `${kind}-job:${platform}:${id}`;
+      return globalThis.jobSearchContracts.jobStorageKeys.forJob(kind, { platform, id });
     };
     const readRecord = (key, value) => {
-      const kind = Object.keys(timestamps).find((kind) => key.startsWith(`${kind}-job:`));
-      if (!kind) return;
+      const kind = globalThis.jobSearchContracts.jobStorageKeys.parse(key)?.kind;
+      if (!Object.hasOwn(timestamps, kind)) return;
       if (typeof value?.[timestamps[kind]] === "string") records.set(key, value);
       else records.delete(key);
     };

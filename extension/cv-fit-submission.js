@@ -89,7 +89,7 @@
       showToast(
         status === statuses.submitted
           ? "CV Fit Advisor task submitted."
-          : "CV Fit Advisor draft is ready—check 6.1 Sol, Medium, and Fast in Codex, then send it.",
+          : `CV Fit Advisor draft is ready—check ${globalThis.jobSearchContracts.cvFitSettings.map(({ category, label }) => `${category}: ${label}`).join(", ")} in Codex, then send it.`,
       );
     } catch (error) {
       showToast(

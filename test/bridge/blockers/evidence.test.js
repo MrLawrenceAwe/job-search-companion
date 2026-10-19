@@ -38,10 +38,12 @@ test("saved evidence reads never prepare an index and share the prepared evidenc
   const before = await provider.readCurrent();
   assert.equal(preparations, 0);
   assert.equal(before.facts.length, 1);
+  assert.equal(before.cvIndexStatus, "pending");
   const prepared = await provider.prepareCurrent();
   const saved = await provider.readCurrent();
   assert.equal(preparations, 1);
   assert.deepEqual(saved, prepared);
+  assert.equal(saved.cvIndexStatus, "current");
   assert.notEqual(saved.hash, before.hash);
   assert.deepEqual(saved.facts.map((fact) => fact.id), ["F1", "CV1"]);
 });

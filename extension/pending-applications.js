@@ -2,6 +2,8 @@
   const companion = globalThis.jobSearchCompanion;
   if (companion.platform !== "indeed") return;
   const contract = globalThis.jobSearchContracts.jobAnalyses;
+  const keys = globalThis.jobSearchContracts.jobStorageKeys;
+  const indeedKey = (kind, id) => keys.forJob(kind, { platform: "indeed", id });
   const records = new Map();
   const titles = new Map();
   const applied = new Set();
@@ -16,30 +18,24 @@
   let signature;
   let currentPage = { cards: new Map(), jobUrl: null };
   const read = (key, value) => {
-    if (key.startsWith("analyzed-job:indeed:")) {
-      if (contract.isRecord(value)) records.set(key, value);
-      else records.delete(key);
-    } else if (key.startsWith("applied-job:indeed:")) {
-      const analysisKey = key.replace("applied-job:", "analyzed-job:");
-      if (typeof value?.appliedAt === "string") applied.add(analysisKey);
-      else applied.delete(analysisKey);
-    } else if (key.startsWith("unsuitable-job:indeed:")) {
-      const analysisKey = key.replace("unsuitable-job:", "analyzed-job:");
-      if (typeof value?.unsuitableAt === "string") unsuitable.add(analysisKey);
-      else unsuitable.delete(analysisKey);
-    } else if (key.startsWith("indeed-dismissed-job:")) {
-      const analysisKey = `analyzed-job:indeed:${key.slice("indeed-dismissed-job:".length)}`;
-      if (typeof value?.dismissedAt === "string") dismissed.add(analysisKey);
-      else dismissed.delete(analysisKey);
-    } else if (key.startsWith("indeed-applied-job:")) {
-      const analysisKey = `analyzed-job:indeed:${key.slice("indeed-applied-job:".length)}`;
-      if (typeof value?.detectedAt === "string") indeedApplied.add(analysisKey);
-      else indeedApplied.delete(analysisKey);
-    } else if (key.startsWith("indeed-job-availability:")) {
-      const id = key.slice("indeed-job-availability:".length);
+    const identity = keys.parse(key);
+    if (identity?.platform !== "indeed") return;
+    const { kind, id } = identity;
+    const analysisKey = indeedKey("analysis", id);
+    if (kind === "analysis") {
+      if (contract.isRecord(value)) records.set(analysisKey, value);
+      else records.delete(analysisKey);
+    } else if (["applied", "unsuitable", "indeedDismissed", "indeedApplied"].includes(kind)) {
+      const [entries, timestamp] = {
+        applied: [applied, "appliedAt"], unsuitable: [unsuitable, "unsuitableAt"],
+        indeedDismissed: [dismissed, "dismissedAt"], indeedApplied: [indeedApplied, "detectedAt"],
+      }[kind];
+      if (typeof value?.[timestamp] === "string") entries.add(analysisKey);
+      else entries.delete(analysisKey);
+    } else if (kind === "indeedAvailability") {
       if (["active", "expired"].includes(value?.status) && Number.isFinite(Date.parse(value.checkedAt))) availability.set(id, value);
       else availability.delete(id);
-    } else if (key.startsWith("job-title:indeed:")) {
+    } else if (kind === "title") {
       if (typeof value === "string") titles.set(key, value);
       else titles.delete(key);
     }
@@ -48,14 +44,14 @@
     for (const [key, value] of Object.entries(stored)) read(key, value);
   });
   const rememberTitle = (jobUrl, title, updates) => {
-    const key = contract.keyFor(jobUrl).replace("analyzed-job:", "job-title:");
+    const key = keys.forUrl("title", jobUrl);
     const clean = title?.replace(/\s+/g, " ").replace(/\s*-\s*job post\s*$/i, "").trim();
     if (!clean || titles.get(key) === clean) return;
     titles.set(key, clean);
     updates[key] = clean;
   };
   const titleFor = (id) => {
-    const key = `job-title:indeed:${id}`;
+    const key = indeedKey("title", id);
     if (titles.has(key)) return titles.get(key);
     let request = titleRequests.get(id);
     if (!request || (!request.pending && Date.now() - request.attemptedAt >= 60_000)) {
@@ -97,11 +93,11 @@
     if (jobUrl && heading && [...document.querySelectorAll('#alert-content h3')].some(
       (element) => element.textContent.trim() === "This job has expired on Indeed",
     )) {
-      const id = contract.keyFor(jobUrl).slice("analyzed-job:indeed:".length);
+      const id = keys.parse(contract.keyFor(jobUrl)).id;
       if (availability.get(id)?.status !== "expired") {
         const value = { status: "expired", checkedAt: new Date().toISOString() };
         availability.set(id, value);
-        updates[`indeed-job-availability:${id}`] = value;
+        updates[indeedKey("indeedAvailability", id)] = value;
       }
     }
     if (Object.keys(updates).length) {
@@ -112,8 +108,7 @@
       if (applied.has(key) || indeedApplied.has(key) || unsuitable.has(key) || dismissed.has(key)
         || !["use as-is", "edit the CV"].includes(record.verdict)) continue;
       // Derive links from the validated identity, never from stored arbitrary URLs.
-      const id = key.slice("analyzed-job:indeed:".length);
-      if (!/^[A-Za-z0-9_-]{8,64}$/.test(id)) continue;
+      const id = keys.parse(key).id;
       checkAvailability(id);
       if (availability.get(id)?.status === "expired") continue;
       jobs.push({
@@ -169,7 +164,7 @@
     void ready.then(async () => {
       const analysisKey = contract.keyFor(jobUrl);
       if (!records.has(analysisKey)) return;
-      const key = analysisKey.replace("analyzed-job:indeed:", "indeed-dismissed-job:");
+      const key = keys.forUrl("indeedDismissed", jobUrl);
       if (undo) {
         await chrome.storage.local.remove(key);
         dismissed.delete(analysisKey);

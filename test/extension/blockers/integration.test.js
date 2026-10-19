@@ -101,7 +101,14 @@ const createBlockerFixture = async (initialStorage = {}, { initiallyHidden = fal
   let hidden = initiallyHidden;
   Object.defineProperty(window.document, "hidden", { get: () => hidden });
   Object.defineProperty(window.document, "visibilityState", { get: () => hidden ? "hidden" : "visible" });
-  Object.defineProperty(window.crypto, "subtle", { value: webcrypto.subtle });
+  const pendingDigests = new Set();
+  Object.defineProperty(window.crypto, "subtle", { value: {
+    digest(...args) {
+      const pending = webcrypto.subtle.digest(...args);
+      pendingDigests.add(pending);
+      return pending.finally(() => pendingDigests.delete(pending));
+    },
+  } });
   window.TextEncoder = TextEncoder;
   window.fetch = async (url) => createDescriptionResponse(url);
   window.postMessage = (data) => window.dispatchEvent(new window.MessageEvent("message", {
@@ -113,7 +120,7 @@ const createBlockerFixture = async (initialStorage = {}, { initiallyHidden = fal
   window.setTimeout = (callback, milliseconds) =>
     realTimeout(callback, milliseconds === 1500 ? dwellDelayMs : milliseconds === 100 ? 1 : milliseconds === 120 ? 10 : milliseconds);
   const mocks = installChromeMocks(window, initialStorage);
-  await runScriptsInDom(window, ["contracts/job-urls.js", "contracts/blockers.js", "contracts/inference-settings.js", "contracts/messages.js", "blockers/client.js", "extension-context.js"]);
+  await runScriptsInDom(window, ["contracts/job-urls.js", "contracts/job-storage-keys.js", "contracts/blockers.js", "contracts/inference-settings.js", "contracts/messages.js", "blockers/client.js", "extension-context.js"]);
   Object.assign(window.jobSearchCompanion.dom, {
     getRenderedRect: () => ({ width: 200, height: 100 }),
   });
@@ -152,7 +159,11 @@ const createBlockerFixture = async (initialStorage = {}, { initiallyHidden = fal
       currentJobId = jobId;
       window.document.querySelector("h2").textContent = jobId;
     },
-    close: () => window.close(),
+    async close() {
+      // Native crypto can outlive JSDOM timers; finish scans before destroying document.
+      await Promise.allSettled([...pendingDigests]);
+      window.close();
+    },
   };
 };
 
@@ -166,7 +177,7 @@ test("initial embedded descriptions produce one check and a visible result witho
     assert.ok(fixture.window.document.querySelector(".jsc-blocker-badge"));
     assert.equal(fixture.window.document.querySelector(".jsc-blocker-badge").textContent, "No blockers found");
   } finally {
-    fixture.close();
+    await fixture.close();
   }
 });
 
@@ -185,7 +196,7 @@ test("returning to the same job restarts a cancelled dwell without duplicate che
     await new Promise((resolve) => setTimeout(resolve, 150));
     assert.equal(fixture.calls.length, 1);
   } finally {
-    fixture.close();
+    await fixture.close();
   }
 });
 
@@ -198,7 +209,7 @@ test("a job first loaded in a hidden tab checks when it becomes visible", async 
     await waitUntil(() => fixture.storage["blocker-result:first1111"]);
     assert.equal(fixture.calls.length, 1);
   } finally {
-    fixture.close();
+    await fixture.close();
   }
 });
 
@@ -219,7 +230,7 @@ test("a new selection with an old pane is never checked under the new job ID", a
     assert.equal(fixture.calls[1].description, publicTransportDescription);
     assert.match(fixture.window.document.querySelector(".jsc-blocker-badge").textContent, /Previously checked/);
   } finally {
-    fixture.close();
+    await fixture.close();
   }
 });
 
@@ -243,7 +254,7 @@ test("cached profile mismatches never display a current clean result", async () 
     await waitUntil(() => fixture.window.document.querySelector(".jsc-blocker-panel")?.textContent.includes("No blockers found"));
     assert.equal(fixture.calls.length, 1);
   } finally {
-    fixture.close();
+    await fixture.close();
   }
 });
 
@@ -258,7 +269,7 @@ test("GraphQL selected descriptions are captured without inferring descriptions 
     assert.equal(fixture.calls[1].description, `*${publicTransportDescription}*`);
     assert.equal(fixture.calls[1].jobUrl, "https://uk.indeed.com/viewjob?jk=second111");
   } finally {
-    fixture.close();
+    await fixture.close();
   }
 });
 
@@ -283,7 +294,7 @@ test("GraphQL Markdown escapes match rendered literal punctuation without accept
     assert.equal(fixture.calls[1].description, rendered);
     assert.equal(fixture.calls[1].jobUrl, "https://uk.indeed.com/viewjob?jk=second111");
   } finally {
-    fixture.close();
+    await fixture.close();
   }
 });
 
@@ -304,7 +315,7 @@ test("cancelled checks retry the current job automatically", async () => {
     await waitUntil(() => fixture.window.document.querySelector(".jsc-blocker-panel")?.textContent.includes("No blockers found"));
     assert.equal(starts, 2);
   } finally {
-    fixture.close();
+    await fixture.close();
   }
 });
 
@@ -340,7 +351,7 @@ test("an essential evidence gap shows Potential blocker on the card and panel", 
 
     assert.equal(fixture.window.document.querySelector(".jsc-blocker-panel > strong").textContent, "Blocker check");
   } finally {
-    fixture.close();
+    await fixture.close();
   }
 });
 
@@ -371,7 +382,7 @@ test("pending checks wait immediately and render a completed result without a po
     assert.equal(polls, 1);
     assert.ok(fixture.window.document.querySelector(".jsc-blocker-panel")?.textContent.includes("No blockers found"));
   } finally {
-    fixture.close();
+    await fixture.close();
   }
 });
 
@@ -416,7 +427,7 @@ test("challenging a blocker sends the objection, shows the reply, and does not r
     await waitUntil(() => calls.length === 3 && !doc.querySelector(".jsc-blocker-review") &&
       doc.querySelector(".jsc-blocker-panel")?.textContent.includes("No blockers found"));
     assert.equal(calls[2].challenge, undefined);
-  } finally { fixture.close(); }
+  } finally { await fixture.close(); }
 });
 
 test("check and recheck prepare selectable challenges that can be sent unchanged", async () => {
@@ -457,7 +468,7 @@ test("check and recheck prepare selectable challenges that can be sent unchanged
         await waitUntil(() => doc.querySelector(".jsc-blocker-finding > button"));
       }
     }
-  } finally { fixture.close(); }
+  } finally { await fixture.close(); }
 });
 
 test("selected suggestions can be deleted or replaced and cancelled edits survive reopening", async () => {
@@ -502,7 +513,7 @@ test("selected suggestions can be deleted or replaced and cancelled edits surviv
     doc.querySelector(".jsc-blocker-challenge button").click();
     await waitUntil(() => doc.querySelector(".jsc-blocker-panel")?.textContent.includes("No blockers found"));
     assert.equal(calls[1].challenge.reason, input.value);
-  } finally { fixture.close(); }
+  } finally { await fixture.close(); }
 });
 
 test("an accepted profile correction refreshes evidence and keeps its reply visible without another check", async () => {
@@ -544,7 +555,7 @@ test("an accepted profile correction refreshes evidence and keeps its reply visi
     assert.equal(starts, 2);
     assert.match(doc.querySelector(".jsc-blocker-review").textContent, /Challenge accepted/);
     assert.doesNotMatch(doc.querySelector(".jsc-blocker-review").textContent, /full licence resolves/);
-  } finally { fixture.close(); }
+  } finally { await fixture.close(); }
 });
 
 test("a rejected challenge can be overridden and undone without changing evidence or hiding other blockers", async () => {
@@ -593,7 +604,7 @@ test("a rejected challenge can be overridden and undone without changing evidenc
     await waitUntil(() => button("Override for this job"));
     assert.deepEqual(Array.from(fixture.storage["blocker-result:first1111"].overriddenRequirementQuotes), []);
     assert.equal(calls.length, 2);
-  } finally { fixture.close(); }
+  } finally { await fixture.close(); }
 });
 
 test("overriding the last rejected blocker labels the user's decision; recheck resets it", async () => {
@@ -631,7 +642,7 @@ test("overriding the last rejected blocker labels the user's decision; recheck r
     assert.equal(fixture.storage["blocker-result:first1111"].overriddenRequirementQuotes, undefined);
     assert.match(doc.querySelector(".jsc-blocker-badge").textContent, /Potential blocker/);
     assert.equal(button("Override for this job"), undefined, "the new check needs a rejected challenge before overriding");
-  } finally { fixture.close(); }
+  } finally { await fixture.close(); }
 });
 
 for (const failSecond of [false, true]) test(`challenges run in order with fresh evidence and preserved drafts${failSecond ? ' after a failed review' : ''}`, async () => {
@@ -719,5 +730,5 @@ for (const failSecond of [false, true]) test(`challenges run in order with fresh
     await waitUntil(() => doc.querySelector('.jsc-blocker-results > summary').textContent.includes('No blockers found'));
     assert.deepEqual(requests.map((item) => item.requirementQuote), quotes);
     if (failSecond) assert.match(doc.querySelector('.jsc-blocker-panel').textContent, /Review failed/);
-  } finally { fixture.close(); }
+  } finally { await fixture.close(); }
 });

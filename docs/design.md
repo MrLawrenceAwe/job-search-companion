@@ -53,6 +53,10 @@ The content scripts are ordered by dependency in the manifest:
 
 - `contracts/job-urls.js`, `contracts/blockers.js`, and `contracts/cv-fit-submissions.js` define shared URL, blocker-result, and CV submission-status contracts, also consumed by Node through `shared/contracts.js`;
 - `contracts/inference-settings.js` defines model reasoning capabilities and request options for checking and CV indexing;
+- `contracts/job-storage-keys.js` builds and parses persisted job keys for content scripts,
+  worker services, and Node without changing saved key values;
+- `contracts/cv-fit-settings.js` shares the required Codex settings between submission
+  automation and the draft-review message;
 - `contracts/identifiers.js` supplies UUID validation for request and chat IDs;
 - `contracts/shortcuts.js` defines keyboard bindings used by dispatch and menu hints;
 - `contracts/messages.js` owns extension message names, and `blockers/client.js` sends checker requests for content scripts and settings;
@@ -74,7 +78,13 @@ The content scripts are ordered by dependency in the manifest:
 - `blockers/renderer.js` registers the badge, findings, and checker-control renderer with page decorations; and
 - `blockers/checker.js` coordinates selection verification, dwell timing, and request polling.
 
-The separate `blockers/indeed-description-capture.js` MAIN-world script observes descriptions before the isolated content scripts start. `service-worker.js` loads `bridge-config.js` and the installer-generated `local-config.js` for private bridge settings. Its shared JSON transport owns request headers and timeouts; CV and blocker handlers own authorization, endpoint selection, and response filtering. `options.html`, `options.js`, and `options.css` implement settings.
+The separate `blockers/indeed-description-capture.js` MAIN-world script observes descriptions before the isolated content scripts start. `service-worker.js` loads `bridge-config.js` and the installer-generated `local-config.js` for private bridge settings. It registers feature handlers from `worker/`. `worker/bridge-client.js` owns bridge
+request headers and timeouts; `worker/cv-fit.js`, `worker/blockers.js`, and
+`worker/analyses.js` own their message boundaries. `worker/indeed-applications.js`
+synchronizes application history. `worker/indeed-listings.js` shares in-flight
+listing reads between title and availability requests while keeping their caches
+separate; `worker/indeed-listing-parser.js` extracts both fields from one JSON-LD
+traversal. `worker/senders.js` shares job-site sender validation. `options.html`, `options.js`, and `options.css` implement settings.
 
 `cvFitSubmissions` is the content-page API for sending Codex tasks. The bridge's
 `cv-fit-submission-store.js` persists their statuses; `cv-fit-submission-service.js` owns locking, execution and terminal-submission history pruning. `analysis-routes.js` owns completion, listing and chat opening, with scoped completion dispatched before general-token authentication. The native helper publishes
@@ -195,7 +205,7 @@ The observer preserves fetch observation across ordinary page reassignment.
 
 In `bridge/blockers/`, `checker.js` owns scheduling, `result-cache.js` owns
 persisted result retention, and `account-fallback.js` owns account rotation.
-`profile.js` reads relevant facts from the application and verified application
+`profile.js` reads relevant facts from the application and application-skill
 profile sources and integrates accepted corrections. These are supplied evidence,
 including self-reported corrections, rather than independent verification.
 
@@ -204,6 +214,8 @@ identity and hashing operation, also used by evaluation scripts. Its provider
 exposes `readCurrent()` for existing evidence and `prepareCurrent()` for work that
 may convert CV files, call the model, and save a refreshed index.
 `cancelPreparation()` aborts that preparation independently of saved-evidence reads.
+Evidence status also reports whether the CV index is current, pending a refresh,
+or disabled, separately from the evidence hash.
 
 `cv-index.js` fingerprints current source CVs and maintains a private compact index
 of exact excerpts. Its `ensureCurrent()` method may extract files and call the
@@ -234,8 +246,9 @@ requirement inference, and CV indexing. The internal `blocker` result name cover
 confirmed shortfalls and missing or conflicting evidence; the UI uses **Potential
 blocker**, and explanations retain the distinction. Combined profile and CV
 evidence uses `evidence`, `evidenceHash`, `evidenceFactIds`, and `evidenceFacts`;
-profile terminology is reserved for editable profile sources. Version 13 rejects
-older disposable check results without migrating their fields. Manual marks and
+profile terminology is reserved for editable profile sources. The version in
+`extension/contracts/blockers.js` determines which disposable check results are
+retained; older results are discarded without field migrations. Manual marks and
 completed analyses retain their storage contracts.
 
 OAuth attempts use fresh state, nonce and PKCE values, a loopback callback,
@@ -254,7 +267,9 @@ For account eligibility, see [fallback accounts](blocker-checker.md#fallback-acc
 Automatic checks begin after a 1.5-second dwell in a visible tab. One model request runs at a time. Recent eligible selections take precedence over waiting jobs, with at most ten waiting checks. Already-running checks finish when selection changes; turning checks off, clearing findings, shutdown, and account changes cancel work. Identical checks share a task across tabs. Requests time out after 90 seconds. Result polling waits in the bridge for completion (up to eight seconds per poll), so finished checks appear without an additional polling delay. Disconnected tabs release their wait without cancelling the shared check. A completed response with a non-verbatim requirement quote or invalid requirement fields gets one corrective request within the same 90-second deadline. Feedback identifies the rejected entry and validation problem, including empty explanations, invalid evidence references and oversized suggested challenges. The complete inventory is validated again; a second validation failure shows a specific checker error and says blocker status is unknown. Other failed checks require an explicit retry; transient failures do not retry automatically or switch billing.
 
 The bridge cache is keyed by Indeed job ID, description hash, evidence hash,
-checker version, and model. Retention and record bounds come from
+checker version, model, and reasoning effort. Challenges also enter the in-flight
+deduplication key; saved results use the ordinary key without a challenge.
+Retention and record bounds come from
 `extension/contracts/blockers.js`. Private JSON files use atomic writes with
 mode 0600; new directories use 0700. OAuth tokens never go to content scripts
 or extension storage. See [cache and account data](blocker-checker.md#cache-and-account-data)

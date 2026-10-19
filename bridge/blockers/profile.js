@@ -8,7 +8,7 @@ const applicationSections = new Set([
   "Location, Travel And Shift Constraints",
   "Education",
 ]);
-const verifiedGroups = new Set([
+const skillProfileGroups = new Set([
   "Eligibility",
   "Employment status",
   "Driving",
@@ -31,9 +31,9 @@ export const readProfileEvidence = async (profileSources) => {
   const snapshots = {};
   const factLocations = {};
   for (const { kind, path } of profileSources) {
-    if (!["application", "verified"].includes(kind))
+    if (!["application", "skill"].includes(kind))
       throw new Error(`Unknown profile source kind: ${kind}`);
-    const name = kind === "application" ? "Application profile" : "Verified application profile";
+    const name = kind === "application" ? "Application profile" : "Application skill profile";
     const text = await readFile(path, "utf8");
     snapshots[path] = text;
     let section = "";
@@ -52,7 +52,7 @@ export const readProfileEvidence = async (profileSources) => {
       const allowed = section === "Blocker-check clarifications" ||
         (kind === "application"
           ? applicationSections.has(section)
-          : (section === "Facts" && verifiedGroups.has(group)) ||
+          : (section === "Facts" && skillProfileGroups.has(group)) ||
             preferencePrefixes.some((prefix) => line.startsWith(prefix)));
       if (allowed && line.startsWith("- ")) {
         factLocations[`F${facts.length + 1}`] = { path, lineIndex };

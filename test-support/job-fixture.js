@@ -66,7 +66,7 @@ export const createJobFixture = async ({ href, scripts = [], canonicalUrl = null
   });
 
   await runScriptsInVm(context, [
-    "contracts/job-urls.js",
+    "contracts/job-urls.js", "contracts/job-storage-keys.js",
     "contracts/blockers.js",
     "extension-context.js",
     "dom-visibility.js",

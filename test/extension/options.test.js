@@ -5,7 +5,7 @@ import { waitUntil } from "../../test-support/async.js";
 import { runScriptsInDom } from "../../test-support/extension-scripts.js";
 import { JSDOM } from "jsdom";
 
-test("settings use account registrations, save preferences, and clear only blocker findings", async (t) => {
+test("settings use account registrations, save preferences, and clear only saved blocker checks", async (t) => {
   const dom = new JSDOM(
     await readFile(new URL("../../extension/options.html", import.meta.url), "utf8"),
     { url: "https://extension.test/options.html", runScripts: "outside-only" },
@@ -26,7 +26,7 @@ test("settings use account registrations, save preferences, and clear only block
         { id: "b", label: "Second account", email: "second@example.test" },
       ],
     },
-    evidence: { hash: "evidence" },
+    evidence: { hash: "evidence", cvIndexStatus: "pending" },
   };
   const requests = [];
   const removed = [];
@@ -56,6 +56,8 @@ test("settings use account registrations, save preferences, and clear only block
   await runScriptsInDom(window, ["contracts/blockers.js", "contracts/inference-settings.js", "contracts/messages.js", "blockers/client.js", "blockers/result-store.js", "options.js"]);
   const element = (id) => window.document.getElementById(id);
   await waitUntil(() => element("saveSettings").textContent === "Saved");
+  assert.match(element("evidence").textContent, /Profile loaded.*refresh on the next check/);
+  state.evidence.cvIndexStatus = "current";
   assert.equal(element("currentAccount").value, "a");
   assert.equal(element("currentAccount").options[1].textContent, "Second account");
   assert.match(element("fallbackStatus").textContent, /second@example.test/);
@@ -74,14 +76,15 @@ test("settings use account registrations, save preferences, and clear only block
   element("checksEnabled").dispatchEvent(new window.Event("change"));
   element("saveSettings").click();
   await waitUntil(() => element("feedback").textContent === "Settings saved.");
+  assert.equal(element("evidence").textContent, "Profile loaded. CV index is current.");
   assert.equal(requests.find((request) => request.action === "settings").body.enabled, true);
   assert.equal(requests.find((request) => request.action === "settings").body.reasoningEffort, "low");
   assert.equal(element("checkerReasoning").value, "low");
   assert.equal(requests.find((request) => request.action === "settings").body.indexModel, "gpt-6-sol");
   assert.equal(element("indexModel").value, "gpt-6-sol");
   await waitUntil(() => !element("saveSettings").disabled || element("saveSettings").textContent === "Saved");
-  element("clearFindings").click();
-  await waitUntil(() => element("feedback").textContent === "Saved findings cleared.");
+  element("clearSavedChecks").click();
+  await waitUntil(() => element("feedback").textContent === "Saved blocker checks cleared.");
   assert.deepEqual(removed, ["blocker-result:first111"]);
   // Empty models keep their distinct contracts: omit checker model, clear index override.
   for (const id of ["checkerModel", "indexModel"]) {

@@ -3,7 +3,7 @@
   const contract = globalThis.jobSearchContracts.jobAnalyses;
   const records = new Map();
   const read = (key, record) => {
-    if (!key.startsWith("analyzed-job:")) return;
+    if (globalThis.jobSearchContracts.jobStorageKeys.parse(key)?.kind !== "analysis") return;
     if (contract.isRecord(record)) records.set(key, record);
     else records.delete(key);
   };

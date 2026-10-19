@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { promisify } from "node:util";
 import { helperContract } from "../../bridge/codex/helper-contract.js";
-import { cvFitSettings } from "../../shared/cv-fit-settings.js";
+import { cvFitSettings } from "../../shared/contracts.js";
 
 const execFileAsync = promisify(execFile);
 

@@ -44,6 +44,7 @@ class FakeElement {
 const loadMenuScripts = (context) =>
   runScriptsInVm(context, [
     "contracts/cv-fit-submissions.js",
+    "contracts/cv-fit-settings.js",
     "cv-fit-submission.js",
     "job-url.js",
     "job-mark-store.js",
@@ -124,7 +125,7 @@ export const createMenuFixture = async ({
     },
   });
   await runScriptsInVm(context, [
-    "contracts/job-urls.js",
+    "contracts/job-urls.js", "contracts/job-storage-keys.js",
     "contracts/blockers.js",
     "contracts/messages.js",
     "contracts/shortcuts.js",

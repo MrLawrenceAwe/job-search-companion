@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { bridgeAddress } from "../bridge/address.js";
 import { helperContract } from "../bridge/codex/helper-contract.js";
-import { cvFitSettings } from "../shared/cv-fit-settings.js";
+import { cvFitSettings } from "../shared/contracts.js";
 
 const HEALTH_REQUEST_TIMEOUT_MS = 2_000;
 

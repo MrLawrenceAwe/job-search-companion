@@ -94,6 +94,7 @@ export const openBlockerChecker = async ({
       evidence: evidence
         ? {
             hash: evidence.hash,
+            cvIndexStatus: evidence.cvIndexStatus,
             factCount: evidence.facts.length,
             sources: evidence.sources,
           }

@@ -19,18 +19,8 @@ results, and checking job requirements and CV fit through a local bridge.
 - Challenge individual blockers, receive a direct reply, and integrate accepted factual corrections into your profile for future checks.
 - Send a selected job to Codex through **Analyse with CV Fit Advisor** or **N**,
   then reopen its completed analysis from the job card.
-- Expand **To apply** at the bottom right of Indeed pages to open saved jobs
-  analysed as **Use as is** or **Edit CV** that you haven't applied to. It excludes
-  manual Applied marks and completed applications detected through Indeed's
-  My jobs history, including Quick Apply and archived applications. History
-  refreshes when you return to Indeed and every minute while a tab is visible;
-  detected applications stay excluded if Indeed is temporarily unavailable.
-  The count updates across tabs. Missing job titles are fetched from the original
-  listings and saved automatically. Unavailable listings keep a clickable link.
-  Unsuitable marks and Indeed thumbs-down dismissals also remove jobs from the
-  list. Undoing a dismissal restores an otherwise eligible job.
-  Jobs confirmed expired by Indeed are excluded too; availability is checked
-  hourly and when an expired notice appears on the open job.
+- Open **To apply** on Indeed to revisit eligible analysed jobs you haven't applied
+  to. See [the usage guide](docs/usage.md) for exclusions and refresh behaviour.
 
 Marks are manual local records. After applying on an employer's website, mark its
 listing yourself; this does not submit an application or update the job board.
