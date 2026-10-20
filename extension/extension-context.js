@@ -13,7 +13,8 @@
         'li, [data-testid="slider_item"], .job_seen_beacon, .cardOutline, [role="button"][componentkey^="job-card-component-ref-"]',
       jobDetailTitle:
         '[data-testid="vj-job-title"], .jobsearch-JobInfoHeader-title, ' +
-        ".job-details-jobs-unified-top-card__job-title, .jobs-unified-top-card__job-title",
+        '.job-details-jobs-unified-top-card__job-title, .jobs-unified-top-card__job-title, ' +
+        '[data-sdui-screen="com.linkedin.sdui.flagshipnav.jobs.SemanticJobDetails"] p:has(> a[href*="/jobs/view/"])',
       jobUrlCarrier:
         'a[href*="jk="], a[href*="/viewjob"], [data-jk], [data-vjk], [data-jobkey], [id^="job_"], ' +
         'a[href*="/jobs/view/"], [componentkey^="job-card-component-ref-"]',

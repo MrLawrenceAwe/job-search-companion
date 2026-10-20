@@ -195,6 +195,63 @@ test('LinkedIn manual applied action remains available regardless of Indeed-like
   await waitUntil(() => window.document.querySelector('.jsc-applied-action'));
 });
 
+test('LinkedIn SDUI detail titles render marks and saved analyses without selecting a result-card title', async (t) => {
+  const jobUrl = 'https://www.linkedin.com/jobs/view/4473965426/';
+  const nextJobUrl = 'https://www.linkedin.com/jobs/view/4473965427/';
+  const dom = new JSDOM(`<body>
+    <li><p><a href="${nextJobUrl}">Another result</a></p></li>
+    <div data-sdui-screen="com.linkedin.sdui.flagshipnav.jobs.SemanticJobDetails">
+      <div data-display-contents="true"><p><a href="${jobUrl}?trackingId=test">Software Engineer</a>
+        <a href="#"><span role="img" aria-label="Verified job"></span></a>
+      </p></div>
+    </div>
+  </body>`, {
+    url: 'https://www.linkedin.com/jobs/search-results/?currentJobId=4473965426',
+    runScripts: 'outside-only', pretendToBeVisual: true,
+  });
+  t.after(() => dom.window.close());
+  const { window } = dom;
+  window.chrome = {
+    storage: {
+      local: { get: async () => ({ 'analyzed-job:linkedin:4473965426': { ...analysis, jobUrl } }) },
+      onChanged: { addListener() {} },
+    },
+    runtime: { sendMessage: (_, callback) => callback?.({ ok: true }) },
+  };
+  await runScriptsInDom(window, [
+    'contracts/job-urls.js', 'contracts/job-storage-keys.js', 'contracts/job-marks.js',
+    'contracts/identifiers.js', 'contracts/job-analyses.js', 'contracts/messages.js',
+    'extension-context.js', 'dom-visibility.js', 'job-url.js', 'job-resolution.js', 'job-navigation.js',
+  ]);
+  window.jobSearchCompanion.dom.getRenderedRect = (element) =>
+    element.isConnected && !element.closest('[hidden]') ? { width: 100, height: 30 } : null;
+  await runScriptsInDom(window, [
+    'page-decorations.js', 'job-mark-store.js', 'job-marks.js', 'job-analysis-store.js', 'job-analyses.js',
+  ]);
+  await waitUntil(() => window.document.querySelector('.jsc-analysis-detail'));
+  const pane = window.document.querySelector('[data-sdui-screen]');
+  const title = pane.querySelector('p');
+  const controls = pane.querySelector('.jsc-detail-controls');
+  assert.equal(title.nextElementSibling, controls);
+  assert.equal(window.document.querySelectorAll('.jsc-detail-controls').length, 1);
+  assert.equal(controls.querySelector('.jsc-applied-action').dataset.jobUrl, jobUrl);
+  assert.equal(controls.querySelector('.jsc-unsuitable-action').dataset.jobUrl, jobUrl);
+  assert.equal(controls.querySelector('.jsc-analysis-detail').dataset.jobUrl, jobUrl);
+  assert.equal(title.querySelectorAll('.jsc-job-mark-action').length, 0);
+
+  // LinkedIn reuses the detail pane when another result is selected.
+  window.history.replaceState({}, '', '?currentJobId=4473965427');
+  title.querySelector('a').href = nextJobUrl;
+  title.querySelector('a').textContent = 'Another result';
+  await waitUntil(() => controls.querySelector('.jsc-applied-action').dataset.jobUrl === nextJobUrl);
+  assert.equal(controls.querySelector('.jsc-unsuitable-action').dataset.jobUrl, nextJobUrl);
+  assert.equal(controls.querySelector('.jsc-analysis-detail'), null);
+  assert.equal(window.document.querySelectorAll('.jsc-detail-controls').length, 1);
+
+  pane.remove();
+  await waitUntil(() => !window.document.querySelector('.jsc-detail-controls'));
+});
+
 test('Indeed puts CV fit first and keeps actions when the last native row is below the viewport', async (t) => {
   const { window, companion } = await fixture(t);
   await runScriptsInDom(window, ['contracts/shortcuts.js', 'job-menu.js']);
