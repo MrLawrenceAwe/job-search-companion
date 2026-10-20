@@ -17,7 +17,8 @@
       .find((element) => companion.dom.getRenderedRect(element)) || null;
     let jobUrl = null;
     try {
-      if (heading) jobUrl = companion.jobs.resolveSelectedJobUrl();
+      // Keyboard selection can advance before the displayed pane finishes loading.
+      if (heading) jobUrl = companion.jobs.resolvePageJobUrl();
     } catch { /* Ambiguous selection: features omit job-specific controls. */ }
     if (heading !== detailHeading || (heading && !detailControls?.isConnected)) {
       detailControls?.remove();

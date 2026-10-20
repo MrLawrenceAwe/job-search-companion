@@ -14,6 +14,61 @@ const result = {
   checkerVersion: blockerContract.version, checkedAt: new Date().toISOString(),
 };
 
+test('pending keyboard navigation keeps detail marks bound to the displayed job', async (t) => {
+  const dom = new JSDOM(`<body>
+    <div data-testid="viewjob-main-content"><h1 data-testid="vj-job-title">First job</h1>
+      <section id="apply-controls"><button id="indeedApplyButton">Apply now</button></section></div>
+    <ul><li><a href="/viewjob?jk=fixture111">First job</a></li>
+      <li><a href="/viewjob?jk=fixture222">Second job</a></li></ul>
+  </body>`, {
+    url: 'https://uk.indeed.com/jobs?vjk=fixture111',
+    runScripts: 'outside-only', pretendToBeVisual: true,
+  });
+  t.after(() => dom.window.close());
+  const { window } = dom;
+  const saved = {};
+  window.chrome = { storage: {
+    local: {
+      get: async (key) => key === null ? { ...saved } : { [key]: saved[key] },
+      set: async (values) => Object.assign(saved, values),
+      remove: async (key) => { delete saved[key]; },
+    },
+    onChanged: { addListener() {} },
+  } };
+  // Card selection can leave the old pane visible while its request is pending or fails.
+  for (const link of window.document.querySelectorAll('a'))
+    link.addEventListener('click', (event) => event.preventDefault());
+  await runScriptsInDom(window, [
+    'contracts/job-urls.js', 'contracts/job-storage-keys.js', 'contracts/job-marks.js',
+    'extension-context.js', 'dom-visibility.js', 'job-url.js', 'job-resolution.js', 'job-navigation.js',
+  ]);
+  const companion = window.jobSearchCompanion;
+  companion.dom.getRenderedRect = companion.dom.getViewportRect = () => ({ width: 500, height: 100, left: 0, top: 0 });
+  companion.showToast = () => {};
+  await runScriptsInDom(window, ['page-decorations.js', 'job-mark-store.js', 'job-marks.js']);
+  await waitUntil(() => window.document.querySelector('.jsc-unsuitable-action'));
+  companion.jobs.navigateJob(1);
+  companion.jobs.navigateJob(1);
+  assert.equal(companion.jobs.resolveSelectedJobUrl(), secondJob);
+  companion.pageDecorations.schedule();
+  await new Promise((resolve) => window.setTimeout(resolve, 150));
+  const mark = window.document.querySelector('.jsc-unsuitable-action');
+  assert.equal(mark.dataset.jobUrl, firstJob);
+  assert.equal(window.document.querySelector('.jsc-applied-action'), null, 'the displayed job still uses Indeed Apply');
+  mark.click();
+  await waitUntil(() => saved['unsuitable-job:indeed:fixture111']);
+  assert.equal(saved['unsuitable-job:indeed:fixture222'], undefined);
+  // An early address-bar update must not relabel the old pane either.
+  window.history.replaceState({}, '', '?vjk=fixture222');
+  companion.pageDecorations.schedule();
+  await new Promise((resolve) => window.setTimeout(resolve, 150));
+  assert.equal(mark.dataset.jobUrl, firstJob);
+  window.document.querySelector('#apply-controls').innerHTML = '<a href="https://example.org/apply">Apply</a>';
+  window.document.querySelector('h1').textContent = 'Second job';
+  await waitUntil(() => mark.dataset.jobUrl === secondJob);
+  assert.equal(window.document.querySelector('.jsc-applied-action').dataset.jobUrl, secondJob);
+});
+
 const fixture = async (t, { applyMarkup = "", cardMarkup = "" } = {}) => {
   const dom = new JSDOM(`<body><li><a href="/viewjob?jk=fixture111">Job</a>${cardMarkup}</li><div data-testid="viewjob-main-content"><h1 data-testid="vj-job-title">Job</h1><section id="apply-controls">${applyMarkup}</section></div></body>`, {
     url: firstJob, runScripts: 'outside-only', pretendToBeVisual: true,
@@ -46,7 +101,7 @@ const fixture = async (t, { applyMarkup = "", cardMarkup = "" } = {}) => {
     scans++;
     return [{ element: window.document.querySelector('a'), jobUrl: firstJob }];
   };
-  companion.jobs.resolveSelectedJobUrl = () => selectedJob;
+  companion.jobs.resolvePageJobUrl = () => selectedJob;
   companion.showToast = () => {};
   await runScriptsInDom(window, ['page-decorations.js', 'job-mark-store.js', 'job-marks.js', 'job-analysis-store.js', 'job-analyses.js', 'blockers/renderer.js']);
   const scheduleFindings = companion.pageDecorations.schedule;
@@ -241,6 +296,10 @@ test('LinkedIn SDUI detail titles render marks and saved analyses without select
 
   // LinkedIn reuses the detail pane when another result is selected.
   window.history.replaceState({}, '', '?currentJobId=4473965427');
+  window.jobSearchCompanion.pageDecorations.schedule();
+  await new Promise((resolve) => window.setTimeout(resolve, 150));
+  assert.equal(controls.querySelector('.jsc-applied-action').dataset.jobUrl, jobUrl);
+  assert.equal(controls.querySelector('.jsc-analysis-detail').dataset.jobUrl, jobUrl);
   title.querySelector('a').href = nextJobUrl;
   title.querySelector('a').textContent = 'Another result';
   await waitUntil(() => controls.querySelector('.jsc-applied-action').dataset.jobUrl === nextJobUrl);

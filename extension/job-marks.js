@@ -31,7 +31,7 @@
 
     // The detail pane can belong to a different job from an open card menu.
     try {
-      if (companion.jobs.resolveSelectedJobUrl() !== jobUrl) return true;
+      if (companion.jobs.resolvePageJobUrl() !== jobUrl) return true;
     } catch { return true; }
     const heading = [...document.querySelectorAll(companion.selectors.jobDetailTitle)]
       .find((element) => companion.dom.getRenderedRect(element));

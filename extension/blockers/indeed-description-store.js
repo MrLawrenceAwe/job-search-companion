@@ -2,7 +2,8 @@
   const { indeedJobKeyPattern } = globalThis.jobSearchContracts.jobUrls;
   globalThis.jobSearchCompanion.blockers.observeDescriptions = (onDescription) => {
     const descriptions = new Map();
-    const normalize = (text) => (text || "").replace(/\s+/g, " ").trim();
+    // Markdown heading markers need line boundaries when matched to rendered text.
+    const normalize = (text) => (text || "").replace(/\r\n?/g, "\n").replace(/[^\S\n]+/g, " ").trim();
     window.addEventListener("message", (event) => {
       if (
         event.source !== window ||

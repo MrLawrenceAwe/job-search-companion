@@ -37,6 +37,9 @@ Use **J/K** to navigate rendered results, **H** to hide a result on the current
 page, and **U** to undo navigation or hiding. Shortcuts ignore editable fields;
 hidden results return after reload.
 
+Detail controls stay bound to the displayed job while another result loads.
+If the displayed job cannot be identified safely, job-specific controls are omitted.
+
 **Analyse with CV Fit Advisor** and **N** prepare a task using the local bridge.
 Blocker checks operate on complete loaded Indeed descriptions; see the
 [blocker-checker guide](blocker-checker.md). Installation and bridge recovery are

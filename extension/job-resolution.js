@@ -336,6 +336,13 @@
   };
 
   const resolvePageJobUrl = () => {
+    if (companion.platform === "linkedin") {
+      // LinkedIn can update currentJobId before replacing the detail pane.
+      const heading = [...document.querySelectorAll(companion.selectors.jobDetailTitle)]
+        .find((element) => companion.dom.getRenderedRect(element));
+      const displayedJobUrl = heading && findUniqueJobUrlInSubtree(heading);
+      if (displayedJobUrl) return displayedJobUrl;
+    }
     // Indeed's feed can retain an old vjk after rendering a different job.
     // Resolve the displayed pane against rendered cards, including offscreen ones.
     if (companion.platform === "indeed" && ["/", "/jobs"].includes(window.location.pathname)) {

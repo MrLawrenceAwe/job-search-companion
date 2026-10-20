@@ -166,7 +166,7 @@
     const generation = ++scanGeneration;
     let jobUrl;
     try {
-      jobUrl = companion.jobs.resolveSelectedJobUrl();
+      jobUrl = companion.jobs.resolvePageJobUrl();
     } catch {
       selection = null;
       cancelDwell();

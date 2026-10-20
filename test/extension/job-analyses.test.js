@@ -23,7 +23,7 @@ const fixture = async (t, saved = {}) => {
   const companion = window.jobSearchCompanion;
   companion.dom.getRenderedRect = () => ({ width: 100, height: 30 });
   companion.jobs.collectJobCarriers = () => [{ element: window.document.querySelector("#job"), jobUrl }];
-  companion.jobs.resolveSelectedJobUrl = () => jobUrl;
+  companion.jobs.resolvePageJobUrl = () => jobUrl;
   companion.showToast = (...args) => toasts.push(args);
   await runScriptsInDom(window, ["page-decorations.js", "job-analysis-store.js", "job-analyses.js"]);
   return { window, messages, toasts, change: (changes) => storageChange(changes, "local") };
@@ -50,7 +50,7 @@ test("pending jobs have no analysed mark; storage updates and selection changes 
   window.chrome.runtime.sendMessage = (_, callback) => callback({ ok: false, error: "Bridge offline" });
   window.document.querySelector(".jsc-analysis-detail").click();
   assert.deepEqual(toasts, [["Bridge offline", "error"]]);
-  window.jobSearchCompanion.jobs.resolveSelectedJobUrl = () => "https://uk.indeed.com/viewjob?jk=otherjob111";
+  window.jobSearchCompanion.jobs.resolvePageJobUrl = () => "https://uk.indeed.com/viewjob?jk=otherjob111";
   window.document.querySelector("h1").append(" changed");
   await waitUntil(() => !window.document.querySelector(".jsc-analysis-detail"));
   change({ [key]: { newValue: { ...record, threadId: "javascript:alert(1)" } } });

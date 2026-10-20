@@ -125,7 +125,7 @@ const createBlockerFixture = async (initialStorage = {}, { initiallyHidden = fal
     getRenderedRect: () => ({ width: 200, height: 100 }),
   });
   Object.assign(window.jobSearchCompanion.jobs, {
-    resolveSelectedJobUrl: () => `https://uk.indeed.com/viewjob?jk=${currentJobId}`,
+    resolvePageJobUrl: () => `https://uk.indeed.com/viewjob?jk=${currentJobId}`,
     collectJobCarriers: () => [{
       element: window.document.querySelector("a"),
       jobUrl: "https://uk.indeed.com/viewjob?jk=first1111",
@@ -295,6 +295,30 @@ test("GraphQL Markdown escapes match rendered literal punctuation without accept
     await waitUntil(() => fixture.storage["blocker-result:second111"]);
     assert.equal(fixture.calls[1].description, rendered);
     assert.equal(fixture.calls[1].jobUrl, "https://uk.indeed.com/viewjob?jk=second111");
+  } finally {
+    await fixture.close();
+  }
+});
+
+test("GraphQL Markdown headings match the full rendered description without accepting changed wording", async () => {
+  const fixture = await createBlockerFixture();
+  try {
+    await waitUntil(() => fixture.storage["blocker-result:first1111"]);
+    fixture.select("second111");
+    const markdown = "A customer service role based in London.\r\n\r\n## Requirements\r\nPrevious support experience is required.";
+    fixture.window.postMessage({
+      type: fixture.window.jobSearchContracts.messages.indeedDescription,
+      jobId: "second111", text: markdown,
+    });
+    const description = fixture.window.document.querySelector("#description");
+    description.innerHTML = '<p>A customer service role based in London.</p><h2>Requirements</h2><p>Previous support experience is optional.</p>';
+    await waitUntil(() => fixture.window.document.querySelector(".jsc-blocker-panel")?.textContent.includes("waiting for a full description"));
+    assert.equal(fixture.calls.length, 1);
+    description.querySelector('p:last-child').textContent = 'Previous support experience is required.';
+    await waitUntil(() => fixture.storage["blocker-result:second111"]);
+    assert.equal(fixture.calls.length, 2);
+    assert.equal(fixture.calls[1].jobUrl, "https://uk.indeed.com/viewjob?jk=second111");
+    assert.match(fixture.calls[1].description, /Previous support experience is required\./);
   } finally {
     await fixture.close();
   }
