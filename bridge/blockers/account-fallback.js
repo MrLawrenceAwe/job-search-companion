@@ -2,17 +2,17 @@
 export const runWithAccountFallback = async ({
   chatgpt,
   run,
-  model,
+  getRequiredModel,
   checkJob,
   isCurrent,
-  enabled,
+  isFallbackEnabled,
 }) => {
   let candidates = null;
   while (true) {
     try {
       return await run();
     } catch (error) {
-      if (!isCurrent() || !enabled() || error.code !== "subscription_sharing_usage_limit_exceeded")
+      if (!isCurrent() || !isFallbackEnabled() || error.code !== "subscription_sharing_usage_limit_exceeded")
         throw error;
       candidates ??= chatgpt.fallbackAccountIds();
       let available = false;
@@ -35,7 +35,7 @@ export const runWithAccountFallback = async ({
             throw catalogError;
           }
           if (!isCurrent()) throw error;
-          if (models.some((availableModel) => availableModel.slug === model())) {
+          if (models.some((availableModel) => availableModel.slug === getRequiredModel())) {
             available = true;
             break;
           }

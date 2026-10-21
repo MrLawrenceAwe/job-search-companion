@@ -45,10 +45,12 @@ are checked first; a running check continues when you select another job. Checks
 have a 90-second timeout. Turning checking off, clearing results, changing
 accounts, or stopping the bridge cancels pending work.
 
-An invalid checker response gets one automatic correction attempt within the
-90-second timeout. If validation still fails, the message identifies the response
-problem and says blocker status is unknown; this is a checker failure, not a job
-blocker. A failed check then needs an explicit retry. If checking pauses, review
+Completed responses with invalid requirement quotes or entries, or an inconsistent
+challenge decision, get one automatic correction attempt within the 90-second
+timeout. If correction fails, the check fails with a validation message; blocker
+status is unknown. Malformed JSON and other response errors fail without an
+automatic correction. These are checker failures, not job blockers; retry them
+explicitly. If checking pauses, review
 the message in settings, resolve the connection or model issue, and choose
 **Resume checks**.
 

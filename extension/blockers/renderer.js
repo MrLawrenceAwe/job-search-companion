@@ -60,7 +60,7 @@
       input.rows = 3;
       input.dataset.draftKey = draftKey;
       input.value = drafts.get(draftKey) ?? (pending || challengeState?.error ? challengeState.challenge.reason : finding.suggestedChallenge);
-      input.placeholder = "Explain the mistake or add a factual correction. Accepted reusable facts update your profile.";
+      input.placeholder = "Explain the mistake or add a factual correction.";
       input.addEventListener("input", () => {
         input.setCustomValidity("");
         drafts.set(draftKey, input.value);
@@ -72,7 +72,7 @@
       submit.disabled = pending || !checkerState?.settings.enabled || !checkerState?.connectionStatus.planUsageEnabled || Boolean(checkerState?.pausedReason);
       const cancel = button("Cancel", () => { openDrafts.delete(draftKey); form.hidden = true; toggle.hidden = false; });
       actions.append(submit, cancel);
-      form.append(inputLabel, actions);
+      form.append(inputLabel, element("p", "Accepted factual corrections can update your profile files for future checks."), actions);
       form.addEventListener("submit", (event) => {
         event.preventDefault();
         event.stopPropagation();

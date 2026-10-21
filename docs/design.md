@@ -65,12 +65,12 @@ The content scripts are ordered by dependency in the manifest:
 - `extension-context.js` creates the content-page cross-script API, selectors, and UI configuration;
 - `dom-visibility.js` provides rendered-element and viewport visibility checks, plus queries that include the root element;
 - `job-url.js` parses and normalizes Indeed and LinkedIn page and job URLs;
-- `job-resolution.js` resolves the selected job from URL, DOM, title, and page data;
+- `job-resolution.js` resolves the selected job from URL, DOM, title, and page data, and shares rendered detail-heading lookup with page decorations and manual marks;
 - `job-navigation.js` owns results-page navigation, hiding, and undo state;
 - `feedback.js` provides shared toast feedback independently of CV submission;
 - `cv-fit-submission.js` owns bridge messaging, completion polling, and submission feedback;
 - `job-mark-store.js` owns manual mark identity, persistence, pending writes, and storage synchronization;
-- `page-decorations.js` batches page observation, scans cards and the selected heading once per render, owns stable action/findings containers, and lets the blocker checker subscribe to page changes through the same observer and navigation listeners;
+- `page-decorations.js` batches page observation, builds a shared snapshot of cards and the selected heading for renderers, owns stable action/findings containers, and lets the blocker checker subscribe to page changes through the same observer and navigation listeners;
 - `job-marks.js` decorates cards, job headers, and menu actions using that store;
 - `job-analysis-store.js` owns the shared completed-analysis records, validation, and storage notifications;
 - `job-analyses.js` renders analysis actions from that store;
@@ -240,7 +240,7 @@ evidence, and forbids references for missing evidence. The structured schema req
 for findings and null explanations for other entries. See [requirement policy](#requirement-policy) for classification rules.
 `inference-prompts.js` owns instructions, `inference-schemas.js` owns structured
 response shapes, and `inference-validation.js` owns finding, correction, and
-challenge validation. `inference.js` constructs requests and allows one corrective request for an invalid quote or requirement entry.
+challenge validation. `inference.js` constructs requests and allows one corrective request for an invalid quote, requirement entry, or inconsistent challenge decision.
 
 `chatgpt-accounts.js` exposes `openChatGPTAccountManager()` for registrations,
 active-account selection, OAuth, and authenticated requests. `fallbackAccountIds()`

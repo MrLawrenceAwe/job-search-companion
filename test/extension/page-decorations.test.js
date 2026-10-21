@@ -90,7 +90,7 @@ const fixture = async (t, { applyMarkup = "", cardMarkup = "" } = {}) => {
     },
     runtime: { sendMessage: (_, callback) => callback?.({ ok: true }) },
   };
-  await runScriptsInDom(window, ['contracts/job-urls.js', 'contracts/job-storage-keys.js', 'contracts/job-marks.js', 'contracts/identifiers.js', 'contracts/job-analyses.js', 'contracts/blockers.js', 'contracts/messages.js', 'extension-context.js', 'job-url.js']);
+  await runScriptsInDom(window, ['contracts/job-urls.js', 'contracts/job-storage-keys.js', 'contracts/job-marks.js', 'contracts/identifiers.js', 'contracts/job-analyses.js', 'contracts/blockers.js', 'contracts/messages.js', 'extension-context.js', 'job-url.js', 'job-resolution.js']);
   const companion = window.jobSearchCompanion;
   let selectedJob = firstJob;
   let scans = 0;

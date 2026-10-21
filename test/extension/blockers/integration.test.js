@@ -123,7 +123,7 @@ const createBlockerFixture = async (initialStorage = {}, { initiallyHidden = fal
       if (!closing) callback();
     }, milliseconds === 1500 ? dwellDelayMs : milliseconds === 100 ? 1 : milliseconds === 120 ? 10 : milliseconds);
   const mocks = installChromeMocks(window, initialStorage);
-  await runScriptsInDom(window, ["contracts/job-urls.js", "contracts/job-storage-keys.js", "contracts/blockers.js", "contracts/inference-settings.js", "contracts/messages.js", "blockers/client.js", "extension-context.js"]);
+  await runScriptsInDom(window, ["contracts/job-urls.js", "contracts/job-storage-keys.js", "contracts/blockers.js", "contracts/inference-settings.js", "contracts/messages.js", "blockers/client.js", "extension-context.js", "job-resolution.js"]);
   Object.assign(window.jobSearchCompanion.dom, {
     getRenderedRect: () => ({ width: 200, height: 100 }),
   });

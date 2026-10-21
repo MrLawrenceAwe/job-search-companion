@@ -123,9 +123,9 @@ export const openBlockerChecker = async ({
       const outcome = await runWithAccountFallback({
         chatgpt,
         checkJob,
-        model: () => requiredModel,
+        getRequiredModel: () => requiredModel,
         isCurrent,
-        enabled: () => settings.value.accountFallback,
+        isFallbackEnabled: () => settings.value.accountFallback,
         run: async () => {
           requiredModel = cvIndex ? settings.value.indexModel || checkJob.model : checkJob.model;
           // Queued checks must include corrections accepted while they were waiting.

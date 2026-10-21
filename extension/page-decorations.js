@@ -7,14 +7,13 @@
   let detailHeading = null;
   let detailControls = null;
 
-  const readPage = () => {
+  const preparePageDecorations = () => {
     const cards = new Map();
     for (const { element, jobUrl } of companion.jobs.collectJobCarriers(companion.dom.getRenderedRect)) {
       const card = element.closest(companion.selectors.jobCard);
       if (card) cards.set(card, jobUrl);
     }
-    const heading = [...document.querySelectorAll(companion.selectors.jobDetailTitle)]
-      .find((element) => companion.dom.getRenderedRect(element)) || null;
+    const heading = companion.jobs.findRenderedDetailHeading();
     let jobUrl = null;
     try {
       // Keyboard selection can advance before the displayed pane finishes loading.
@@ -46,7 +45,7 @@
     renderTimer = window.setTimeout(() => {
       renderTimer = null;
       if (!document.body) return;
-      const page = readPage();
+      const page = preparePageDecorations();
       for (const render of renderers) {
         try { render(page); }
         catch (error) { console.debug('Job page decoration failed:', error); }

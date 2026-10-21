@@ -257,11 +257,14 @@
     return { status: jobUrl ? "resolved" : "not-found", jobUrl };
   };
 
+  const findRenderedDetailHeading = () =>
+    [...document.querySelectorAll(companion.selectors.jobDetailTitle)]
+      .find((heading) => companion.dom.getRenderedRect(heading)) || null;
+
   const findDetailPaneJobTitle = () => {
     // Title-row wrappers also contain our mark buttons. Reading their text
     // makes the job identity change whenever controls are inserted or removed.
-    const detailHeading = [...document.querySelectorAll(companion.selectors.jobDetailTitle)]
-      .find((heading) => companion.dom.getRenderedRect(heading));
+    const detailHeading = findRenderedDetailHeading();
     if (detailHeading) return cleanJobTitle(detailHeading.textContent);
     const headings = [
       ...document.querySelectorAll(`h1, h2, ${companion.selectors.jobDetailTitle}`),
@@ -338,8 +341,7 @@
   const resolvePageJobUrl = () => {
     if (companion.platform === "linkedin") {
       // LinkedIn can update currentJobId before replacing the detail pane.
-      const heading = [...document.querySelectorAll(companion.selectors.jobDetailTitle)]
-        .find((element) => companion.dom.getRenderedRect(element));
+      const heading = findRenderedDetailHeading();
       const displayedJobUrl = heading && findUniqueJobUrlInSubtree(heading);
       if (displayedJobUrl) return displayedJobUrl;
     }
@@ -415,6 +417,7 @@
   };
 
   Object.assign(companion.jobs, {
+    findRenderedDetailHeading,
     captureMenuContext,
     collectJobCarriers,
     resolvePageJobUrl,

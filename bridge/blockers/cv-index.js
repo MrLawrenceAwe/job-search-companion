@@ -7,7 +7,7 @@ import { openPrivateStore } from "./private-store.js";
 import { readCompletedJsonResponse } from "./chatgpt-response.js";
 import { inferenceSettingsContract } from "../../shared/contracts.js";
 
-const runCommand = promisify(execFile);
+const execFileAsync = promisify(execFile);
 const normalize = (text) => text.replace(/\s+/g, " ").trim();
 // Bound file reads/converters, preserve source order, and stop sibling work on failure.
 const mapCvSources = async (sources, signal, transform) => {
@@ -93,9 +93,9 @@ export const extractCvText = async (path, { signal } = {}) => {
     }
     if (!binary) throw new Error("CV indexing requires pdftotext. Install Poppler, then retry.");
     signal?.throwIfAborted();
-    ({ stdout: text } = await runCommand(binary, ["-raw", path, "-"], { signal, timeout: 15_000, maxBuffer: 2_000_000 }));
+    ({ stdout: text } = await execFileAsync(binary, ["-raw", path, "-"], { signal, timeout: 15_000, maxBuffer: 2_000_000 }));
   } else if (extname(path).toLowerCase() === ".docx") {
-    ({ stdout: text } = await runCommand("/usr/bin/textutil", ["-convert", "txt", "-stdout", path], { signal, timeout: 15_000, maxBuffer: 2_000_000 }));
+    ({ stdout: text } = await execFileAsync("/usr/bin/textutil", ["-convert", "txt", "-stdout", path], { signal, timeout: 15_000, maxBuffer: 2_000_000 }));
   } else text = await readFile(path, { encoding: "utf8", signal });
   signal?.throwIfAborted();
   // Drop the contact header before the first content section; retain work/project context.

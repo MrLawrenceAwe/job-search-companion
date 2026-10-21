@@ -33,8 +33,7 @@
     try {
       if (companion.jobs.resolvePageJobUrl() !== jobUrl) return true;
     } catch { return true; }
-    const heading = [...document.querySelectorAll(companion.selectors.jobDetailTitle)]
-      .find((element) => companion.dom.getRenderedRect(element));
+    const heading = companion.jobs.findRenderedDetailHeading();
     const pane = heading?.closest('[data-testid="viewjob-main-content"], #jobsearch-ViewjobPaneWrapper, .jobsearch-ViewJobLayout');
     if (!pane) return true;
     for (const control of pane.querySelectorAll('a[href], [data-testid="viewjob-indeed-apply"], #indeedApplyButton')) {
