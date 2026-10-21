@@ -116,9 +116,12 @@ const createBlockerFixture = async (initialStorage = {}, { initiallyHidden = fal
     source: window,
     origin: window.location.origin,
   }));
+  let closing = false;
   const realTimeout = window.setTimeout.bind(window);
   window.setTimeout = (callback, milliseconds) =>
-    realTimeout(callback, milliseconds === 1500 ? dwellDelayMs : milliseconds === 100 ? 1 : milliseconds === 120 ? 10 : milliseconds);
+    realTimeout(() => {
+      if (!closing) callback();
+    }, milliseconds === 1500 ? dwellDelayMs : milliseconds === 100 ? 1 : milliseconds === 120 ? 10 : milliseconds);
   const mocks = installChromeMocks(window, initialStorage);
   await runScriptsInDom(window, ["contracts/job-urls.js", "contracts/job-storage-keys.js", "contracts/blockers.js", "contracts/inference-settings.js", "contracts/messages.js", "blockers/client.js", "extension-context.js"]);
   Object.assign(window.jobSearchCompanion.dom, {
@@ -160,6 +163,8 @@ const createBlockerFixture = async (initialStorage = {}, { initiallyHidden = fal
       window.document.querySelector("h2").textContent = jobId;
     },
     async close() {
+      // Stop new timer work before draining scans already waiting on native crypto.
+      closing = true;
       // Native crypto can outlive JSDOM timers; finish scans before destroying document.
       await Promise.allSettled([...pendingDigests]);
       // Let scan continuations finish before JSDOM removes window.document.
@@ -610,12 +615,12 @@ test("a rejected challenge can be overridden and undone without changing evidenc
     const doc = fixture.window.document;
     const button = (label) => [...doc.querySelectorAll(".jsc-blocker-panel button")].find((node) => node.textContent === label);
     await waitUntil(() => button("Challenge"));
-    assert.equal(button("Override for this job"), undefined);
+    assert.equal(button("Override for this check"), undefined);
     button("Challenge").click();
     button("Send challenge").click();
-    await waitUntil(() => button("Override for this job"));
+    await waitUntil(() => button("Override for this check"));
     const prior = fixture.storage["blocker-result:first1111"];
-    button("Override for this job").click();
+    button("Override for this check").click();
     await waitUntil(() => button("Undo override"));
     assert.equal(calls.length, 2, "override makes no inference request");
     const overridden = fixture.storage["blocker-result:first1111"];
@@ -629,7 +634,7 @@ test("a rejected challenge can be overridden and undone without changing evidenc
       "1 potential blocker · Show findings");
     assert.equal(doc.querySelectorAll(".jsc-blocker-finding").length, 2);
     button("Undo override").click();
-    await waitUntil(() => button("Override for this job"));
+    await waitUntil(() => button("Override for this check"));
     assert.deepEqual(Array.from(fixture.storage["blocker-result:first1111"].overriddenRequirementQuotes), []);
     assert.equal(calls.length, 2);
   } finally { await fixture.close(); }
@@ -659,8 +664,8 @@ test("overriding the last rejected blocker labels the user's decision; recheck r
     await waitUntil(() => button("Challenge"));
     button("Challenge").click();
     button("Send challenge").click();
-    await waitUntil(() => button("Override for this job"));
-    button("Override for this job").click();
+    await waitUntil(() => button("Override for this check"));
+    button("Override for this check").click();
     await waitUntil(() => button("Undo override"));
     assert.match(doc.querySelector(".jsc-blocker-badge").textContent, /Blockers overridden by you/);
     assert.equal(doc.querySelector(".jsc-blocker-results > summary").textContent,
@@ -673,7 +678,7 @@ test("overriding the last rejected blocker labels the user's decision; recheck r
     assert.match(doc.querySelector(".jsc-blocker-badge").textContent, /Potential blocker/);
     assert.equal(doc.querySelector(".jsc-blocker-results > summary").textContent,
       "1 potential blocker · Show findings");
-    assert.equal(button("Override for this job"), undefined, "the new check needs a rejected challenge before overriding");
+    assert.equal(button("Override for this check"), undefined, "the new check needs a rejected challenge before overriding");
   } finally { await fixture.close(); }
 });
 

@@ -6,17 +6,29 @@
 
 ### Prerequisites
 
-- macOS with Chrome and the Codex desktop app installed.
-- Node.js 22 or newer, with `node` and `npm` available in your terminal.
-- Xcode Command Line Tools or Xcode, providing `/usr/bin/swiftc`. If the tools
-  are missing, run `xcode-select --install` and finish installation before
-  installing the bridge.
-- A local Codex workspace with a skill named `cv-fit-advisor` available. This
-  repository does not bundle that skill or any CV files. The bridge prepares
-  `$cv-fit-advisor` followed by the selected job URL; the skill supplies the CV
-  assessment instructions. Each prompt also includes the completion helper to save
-  the analysed mark and current Codex chat ID. Configure its documents and instructions separately
-  before using CV analysis.
+For application marks and keyboard navigation:
+
+- Chrome.
+- Node.js 22 or newer, with `node` and `npm` available in your terminal, to build
+  the extension.
+
+For the local bridge, used by Indeed blocker checks and CV analysis:
+
+- macOS and Node.js 22 or newer.
+- Xcode Command Line Tools or Xcode, providing `/usr/bin/swiftc` for the helper
+  installed with the bridge. If missing, run `xcode-select --install` and finish
+  installation before installing the bridge.
+
+For Indeed blocker checks, also connect an eligible ChatGPT account and configure
+profile/CV evidence. PDF indexing requires Poppler; Word indexing uses macOS
+`textutil`. See [blocker-checker setup](blocker-checker.md#connect-and-enable).
+
+For CV analysis, also install the Codex desktop app, grant the helper
+[Accessibility permission](#2-install-and-start-the-bridge), and configure a local
+Codex workspace with the `cv-fit-advisor` skill and CV files. This repository
+bundles neither the skill nor CVs. The bridge prepares `$cv-fit-advisor` followed
+by the selected job URL and a completion command to save the analysed mark and
+Codex chat ID.
 
 Clone the repository into a stable folder of your choice, then run the commands
 below from that folder. The installer records its location. Moving an unpacked

@@ -81,6 +81,13 @@ a source permalink. It does not depend on keeping the full exploratory report.
 
 ## Reproduction and new reports
 
+`scripts/evaluations/cases.js` owns the shared advert fixtures. Case names include
+a version; distinct advert variants have distinct names even when they test the
+same requirement. Change the name or version when changing advert text. New
+reports use these identities; retained historical reports keep their original names
+and inputs. Benchmark cases retain their longer weekday/remote wording, while CV
+verification retains its separate remote qualification variant.
+
 `compare-blocker-checks.js` holds the model at Luna, alternates request order,
 and runs six cases twice with one profile and frozen saved CV index. Baseline
 reasoning is Medium; current reasoning defaults to Medium and accepts `low` as

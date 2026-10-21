@@ -56,9 +56,9 @@
     titles.set(key, clean);
     updates[key] = clean;
   };
-  const titleFor = (id) => {
+  const refreshJobTitle = (id) => {
     const key = indeedKey("title", id);
-    if (titles.has(key)) return titles.get(key);
+    if (titles.has(key)) return;
     let request = titleRequests.get(id);
     if (!request || (!request.pending && Date.now() - request.attemptedAt >= 60_000)) {
       request = { pending: true, attemptedAt: Date.now() };
@@ -71,7 +71,11 @@
         companion.pageDecorations.schedule();
       });
     }
-    return titles.get(key) || (request.pending ? "Loading job title…" : "Job title unavailable — open listing");
+  };
+  const titleFor = (id) => {
+    const key = indeedKey("title", id);
+    if (titles.has(key)) return titles.get(key);
+    return titleRequests.get(id)?.pending ? "Loading job title…" : "Job title unavailable — open listing";
   };
   const checkAvailability = (id) => {
     if (availabilityContract.isFresh(availability.get(id))) return;
@@ -87,7 +91,7 @@
       companion.pageDecorations.schedule();
     });
   };
-  const render = ({ cards, heading, jobUrl }) => {
+  const rememberPageMetadata = ({ cards, heading, jobUrl }) => {
     currentPage = { cards, jobUrl };
     const updates = {};
     for (const [card, url] of cards) {
@@ -107,8 +111,10 @@
       }
     }
     if (Object.keys(updates).length) {
-      void chrome.storage.local.set(updates).catch((error) => console.debug("Job titles could not be saved:", error));
+      void chrome.storage.local.set(updates).catch((error) => console.debug("Job metadata could not be saved:", error));
     }
+  };
+  const prepareJobs = () => {
     const jobs = [];
     for (const [key, record] of analyses.entries()) {
       if (keys.parse(key).platform !== "indeed") continue;
@@ -118,6 +124,7 @@
       const id = keys.parse(key).id;
       checkAvailability(id);
       if (availability.get(id)?.status === "expired") continue;
+      refreshJobTitle(id);
       jobs.push({
         url: `https://uk.indeed.com/viewjob?jk=${id}`,
         title: titleFor(id),
@@ -126,6 +133,9 @@
       });
     }
     jobs.sort((a, b) => Date.parse(b.date) - Date.parse(a.date) || a.url.localeCompare(b.url));
+    return jobs;
+  };
+  const render = ({ jobs, syncState }) => {
     if (!panel?.isConnected) {
       panel = document.createElement("details");
       panel.className = "jsc-to-apply";
@@ -190,7 +200,11 @@
     });
   });
   analyses.subscribe(companion.pageDecorations.schedule);
-  companion.pageDecorations.register(render, ready);
+  const updatePage = (page) => {
+    rememberPageMetadata(page);
+    render({ jobs: prepareJobs(), syncState });
+  };
+  companion.pageDecorations.register(updatePage, ready);
   const sync = () => {
     if (document.visibilityState === "hidden") return;
     chrome.runtime.sendMessage({ type: globalThis.jobSearchContracts.messages.syncIndeedApplications }, (response) => {

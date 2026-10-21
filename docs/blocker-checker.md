@@ -112,7 +112,7 @@ A failed request leaves the prior findings visible and shows an error so the
 challenge can be retried. Accepted profile corrections remain when saved
 findings are cleared.
 
-If a challenge is rejected, choose **Override for this job** to dismiss that
+If a challenge is rejected, choose **Override for this check** to dismiss that
 specific blocker yourself. The original finding and AI reply remain visible,
 and **Undo override** restores it. Other blockers still count. When every
 blocker is overridden, the card says **Blockers overridden by you** and the

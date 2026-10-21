@@ -1,8 +1,8 @@
+import { cvVerificationCases } from "./cases.js";
 import { combineProfileAndCvEvidence } from "../../bridge/blockers/evidence.js";
 import { fileURLToPath } from "node:url";
 import { blockerSources } from "../../shared/blocker-sources.js";
 import { createEvaluationClient, readEvaluationProfile, writeEvaluationReport } from "./support.js";
-import { readFile } from "node:fs/promises";
 import { openCvIndex } from "../../bridge/blockers/cv-index.js";
 import { runBlockerInference } from "../../bridge/blockers/inference.js";
 
@@ -17,11 +17,7 @@ const index = await cvIndex.ensureCurrent({ model: indexModel, reasoningEffort: 
 const indexingMs = Math.round(performance.now() - started);
 const base = await readEvaluationProfile();
 const evidence = combineProfileAndCvEvidence(base, index);
-const cases = [
-  { name: "renewables-specialist", description: await readFile(new URL("../../test-support/renewables-administrator.txt", import.meta.url), "utf8"), expected: "blocker" },
-  { name: "documented-qualification", description: "Remote software tester. You must have a BSc Computer Science degree and ISTQB Foundation certification. Manual testing experience is essential. Commercial automation experience is desirable but not required. No driving or travel required.", expected: "no_blockers_found" },
-  { name: "mandatory-driving", description: "Customer support coordinator. You must hold a full UK driving licence and drive to customer sites every day. This is an essential requirement. The position involves handling customer enquiries and updating CRM records.", expected: "blocker" },
-];
+const cases = cvVerificationCases;
 const runs = [];
 for (const fixture of cases) {
   const start = performance.now();
@@ -29,7 +25,7 @@ for (const fixture of cases) {
     description: fixture.description, signal: AbortSignal.timeout(90_000) });
   const run = { case: fixture.name, durationMs: Math.round(performance.now() - start), outcome: result.outcome,
     expected: fixture.expected, passed: result.outcome === fixture.expected, findings: result.findings };
-  if (fixture.name === "renewables-specialist")
+  if (fixture.name === "renewables-specialist-v1")
     run.passed &&= result.findings.some((finding) => /renew|energy/i.test(finding.requirementQuote))
       && result.findings.some((finding) => /MCS|compliance documentation/i.test(finding.requirementQuote));
   runs.push(run);
