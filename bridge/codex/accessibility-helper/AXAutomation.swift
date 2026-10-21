@@ -12,6 +12,7 @@ let escapeKey: CGKeyCode = 53
 final class AutomationContext {
     var bundleIdentifier = ""
     var appVersion = "unknown"
+    var submissionAttempted = false
 
     func fail(_ message: String) -> Never {
         FileHandle.standardError.write(
@@ -20,6 +21,12 @@ final class AutomationContext {
                     + "Codex \(appVersion)]\n"
             ).utf8)
         )
+        if submissionAttempted {
+            // Send has already been dispatched: failure to observe the UI is
+            // uncertainty, not proof that Codex rejected the task. Never retry.
+            print(AutoSubmitResult.unconfirmed.rawValue)
+            exit(0)
+        }
         exit(1)
     }
 

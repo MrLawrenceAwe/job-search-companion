@@ -3,12 +3,13 @@
   const statuses = Object.freeze({
     submitting: "submitting",
     submitted: "submitted",
+    unconfirmed: "unconfirmed",
     readyForReview: "ready_for_review",
     failed: "failed",
     interrupted: "interrupted",
   });
   const persistedStatuses = Object.freeze(Object.values(statuses));
-  const helperResults = Object.freeze([statuses.submitted, statuses.readyForReview]);
+  const helperResults = Object.freeze([statuses.submitted, statuses.readyForReview, statuses.unconfirmed]);
   globalThis.jobSearchContracts ??= {};
   globalThis.jobSearchContracts.cvFitSubmissions = Object.freeze({
     statuses,

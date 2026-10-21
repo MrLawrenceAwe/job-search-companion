@@ -116,6 +116,11 @@
   z-index: 2147483647;
 }
 
+.jsc-toast[data-kind="warning"] {
+  background: #fbbf24;
+  color: #451a03;
+}
+
 .jsc-toast[data-kind="error"] {
   background: #991b1b;
 }

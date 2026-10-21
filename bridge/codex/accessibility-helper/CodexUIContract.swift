@@ -2,8 +2,8 @@ import ApplicationServices
 import Foundation
 
 struct CodexUIContract {
-    static let protocolVersion = 6
-    static let contractVersion = "codex-desktop-en-v6"
+    static let protocolVersion = 7
+    static let contractVersion = "codex-desktop-en-v7"
 
     let settingCategories = ["Model", "Effort", "Speed"]
     private let reasoningEffortSuffixes = [

@@ -10,7 +10,7 @@ test("Accessibility helper health verifies the managed helper and rejects later 
   context.after(() => rm(directory, { recursive: true, force: true }));
   const binaryPath = join(directory, "accessibility-helper");
   const statePath = join(directory, "install-state.json");
-  const helper = '#!/bin/sh\nprintf \'%s\\n\' \'{"protocolVersion":6,"contractVersion":"codex-desktop-en-v6"}\'\n';
+  const helper = '#!/bin/sh\nprintf \'%s\\n\' \'{"protocolVersion":7,"contractVersion":"codex-desktop-en-v7"}\'\n';
   await writeFile(binaryPath, helper);
   await chmod(binaryPath, 0o700);
   await mkdir(join(statePath, ".."), { recursive: true });
@@ -34,8 +34,8 @@ test("Accessibility helper health verifies the managed helper and rejects later 
 
   assert.deepEqual(await readAccessibilityHelperHealth(), {
     installationVerified: true,
-    protocolVersion: 6,
-    contractVersion: "codex-desktop-en-v6",
+    protocolVersion: 7,
+    contractVersion: "codex-desktop-en-v7",
     hashMatchesInstallState: true,
   });
 

@@ -12,10 +12,17 @@ struct SubmissionEvidence {
 
 func readSubmissionEvidence(
     in searchRoot: AXUIElement,
+    preparedComposer: AXUIElement,
     jobURL: String,
     preexistingClearedComposers: [AXUIElement],
     deadline: Date
 ) -> SubmissionEvidence {
+    // The uniquely identified composer may be reused after Send. Reading it
+    // directly avoids a tree scan while the conversation is being rendered.
+    if let value = optionalStringAttribute(preparedComposer, kAXValueAttribute),
+       value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        return SubmissionEvidence(preparedPromptGone: true, freshClearedComposerCount: 1)
+    }
     var preparedPromptPresent = false
     var freshClearedComposerCount = 0
     for composer in findElements(in: searchRoot, deadline: deadline, matching: {

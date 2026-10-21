@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -60,8 +60,8 @@ test("compiled Accessibility helper publishes and self-tests its compatibility c
 
   const metadata = JSON.parse((await execFileAsync(binary, ["metadata"])).stdout);
   assert.deepEqual(metadata, {
-    protocolVersion: 6,
-    contractVersion: "codex-desktop-en-v6",
+    protocolVersion: 7,
+    contractVersion: "codex-desktop-en-v7",
     helperResults: cvFitSubmissionContract.helperResults,
   });
   assert.equal((await execFileAsync(binary, ["contract-self-test"])).stdout.trim(), "ok");
@@ -92,4 +92,31 @@ test("helper metadata does not require the automation lock", async () => {
   assert.match(metadataBranch, /contractSelfTestPasses\(\)/);
   assert.doesNotMatch(metadataBranch, /AutomationLock/);
   assert.doesNotMatch(source.slice(0, source.indexOf('if CommandLine.arguments.count == 2')), /AutomationLock/);
+});
+
+test("native helper distinguishes errors before Send from uncertainty after Send", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "cv-fit-ax-outcome-"));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  const main = join(directory, "main.swift");
+  const binary = join(directory, "outcome-test");
+  await writeFile(main, `
+import Foundation
+enum AutoSubmitResult: String { case unconfirmed }
+automation.submissionAttempted = CommandLine.arguments.contains("after-send")
+automation.fail("Codex Accessibility tree scan exceeded its deadline")
+`);
+  await execFileAsync("/usr/bin/swiftc", [
+    fileURLToPath(new URL("../../../bridge/codex/accessibility-helper/AXAutomation.swift", import.meta.url)),
+    fileURLToPath(new URL("../../../bridge/codex/accessibility-helper/CodexUIContract.swift", import.meta.url)),
+    main, "-o", binary,
+  ]);
+  const uncertain = await execFileAsync(binary, ["after-send"]);
+  assert.equal(uncertain.stdout.trim(), "unconfirmed");
+  assert.match(uncertain.stderr, /scan exceeded its deadline/);
+  await assert.rejects(execFileAsync(binary, []), (error) => {
+    assert.equal(error.code, 1);
+    assert.equal(error.stdout, "");
+    assert.match(error.stderr, /scan exceeded its deadline/);
+    return true;
+  });
 });

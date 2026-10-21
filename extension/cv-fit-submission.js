@@ -49,13 +49,13 @@
         return submission.status;
       }
       if (submission?.status === statuses.failed) {
-        throw new Error(submission.error || "Task submission failed");
+        throw Object.assign(new Error(submission.error || "Task submission failed"), { definiteFailure: true });
       }
       if (submission?.status === statuses.interrupted) {
-        throw new Error(submission.error || "The bridge restarted. Check Codex before retrying.");
+        throw Object.assign(new Error(submission.error || "The bridge restarted. Check Codex before retrying."), { uncertain: true });
       }
     }
-    throw new Error("Codex submission did not finish within 220 seconds");
+    throw Object.assign(new Error("Codex submission did not finish within 220 seconds"), { uncertain: true });
   };
 
   const submit = async (jobUrl, button) => {
@@ -77,6 +77,7 @@
       showToast("Submitting this job to Codex…");
     }
 
+    let accepted = false;
     try {
       const { submission } = await sendBridgeRequest({
         type: messages.submitCvFitTask,
@@ -85,7 +86,12 @@
       if (!submission?.id) {
         throw new Error("The local bridge did not return a submission ID");
       }
+      accepted = true;
       const status = await waitForSubmissionResult(submission.id);
+      if (status === statuses.unconfirmed) {
+        showToast("Send was attempted, but Codex confirmation timed out. The task may already be running—check Codex before retrying.", "warning");
+        return;
+      }
       showToast(
         status === statuses.submitted
           ? "CV Fit Advisor task submitted."
@@ -94,7 +100,7 @@
     } catch (error) {
       showToast(
         `Couldn’t confirm the CV Fit Advisor submission. Check Codex before retrying: ${error.message}`,
-        "error",
+        error.uncertain || (accepted && !error.definiteFailure) ? "warning" : "error",
       );
     } finally {
       submissionInProgress = false;

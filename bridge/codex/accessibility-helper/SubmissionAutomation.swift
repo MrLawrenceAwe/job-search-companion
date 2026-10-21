@@ -5,6 +5,7 @@ import Foundation
 enum AutoSubmitResult: String, CaseIterable {
     case submitted
     case readyForReview = "ready_for_review"
+    case unconfirmed
 }
 
 func settingsMatch(
@@ -128,6 +129,7 @@ func autoSubmitIfConfigured(_ request: AutoSubmitCommand) -> AutoSubmitResult {
     )
     focus(composer, failureMessage: "The prepared CV Fit Advisor composer could not be focused")
     automation.postKey(returnKey)
+    automation.submissionAttempted = true
 
     let submissionDeadline = deadline(milliseconds: request.timeouts.submissionMs)
     var consecutiveConfirmations = 0
@@ -142,6 +144,7 @@ func autoSubmitIfConfigured(_ request: AutoSubmitCommand) -> AutoSubmitResult {
         }
         submissionState = readSubmissionEvidence(
             in: composerRoot,
+            preparedComposer: composer,
             jobURL: request.jobUrl,
             preexistingClearedComposers: preexistingClearedComposers,
             deadline: submissionDeadline

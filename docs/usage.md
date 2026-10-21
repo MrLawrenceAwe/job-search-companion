@@ -63,3 +63,9 @@ without a completion callback are not automatically marked.
 Analysed marks are green for **use as-is**, yellow for **edit the CV**, and red
 for **no suitable base CV** and **do not apply yet**. Other verdicts and earlier
 records without a verdict are blue. Hover over a mark to see its recorded verdict.
+
+After sending a CV Fit Advisor task, an amber notice means the send was attempted
+but confirmation could not be observed, or contact with the bridge was interrupted.
+The task may already be running; check Codex before retrying to avoid duplicates.
+Red notices indicate a reported submission error, rather than a confirmation timeout
+after Send.
