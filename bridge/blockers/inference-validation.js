@@ -21,20 +21,15 @@ export class RequirementValidationError extends Error {
   }
 }
 
-export const deriveValidatedFindings = (output, description, evidence) => {
-  if (
-    !output ||
-    Object.keys(output).length !== 1 ||
-    !Array.isArray(output.requirements) ||
-    output.requirements.length > 60
-  )
-    throw new Error("Invalid checker output");
+export const deriveValidatedFindings = (requirements, description, evidence) => {
+  if (!Array.isArray(requirements) || requirements.length > 60)
+    throw new Error("Invalid checker requirements");
   const facts = new Map(evidence.facts.map((fact) => [fact.id, fact]));
   const normalizedDescription = normalizeQuote(description);
   const findings = [];
-  if (!output.requirements.length && /\b(?:must|required|essential|experience\s+(?:in|with)|proven(?:\s+\w+){0,5}\s+experience|qualifications?|certifications?)\b/i.test(description))
+  if (!requirements.length && /\b(?:must|required|essential|experience\s+(?:in|with)|proven(?:\s+\w+){0,5}\s+experience|qualifications?|certifications?)\b/i.test(description))
     throw new Error("Checker returned no requirement inventory for an advert with candidate requirements. Retry the check.");
-  for (const [index, requirement] of output.requirements.entries()) {
+  for (const [index, requirement] of requirements.entries()) {
     const producesFinding = requirement &&
       requirement.necessity === "mandatory" && requirement.evidence !== "supported" &&
       (requirement.category === "eligibility" || requirement.evidence === "incompatible");

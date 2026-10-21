@@ -1,11 +1,15 @@
 import { randomUUID } from "node:crypto";
-import { access, lstat, mkdir, open, readFile, rename, rm, stat } from "node:fs/promises";
+import { lstat, mkdir, open, readFile, rename, rm, stat } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
-export const fileExists = async (path) => access(path).then(() => true, () => false);
-
-export const readOptionalFile = async (path, encoding = "utf8") =>
-  (await fileExists(path) ? readFile(path, encoding ?? undefined) : null);
+export const readOptionalFile = async (path, encoding = "utf8") => {
+  try {
+    return await readFile(path, encoding ?? undefined);
+  } catch (error) {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  }
+};
 
 const symbolicLinkAt = async (path) => lstat(path).then(
   (stats) => (stats.isSymbolicLink() ? path : null),

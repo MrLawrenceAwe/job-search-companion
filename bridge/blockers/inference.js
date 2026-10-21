@@ -63,7 +63,7 @@ export const runBlockerInference = async ({
     try {
       validateInferenceOutput(output, Boolean(challenge));
       if (challenge) validateProfileCorrections(output, evidence);
-      findings = deriveValidatedFindings({ requirements: output.requirements }, description, checkEvidence);
+      findings = deriveValidatedFindings(output.requirements, description, checkEvidence);
       if (challenge) validateChallengeDecision(output, findings, challenge);
     } catch (error) {
       // Correct one completed inventory with a quote, field or challenge decision error.

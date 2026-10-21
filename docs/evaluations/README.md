@@ -26,12 +26,12 @@ Cold means a fresh extraction/index cache; operating-system caches are not flush
 | [CV preparation](2026-10-12T09-30-19-436Z-cv-preparation-performance.json) | Local serial versus bounded concurrent CV preparation, without model latency |
 | [Omitted-fields experiment](2026-10-12T09-37-35-735Z-blocker-check-performance.json) | Reverted experiment omitting non-finding explanations and missing-evidence fact-ID lists |
 | [Light comparison](2026-10-12T09-41-22-492Z-blocker-check-performance.json) | Version 10 Medium versus Light with identical prompts and frozen CV evidence |
-| [Final comparison](2026-10-10T07-58-46-252Z-blocker-check-performance.json) | Checker version 9 before/after comparison with frozen CV evidence |
+| [Version 9 comparison](2026-10-10T07-58-46-252Z-blocker-check-performance.json) | Checker version 9 before/after comparison with frozen CV evidence |
 | [Schema regression](2026-10-10T07-55-29-959Z-blocker-benchmark.json) | Failure that motivated disjoint nullable-explanation schema branches |
 | [Initial benchmark](2026-10-09-blocker-benchmark.json) | Earlier low/medium comparison; a different prompt/evidence generation |
 | [Sol-index verification](2026-10-09-cv-blocker-verification-sol-index-medium.json) | Three CV-evidence regression outcomes with a Sol-built index |
 
-The final comparison ran six cases twice at Luna Medium. All twelve current checks
+The version 9 comparison ran six cases twice at Luna Medium. All twelve current checks
 passed expected outcomes without request or validation errors; the baseline passed
 eleven with one validation error. Eleven matched pairs had median completion times
 of 5.046 seconds before and 3.952 seconds after (21.7% lower), with median JSON

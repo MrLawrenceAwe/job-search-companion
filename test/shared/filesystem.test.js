@@ -3,7 +3,7 @@ import { lstat, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { atomicWrite } from "../../shared/filesystem.js";
+import { atomicWrite, readOptionalFile } from "../../shared/filesystem.js";
 
 test("atomic writes do not follow predictable temporary-file symbolic links", async (context) => {
   const directory = await mkdtemp(join(await realpath(tmpdir()), "jsc-filesystem-"));
@@ -19,4 +19,16 @@ test("atomic writes do not follow predictable temporary-file symbolic links", as
   assert.equal(await readFile(outputPath, "utf8"), "installed content\n");
   assert.equal(await readFile(linkedTarget, "utf8"), "original target\n");
   assert.equal((await lstat(predictableTemporaryPath)).isSymbolicLink(), true);
+});
+
+test("optional reads preserve text and bytes, return null only for missing files, and propagate read errors", async (t) => {
+  const directory = await mkdtemp(join(await realpath(tmpdir()), "jsc-optional-read-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const path = join(directory, "contents.txt");
+  await writeFile(path, "saved content\n");
+  assert.equal(await readOptionalFile(path), "saved content\n");
+  assert.deepEqual(await readOptionalFile(path, null), Buffer.from("saved content\n"));
+  assert.equal(await readOptionalFile(join(directory, "missing")), null);
+  await assert.rejects(readOptionalFile(join(path, "child")), { code: "ENOTDIR" });
+  await assert.rejects(readOptionalFile(directory), { code: "EISDIR" });
 });

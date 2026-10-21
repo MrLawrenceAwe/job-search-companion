@@ -158,8 +158,9 @@ Include only the optional variables you customised. The saved values are in the
 The bridge listens only on `127.0.0.1:48973`.
 Submission statuses are saved privately in
 `~/Library/Application Support/Job Search Companion/submissions.json`. After a
-bridge restart, a task that was still running is reported as interrupted; check
-Codex before submitting that job again.
+bridge restart, a submission still awaiting confirmation is reported as interrupted.
+An already submitted assessment can continue in Codex; check there before submitting
+that job again.
 
 ## Remove
 

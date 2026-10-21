@@ -74,9 +74,10 @@ The content scripts are ordered by dependency in the manifest:
 - `job-marks.js` decorates cards, job headers, and menu actions using that store;
 - `job-analysis-store.js` owns the shared completed-analysis records, validation, and storage notifications;
 - `job-analyses.js` renders analysis actions from that store;
-- `indeed-to-apply.js` uses the same store to list eligible jobs awaiting application.
-  It captures listing metadata and requests missing data before passing prepared
-  jobs to the renderer, and tracks Indeed exclusions;
+- `indeed-to-apply-renderer.js` renders the **To apply** panel from supplied jobs
+  and application-sync status;
+- `indeed-to-apply.js` tracks Indeed exclusions, captures listing metadata, and
+  refreshes missing metadata separately from selecting eligible analysed jobs;
 - `shortcuts.js` dispatches the N/J/K/H/U keyboard actions and ignores editable targets, modifier keys, repeated key events and composition;
 - `job-menu.js` creates and inserts the CV fit and job-record actions;
 - `job-menu-observer.js` detects newly opened job menus;
@@ -368,7 +369,8 @@ every 30 seconds, and visible pages request a sync on load or visibility
 changes. Saved records use `analyzed-job:<platform>:<job-id>` storage keys.
 `job-analysis-store.js` reads and validates these records once for the content page.
 `job-analyses.js` renders the card badge and detail action from this shared store;
-`indeed-to-apply.js` uses it for the **To apply** list.
+`indeed-to-apply.js` uses it to select jobs for the **To apply** list, displayed
+by `indeed-to-apply-renderer.js`.
 An unfinished reanalysis preserves the existing completed result.
 
 `POST /analyses/open` accepts a job URL, looks up its stored chat, and invokes

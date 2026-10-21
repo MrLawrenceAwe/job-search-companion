@@ -160,7 +160,7 @@ the CV index or accepted profile corrections.
 
 The index is saved privately as `cv-index.json` in the checker data directory, with exact CV passages, the indexing model and source fingerprints. Full CV text is sent only when refreshing the index; routine checks send the compact excerpts and profile facts.
 
-Checker data lives in `~/Library/Application Support/Job Search Companion/blockers/`. OAuth tokens remain in the bridge. Signing out clears local credentials and attempts remote revocation; settings reports if revocation is unconfirmed. Sign-out preserves the issued registration and stable host ID. Multiple registrations remain distinct even when they use the same email. Changing accounts or starting sign-in turns checks off and clears model selection.
+Checker data lives in `~/Library/Application Support/Job Search Companion/blockers/`. OAuth tokens remain in the bridge. Signing out clears local credentials and attempts remote revocation; settings reports if revocation is unconfirmed. Sign-out preserves the issued registration and stable host ID. Multiple registrations remain distinct even when they use the same email. Matching account labels include a registration number to distinguish them in settings. Changing accounts or starting sign-in turns checks off and clears model selection.
 
 ## Limitations and validation
 

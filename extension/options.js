@@ -34,7 +34,7 @@ const renderFallbacks = () => {
     const row = document.createElement("p");
     const label = document.createElement("strong");
     label.textContent = `Fallback${accounts.length > 1 ? ` ${index + 1}` : ""}${byId("accountFallback").checked ? "" : " (off)"}: `;
-    row.append(label, account.email || account.label);
+    row.append(label, account.label);
     return row;
   });
   byId("fallbackStatus").replaceChildren(

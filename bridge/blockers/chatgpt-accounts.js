@@ -7,6 +7,19 @@ const AUTH_ORIGIN = "https://auth.openai.com";
 const API_BASE_URL = "https://api.openai.com/v1";
 const SCOPES = "openid profile email offline_access resource.invoke chatgpt.tokens.use.direct";
 const createOAuthSecret = () => randomBytes(32).toString("base64url");
+const describeAccounts = (accounts) => {
+  const names = accounts.map(({ email, subject }) =>
+    email || (subject ? "ChatGPT account" : "Incomplete sign-in"));
+  const counts = new Map();
+  for (const name of names) counts.set(name, (counts.get(name) || 0) + 1);
+  const registrations = new Map();
+  return accounts.map(({ id, email }, index) => {
+    const name = names[index];
+    const registration = (registrations.get(name) || 0) + 1;
+    registrations.set(name, registration);
+    return { id, email, label: counts.get(name) > 1 ? `${name} · Registration ${registration}` : name };
+  });
+};
 const terminalRefreshErrors = new Set([
   "invalid_grant",
   "invalid_refresh_token",
@@ -83,11 +96,7 @@ export const openChatGPTAccountManager = async ({ path, fetchImpl = fetch, verif
         account?.accessToken && account.scopes.includes("chatgpt.tokens.use.direct"),
       ),
       activeId: data.activeId,
-      accounts: data.accounts.map(({ id, email, subject, clientId }) => ({
-        id,
-        email,
-        label: `${email || (subject ? "ChatGPT account" : "Incomplete sign-in")} · ${clientId.slice(-8)}`,
-      })),
+      accounts: describeAccounts(data.accounts),
       fallbackIds: fallbackAccountIds(),
       pending: Boolean(pendingSignIn),
       error: lastError,

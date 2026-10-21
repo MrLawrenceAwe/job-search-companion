@@ -58,3 +58,27 @@ for (const code of ["rate_limit_exceeded", "subscription_sharing_usage_limit_exc
     });
   });
 }
+
+test("account labels distinguish duplicate registrations without exposing client IDs", async (t) => {
+  const directory = await mkdtemp(join(await realpath(tmpdir()), "jsc-account-labels-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const path = join(directory, "chatgpt.json");
+  const accounts = [
+    { id: "a", subject: "first", email: "first@example.test" },
+    { id: "b", subject: "shared", email: "shared@example.test" },
+    { id: "c", subject: "shared", email: "shared@example.test" },
+    { id: "d", subject: "no-email" },
+    { id: "e" },
+  ].map((account, index) => ({ ...account, clientId: `private-client-${index}`, scopes: [] }));
+  await writeFile(path, JSON.stringify({ hostId: "stable-host", activeId: "c", accounts }));
+  const auth = await openChatGPTAccountManager({ path });
+  t.after(() => auth.close());
+  const status = auth.connectionStatus();
+  assert.deepEqual(status.accounts.map(({ label }) => label), [
+    "first@example.test", "shared@example.test · Registration 1",
+    "shared@example.test · Registration 2", "ChatGPT account", "Incomplete sign-in",
+  ]);
+  assert.deepEqual(status.accounts.map(({ id }) => id), accounts.map(({ id }) => id));
+  assert.equal(status.activeId, "c");
+  assert.deepEqual(JSON.parse(await readFile(path, "utf8")).accounts, accounts);
+});

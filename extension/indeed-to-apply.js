@@ -17,8 +17,7 @@
   const availability = new Map();
   const availabilityRequests = new Map();
   let syncState = "checking";
-  let panel;
-  let signature;
+  const render = companion.indeedToApply.createRenderer();
   let currentPage = { cards: new Map(), jobUrl: null };
   const read = (key, value) => {
     const identity = keys.parse(key);
@@ -114,60 +113,33 @@
       void chrome.storage.local.set(updates).catch((error) => console.debug("Job metadata could not be saved:", error));
     }
   };
-  const prepareJobs = () => {
-    const jobs = [];
+  const selectCandidates = () => {
+    const candidates = [];
     for (const [key, record] of analyses.entries()) {
-      if (keys.parse(key).platform !== "indeed") continue;
+      const { platform, id } = keys.parse(key);
+      if (platform !== "indeed") continue;
       if (applied.has(key) || indeedApplied.has(key) || unsuitable.has(key) || dismissed.has(key)
         || !["use as-is", "edit the CV"].includes(record.verdict)) continue;
-      // Derive links from the validated identity, never from stored arbitrary URLs.
-      const id = keys.parse(key).id;
+      candidates.push({ id, record });
+    }
+    return candidates;
+  };
+  const refreshMetadata = (candidates) => {
+    for (const { id } of candidates) {
       checkAvailability(id);
-      if (availability.get(id)?.status === "expired") continue;
-      refreshJobTitle(id);
-      jobs.push({
-        url: `https://uk.indeed.com/viewjob?jk=${id}`,
-        title: titleFor(id),
-        verdict: record.verdict,
-        date: record.analyzedAt,
-      });
+      if (availability.get(id)?.status !== "expired") refreshJobTitle(id);
     }
-    jobs.sort((a, b) => Date.parse(b.date) - Date.parse(a.date) || a.url.localeCompare(b.url));
-    return jobs;
   };
-  const render = ({ jobs, syncState }) => {
-    if (!panel?.isConnected) {
-      panel = document.createElement("details");
-      panel.className = "jsc-to-apply";
-      panel.append(document.createElement("summary"), document.createElement("div"));
-      document.body.append(panel);
-      signature = null;
-    }
-    const next = JSON.stringify({ jobs, syncState });
-    if (signature === next) return;
-    signature = next;
-    panel.querySelector("summary").textContent = `To apply · ${jobs.length}`;
-    const content = panel.querySelector("div");
-    const note = document.createElement("p");
-    const list = document.createElement("ul");
-    for (const job of jobs) {
-      const item = document.createElement("li");
-      const link = document.createElement("a");
-      link.href = job.url;
-      link.textContent = job.title;
-      const verdict = document.createElement("span");
-      verdict.textContent = job.verdict === "use as-is" ? "Use as is" : "Edit CV";
-      item.append(link, verdict);
-      list.append(item);
-    }
-    if (!jobs.length) note.textContent = "No eligible unapplied jobs with a Use as is or Edit CV verdict.";
-    const status = document.createElement("p");
-    status.setAttribute("role", "status");
-    status.textContent = syncState === "checking" ? "Checking Indeed applications…"
-      : syncState === "failed" ? "Couldn’t refresh Indeed applications. Showing saved status." : "";
-    status.hidden = !status.textContent;
-    content.replaceChildren(...(jobs.length ? [] : [note]), status, list);
-  };
+  const selectJobs = (candidates) => candidates
+    .filter(({ id }) => availability.get(id)?.status !== "expired")
+    .map(({ id, record }) => ({
+      // Derive links from the validated identity, never from stored arbitrary URLs.
+      url: `https://uk.indeed.com/viewjob?jk=${id}`,
+      title: titleFor(id),
+      verdict: record.verdict,
+      date: record.analyzedAt,
+    }))
+    .sort((a, b) => Date.parse(b.date) - Date.parse(a.date) || a.url.localeCompare(b.url));
   // Remember the user's native Indeed dismissal separately from their manual
   // Unsuitable mark, so undoing one never clears the other.
   document.addEventListener("click", (event) => {
@@ -202,7 +174,9 @@
   analyses.subscribe(companion.pageDecorations.schedule);
   const updatePage = (page) => {
     rememberPageMetadata(page);
-    render({ jobs: prepareJobs(), syncState });
+    const candidates = selectCandidates();
+    refreshMetadata(candidates);
+    render({ jobs: selectJobs(candidates), syncState });
   };
   companion.pageDecorations.register(updatePage, ready);
   const sync = () => {

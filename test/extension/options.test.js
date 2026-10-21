@@ -23,7 +23,7 @@ test("settings use account registrations, save preferences, and clear only saved
       fallbackIds: ["b"],
       accounts: [
         { id: "a", label: "First account" },
-        { id: "b", label: "Second account", email: "second@example.test" },
+        { id: "b", label: "second@example.test", email: "second@example.test" },
       ],
     },
     evidence: { hash: "evidence", cvIndexStatus: "pending" },
@@ -59,7 +59,7 @@ test("settings use account registrations, save preferences, and clear only saved
   assert.match(element("evidence").textContent, /Profile loaded.*refresh on the next check/);
   state.evidence.cvIndexStatus = "current";
   assert.equal(element("currentAccount").value, "a");
-  assert.equal(element("currentAccount").options[1].textContent, "Second account");
+  assert.equal(element("currentAccount").options[1].textContent, "second@example.test");
   assert.match(element("fallbackStatus").textContent, /second@example.test/);
   assert.equal(element("checkerReasoning").disabled, true);
   assert.match(element("reasoningHint").textContent, /default reasoning/);
