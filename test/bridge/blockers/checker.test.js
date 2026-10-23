@@ -17,59 +17,105 @@ const setup = async (infer, readEvidence = async () => profile) => {
   return { checker, directory, chatgpt };
 };
 test("checker deduplicates across tabs, persists results, and invalidates profile or description changes", async () => {
-  let calls = 0; let currentProfile = profile;
-  const { checker, directory, chatgpt } = await setup(async () => { calls++; return noBlockers; }, async () => currentProfile);
-  const a = await checker.start(job()); const b = await checker.start(job());
-  assert.equal(a.id, b.id);
-  await drainEventLoopUntil(() => checker.get(a.id).status === "completed", { attempts: 100 });
-  assert.equal(checker.get(a.id).status, "completed");
-  assert.equal((await checker.start(job())).cached, true); assert.equal(calls, 1);
+  let calls = 0;
+  let currentProfile = profile;
+  const { checker, directory, chatgpt } = await setup(async () => {
+    calls++;
+    return noBlockers;
+  }, async () => currentProfile);
+  const initialCheck = await checker.start(job());
+  const duplicateCheck = await checker.start(job());
+  assert.equal(initialCheck.id, duplicateCheck.id);
+  await drainEventLoopUntil(() => checker.get(initialCheck.id).status === "completed", { attempts: 100 });
+  assert.equal(checker.get(initialCheck.id).status, "completed");
+  assert.equal((await checker.start(job())).cached, true);
+  assert.equal(calls, 1);
   currentProfile = { ...profile, hash: "profile-v2" };
-  const changed = await checker.start(job()); await waitUntil(() => checker.get(changed.id).status === "completed");
+  const changed = await checker.start(job());
+  await waitUntil(() => checker.get(changed.id).status === "completed");
   assert.equal(calls, 2);
   const changedText = await checker.start({ ...job(), description: job().description + " Travel every day." });
   await waitUntil(() => checker.get(changedText.id).status === "completed");
   assert.equal(calls, 3);
   checker.close();
-  const restored = await openBlockerChecker({ directory, profileSources: [], chatgpt, infer: async () => { throw new Error("Should be cached"); }, evidenceProvider: { readCurrent: async () => currentProfile, prepareCurrent: async () => currentProfile } });
+  const restored = await openBlockerChecker({
+    directory,
+    profileSources: [],
+    chatgpt,
+    infer: async () => { throw new Error("Should be cached"); },
+    evidenceProvider: {
+      readCurrent: async () => currentProfile,
+      prepareCurrent: async () => currentProfile,
+    },
+  });
   assert.equal((await restored.start(job())).cached, true);
-  assert.equal((await stat(join(directory, "cache.json"))).mode & 0o777, 0o600); restored.close();
+  assert.equal((await stat(join(directory, "cache.json"))).mode & 0o777, 0o600);
+  restored.close();
 });
 
-test("current selections outrank unstarted checks and pausing cancels waiting work", async () => {
-  let resolve; const order = [];
-  const { checker } = await setup(async ({ description }) => { order.push(description); if (order.length === 1) await new Promise((r) => { resolve = r; }); return noBlockers; });
-  const a = await checker.start(job("first1111"));
-  const b = await checker.start({ ...job("second111"), description: job().description + " Second." });
-  const c = await checker.start({ ...job("third1111"), description: job().description + " Third." });
-  resolve();
-  await waitUntil(() => checker.get(b.id).status === "completed", { attempts: 100 });
-  assert.equal(checker.get(b.id).status, "completed");
-  assert.ok(order[1].endsWith("Third.")); assert.equal(checker.get(a.id).status, "completed"); assert.equal(checker.get(c.id).status, "completed");
+test("newer selections outrank waiting checks and disabling checks rejects new work", async () => {
+  let releaseRunningCheck;
+  const order = [];
+  const { checker } = await setup(async ({ description }) => {
+    order.push(description);
+    if (order.length === 1) {
+      await new Promise((resolve) => { releaseRunningCheck = resolve; });
+    }
+    return noBlockers;
+  });
+  const runningCheck = await checker.start(job("first1111"));
+  const olderQueuedCheck = await checker.start({
+    ...job("second111"), description: job().description + " Second.",
+  });
+  const newerQueuedCheck = await checker.start({
+    ...job("third1111"), description: job().description + " Third.",
+  });
+  releaseRunningCheck();
+  await waitUntil(() => checker.get(olderQueuedCheck.id).status === "completed", { attempts: 100 });
+  assert.equal(checker.get(olderQueuedCheck.id).status, "completed");
+  assert.ok(order[1].endsWith("Third."));
+  assert.equal(checker.get(runningCheck.id).status, "completed");
+  assert.equal(checker.get(newerQueuedCheck.id).status, "completed");
+
   await checker.configure({ enabled: false });
-  await assert.rejects(checker.start(job("fourth111")), /off/); checker.close();
+  await assert.rejects(checker.start(job("fourth111")), /off/);
+  checker.close();
 });
 
 test("clearing the cache during a running check prevents a late result from being saved", async () => {
   let resolve;
-  const { checker, directory } = await setup(async () => { await new Promise((r) => { resolve = r; }); return noBlockers; });
-  const task = await checker.start(job()); await checker.clearCache(); resolve();
+  const { checker, directory } = await setup(async () => {
+    await new Promise((finish) => { resolve = finish; });
+    return noBlockers;
+  });
+  const task = await checker.start(job());
+  await checker.clearCache();
+  resolve();
   await drainEventLoopUntil(() => checker.get(task.id).status === "cancelled");
-  assert.deepEqual(JSON.parse(await readFile(join(directory, "cache.json"), "utf8")).results, {}); checker.close();
+  assert.deepEqual(JSON.parse(await readFile(join(directory, "cache.json"), "utf8")).results, {});
+  checker.close();
 });
 
 test("limit errors pause inference without caching a clean outcome or billing fallback", async () => {
   let calls = 0;
-  const { checker } = await setup(async () => { calls++; throw Object.assign(new Error("Usage limit reached"), { status: 429 }); });
-  const task = await checker.start(job()); await drainEventLoopUntil(() => checker.get(task.id).status === "failed");
-  await assert.rejects(checker.start(job()), /Usage limit/); assert.equal(calls, 1); assert.equal(checker.get(task.id).result, undefined); checker.close();
+  const { checker } = await setup(async () => {
+    calls++;
+    throw Object.assign(new Error("Usage limit reached"), { status: 429 });
+  });
+  const task = await checker.start(job());
+  await drainEventLoopUntil(() => checker.get(task.id).status === "failed");
+  await assert.rejects(checker.start(job()), /Usage limit/);
+  assert.equal(calls, 1);
+  assert.equal(checker.get(task.id).result, undefined);
+  checker.close();
 });
 
-test("checker refuses LinkedIn, partial input, unavailable profiles and unadvertised models", async () => {
+test("checker refuses LinkedIn, short descriptions and unadvertised models", async () => {
   const { checker } = await setup(async () => noBlockers);
   await assert.rejects(checker.start({ ...job(), jobUrl: "https://www.linkedin.com/jobs/view/123456789/" }), /Indeed/);
   await assert.rejects(checker.start({ ...job(), description: "short" }), /full job description/);
-  await assert.rejects(checker.configure({ model: "not-available" }), /available/); checker.close();
+  await assert.rejects(checker.configure({ model: "not-available" }), /available/);
+  checker.close();
 });
 
 test("reasoning changes persist, cancel pending work, and invalidate Luna results", async () => {
@@ -238,5 +284,7 @@ test("accepted challenge integrates the profile and future checks use the correc
     assert.doesNotMatch(persisted, /I passed my test|profileUpdates|replacesFactIds/);
     await assert.rejects(checker.start({ ...job(), challenge: { ...challenge, reason: " " } }), /challenge must/);
     await assert.rejects(checker.start({ ...job(), challenge: { ...challenge, requirementQuote: "invented" } }), /challenge must/);
-  } finally { checker.close(); }
+  } finally {
+    checker.close();
+  }
 });

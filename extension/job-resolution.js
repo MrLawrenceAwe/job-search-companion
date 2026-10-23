@@ -115,9 +115,7 @@
   ];
   const MAX_ATTRIBUTE_ELEMENTS = 200;
   const MAX_TITLE_LENGTH = 160;
-  const cleanJobTitle = (title) => {
-    return (title || "").replace(/\s*-\s*job post\s*$/i, "").trim();
-  };
+  const { normalizeJobTitle } = companion.text;
 
   const ancestorsOf = function* (sourceElement, maxDepth) {
     let element = sourceElement;
@@ -192,7 +190,7 @@
     const heading = element?.matches?.("h1, h2, h3")
       ? element
       : element?.querySelector?.("h1, h2, h3");
-    return cleanJobTitle(heading?.textContent);
+    return normalizeJobTitle(heading?.textContent);
   };
 
   const findJobTitleNear = (sourceElement) => {
@@ -265,7 +263,7 @@
     // Title-row wrappers also contain our mark buttons. Reading their text
     // makes the job identity change whenever controls are inserted or removed.
     const detailHeading = findRenderedDetailHeading();
-    if (detailHeading) return cleanJobTitle(detailHeading.textContent);
+    if (detailHeading) return normalizeJobTitle(detailHeading.textContent);
     const headings = [
       ...document.querySelectorAll(`h1, h2, ${companion.selectors.jobDetailTitle}`),
     ];
@@ -278,7 +276,7 @@
       .sort((left, right) => left.rect.top - right.rect.top || left.rect.left - right.rect.left);
 
     for (const { heading } of rightPaneHeadings) {
-      const title = cleanJobTitle(heading.textContent);
+      const title = normalizeJobTitle(heading.textContent);
       if (title && title.length <= MAX_TITLE_LENGTH) {
         return title;
       }

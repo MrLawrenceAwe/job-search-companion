@@ -124,12 +124,12 @@ test("resolves an embedded job key using the captured menu context", async () =>
   );
 });
 
-test("ignores Indeed's detail-heading suffix when resolving the menu job", async () => {
+test("normalises whitespace and removes Indeed's detail-heading suffix when resolving the menu job", async () => {
   const { body, companion } = await createJobFixture({
     href: "https://uk.indeed.com/?vjk=03eef228667e3e0d",
     scripts: ['{"jobKey":"03eef228667e3e0d","displayTitle":"Project Administrator"}'],
   });
-  const heading = createElement({ text: "Project Administrator - job post", isHeading: true });
+  const heading = createElement({ text: "  Project\n Administrator  - job post  ", isHeading: true });
   const detailHeader = createElement({ parent: body, heading });
   heading.parentElement = detailHeader;
 

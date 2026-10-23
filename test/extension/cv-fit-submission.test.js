@@ -159,13 +159,13 @@ test("a rejected request reports failure without implying a task may be running"
   const runtime = {
     lastError: null,
     sendMessage(_message, callback) {
-      callback({ ok: false, error: "Bridge token is not configured" });
+      callback({ ok: false, error: "Install the local bridge to enable CV-fit analysis. See the project setup guide." });
     },
   };
   const { button, toasts } = await createMenuFixture({ runtime });
   click(button);
   await drainEventLoopUntil(() => toasts.length > 0);
-  assert.equal(toasts.at(-1).textContent, "CV Fit Advisor submission failed: Bridge token is not configured");
+  assert.equal(toasts.at(-1).textContent, "CV Fit Advisor submission failed: Install the local bridge to enable CV-fit analysis. See the project setup guide.");
   assert.equal(toasts.at(-1).dataset.kind, "error");
   assert.equal(button.disabled, false);
 });

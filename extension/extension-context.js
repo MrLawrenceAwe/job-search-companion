@@ -30,6 +30,7 @@
     },
     dom: {},
     text: {
+      normalizeJobTitle: (value) => (value || "").replace(/\s+/g, " ").replace(/\s*-\s*job post\s*$/i, "").trim(),
       normalizeForMatch: (value) => (value || "").replace(/\s+/g, " ").trim().toLowerCase(),
     },
     jobs: {},

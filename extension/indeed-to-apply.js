@@ -50,7 +50,7 @@
   ]);
   const rememberTitle = (jobUrl, title, updates) => {
     const key = keys.forUrl("title", jobUrl);
-    const clean = title?.replace(/\s+/g, " ").replace(/\s*-\s*job post\s*$/i, "").trim();
+    const clean = companion.text.normalizeJobTitle(title);
     if (!clean || titles.get(key) === clean) return;
     titles.set(key, clean);
     updates[key] = clean;

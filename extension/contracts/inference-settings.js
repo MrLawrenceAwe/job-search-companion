@@ -1,18 +1,24 @@
-// Shared model settings for requirement checking and CV indexing.
+// Application policies for requirement checking and CV indexing.
 (() => {
   const defaultReasoningEffort = "medium";
-  const supportsReasoningSelection = (model) => model === "gpt-6-luna";
+  const reasoningPolicyForModel = (model) => model === "gpt-6-luna" ? "selectable" : "default";
+  const processingTierForModel = (model) => model === "gpt-6-luna" ? "priority" : null;
   globalThis.jobSearchContracts ??= {};
   globalThis.jobSearchContracts.inferenceSettings = Object.freeze({
     defaultReasoningEffort,
-    supportsReasoningSelection,
+    reasoningPolicyForModel,
+    processingTierForModel,
     reasoningForModel(model, effort) {
-      return supportsReasoningSelection(model) ? effort : null;
+      return reasoningPolicyForModel(model) === "selectable" ? effort : null;
     },
     inferenceOptions(model, effort = defaultReasoningEffort) {
-      return supportsReasoningSelection(model)
-        ? { service_tier: "priority", reasoning: { effort: effort || defaultReasoningEffort } }
-        : {};
+      const tier = processingTierForModel(model);
+      return {
+        ...(tier ? { service_tier: tier } : {}),
+        ...(reasoningPolicyForModel(model) === "selectable"
+          ? { reasoning: { effort: effort || defaultReasoningEffort } }
+          : {}),
+      };
     },
   });
 })();

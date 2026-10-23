@@ -41,7 +41,7 @@
       if (!bridgeConfig.bridgeToken) {
         sendResponse({
           ok: false,
-          error: "Bridge token is not configured in extension/local-config.js",
+          error: "Install the local bridge to enable CV-fit analysis. See the project setup guide.",
         });
         return false;
       }

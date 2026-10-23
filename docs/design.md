@@ -62,7 +62,7 @@ The content scripts are ordered by dependency in the manifest:
 - `contracts/identifiers.js` supplies UUID validation for request and chat IDs;
 - `contracts/shortcuts.js` defines keyboard bindings used by dispatch and menu hints;
 - `contracts/messages.js` owns extension message names, and `blockers/client.js` sends checker requests for content scripts and settings;
-- `extension-context.js` creates the content-page cross-script API, selectors, and UI configuration;
+- `extension-context.js` creates the content-page cross-script API, selectors, UI configuration, and shared job-title normalisation;
 - `dom-visibility.js` provides rendered-element and viewport visibility checks, plus queries that include the root element;
 - `job-url.js` parses and normalizes Indeed and LinkedIn page and job URLs;
 - `job-resolution.js` resolves the selected job from URL, DOM, title, and page data, and shares rendered detail-heading lookup with page decorations and manual marks;
@@ -250,9 +250,9 @@ from CV Fit submissions.
 `extension/contracts/blockers.js` defines result labels, version, retention,
 record bounds, suggested-challenge word and character limits, and retention
 eligibility for both runtimes. Inference prompts, schemas and validation reuse
-those limits. `extension/contracts/inference-settings.js` owns model
-reasoning-selection capability and inference request options, shared by settings,
-requirement inference, and CV indexing. The internal `blocker` result name covers both
+those limits. `extension/contracts/inference-settings.js` owns application
+policies for model reasoning selection and processing tier, plus inference request
+options, shared by settings, requirement inference, and CV indexing. The internal `blocker` result name covers both
 confirmed shortfalls and missing or conflicting evidence; the UI uses **Potential
 blocker**, and explanations retain the distinction. Combined profile and CV
 evidence uses `evidence`, `evidenceHash`, `evidenceFactIds`, and `evidenceFacts`;

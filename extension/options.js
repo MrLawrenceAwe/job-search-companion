@@ -6,13 +6,15 @@ let saving = false;
 let modelsLoaded = false;
 const { request } = globalThis.jobSearchBlockerClient;
 const renderInferenceSettings = () => {
-  const supportsReasoningSelection = globalThis.jobSearchContracts.inferenceSettings.supportsReasoningSelection(byId("checkerModel").value);
-  byId("checkerReasoning").disabled = !supportsReasoningSelection;
-  byId("reasoningHint").hidden = supportsReasoningSelection;
-  byId("reasoningHint").textContent = supportsReasoningSelection
+  const policy = globalThis.jobSearchContracts.inferenceSettings;
+  const model = byId("checkerModel").value;
+  const reasoningSelectable = policy.reasoningPolicyForModel(model) === "selectable";
+  byId("checkerReasoning").disabled = !reasoningSelectable;
+  byId("reasoningHint").hidden = reasoningSelectable;
+  byId("reasoningHint").textContent = reasoningSelectable
     ? ""
     : "Other models use their default reasoning level. Select GPT-6 Luna to choose Low or Medium.";
-  byId("checkerSpeed").textContent = supportsReasoningSelection
+  byId("checkerSpeed").textContent = policy.processingTierForModel(model) === "priority"
     ? "Checker processing speed: Fast requested (priority). The delivered speed tier is unconfirmed."
     : "Checker processing speed: model default. Fast processing is requested only for GPT-6 Luna.";
 };
