@@ -18,6 +18,7 @@
       if (!Object.hasOwn(timestampFields, kind)) return;
       if (isRecord(kind, value)) records.set(key, value);
       else records.delete(key);
+      return true;
     };
     const ready = chrome.storage.local.get(null).then((stored) => {
       for (const [key, value] of Object.entries(stored)) readRecord(key, value);
@@ -26,8 +27,11 @@
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area !== "local") return;
       void ready.then(() => {
-        for (const [key, { newValue }] of Object.entries(changes)) readRecord(key, newValue);
-        for (const listener of listeners) listener();
+        let relevant = false;
+        for (const [key, { newValue }] of Object.entries(changes)) {
+          if (readRecord(key, newValue)) relevant = true;
+        }
+        if (relevant) for (const listener of listeners) listener();
       }).catch((error) => console.debug("Job record update failed:", error));
     });
     return {

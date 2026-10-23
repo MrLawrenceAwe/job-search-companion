@@ -10,6 +10,10 @@ The checker uses Sign in with ChatGPT plan usage through the public Responses AP
 4. Choose **Continue with ChatGPT**, finish browser sign-in, and grant ChatGPT plan usage. Sign-in without this grant leaves checking disabled.
 5. Choose a checker model and an optional separate **CV indexing model** from your account's catalog (for example, Luna checks with Sol indexing), turn on **Enable blocker checks**, and save.
 
+**Refresh models** preserves your selected models while they remain available.
+If the checker model is unavailable, choose another before saving. An unavailable
+indexing selection returns to **Use checker model**.
+
 The bridge reads relevant constraint/profile facts from `~/Job Hunting/profile.md`
 and `~/.codex/skills/apply-to-jobs/references/profile.md`. Contact and unrelated
 sensitive disclosure fields are omitted. Profile facts, CV excerpts and accepted

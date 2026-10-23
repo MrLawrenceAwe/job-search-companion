@@ -12,7 +12,7 @@ import { openCvIndex } from "./cv-index.js";
 import { createEvidenceProvider } from "./evidence.js";
 import { openResultCache } from "./result-cache.js";
 
-const { version: CHECKER_VERSION } = blockerContract;
+const { version: CHECKER_VERSION, limits } = blockerContract;
 
 export const openBlockerChecker = async ({
   directory,
@@ -251,17 +251,17 @@ export const openBlockerChecker = async ({
         throw new Error("Blocker checking supports Indeed HTTPS jobs only");
       if (
         typeof description !== "string" ||
-        description.trim().length < 40 ||
-        description.length > 80_000 ||
+        description.trim().length < limits.minimumDescriptionCharacters ||
+        description.length > limits.maximumDescriptionCharacters ||
         typeof force !== "boolean"
       )
-        throw new Error("A full job description between 40 and 80,000 characters is required");
+        throw new Error(`A full job description between ${limits.minimumDescriptionCharacters} and ${limits.maximumDescriptionCharacters.toLocaleString("en-GB")} characters is required`);
       if (challenge !== undefined && (!challenge ||
         Object.keys(challenge).sort().join(",") !== "reason,requirementQuote" ||
-        typeof challenge.requirementQuote !== "string" || !challenge.requirementQuote.trim() || challenge.requirementQuote.length > 2000 ||
-        typeof challenge.reason !== "string" || !challenge.reason.trim() || challenge.reason.length > 2000 ||
+        typeof challenge.requirementQuote !== "string" || !challenge.requirementQuote.trim() || challenge.requirementQuote.length > limits.maximumQuoteCharacters ||
+        typeof challenge.reason !== "string" || !challenge.reason.trim() || challenge.reason.length > limits.maximumChallengeCharacters ||
         !description.replace(/\s+/g, " ").includes(challenge.requirementQuote.replace(/\s+/g, " "))))
-        throw new Error("A challenge must quote this advert and include a reason of up to 2,000 characters");
+        throw new Error(`A challenge must quote this advert and include a reason of up to ${limits.maximumChallengeCharacters.toLocaleString("en-GB")} characters`);
       const normalizedChallenge = challenge ? { requirementQuote: challenge.requirementQuote, reason: challenge.reason.trim() } : null;
       if (challenge) force = true;
       if (pausedReason || !settings.value.enabled)

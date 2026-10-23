@@ -1,6 +1,6 @@
 (() => {
   const companion = globalThis.jobSearchCompanion;
-  const { labels: LABELS, isRetainableResult, getRemainingFindings, canOverrideFinding } = globalThis.jobSearchContracts.blockers;
+  const { labels: LABELS, limits, isRetainableResult, getRemainingFindings, canOverrideFinding } = globalThis.jobSearchContracts.blockers;
   companion.blockers.registerRenderer = ({ recordStore, checks, getCurrentResult, startCheck, getContext }) => {
     const drafts = new Map();
     const openDrafts = new Set();
@@ -56,7 +56,7 @@
       const inputLabel = element("label", "Why should this finding be reconsidered?");
       const input = element("textarea");
       input.required = true;
-      input.maxLength = 2000;
+      input.maxLength = limits.maximumChallengeCharacters;
       input.rows = 3;
       input.dataset.draftKey = draftKey;
       input.value = drafts.get(draftKey) ?? (pending || challengeState?.error ? challengeState.challenge.reason : finding.suggestedChallenge);

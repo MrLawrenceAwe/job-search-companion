@@ -28,6 +28,7 @@ test("settings use account registrations, save preferences, and clear only saved
     },
     evidence: { hash: "evidence", cvIndexStatus: "pending" },
   };
+  let models = [{ slug: "test", name: "Test model" }, { slug: "gpt-6-luna", name: "GPT-6 Luna" }, { slug: "gpt-6-sol", name: "GPT-6 Sol" }];
   const requests = [];
   const removed = [];
   window.chrome = {
@@ -35,7 +36,7 @@ test("settings use account registrations, save preferences, and clear only saved
       async sendMessage(message) {
         requests.push(message);
         if (message.action === "models")
-          return { ok: true, models: [{ slug: "test", name: "Test model" }, { slug: "gpt-6-luna", name: "GPT-6 Luna" }, { slug: "gpt-6-sol", name: "GPT-6 Sol" }] };
+          return { ok: true, models };
         if (message.action === "settings")
           state = { ...state, settings: { ...state.settings, ...message.body } };
         return { ok: true, ...structuredClone(state) };
@@ -72,6 +73,12 @@ test("settings use account registrations, save preferences, and clear only saved
   element("indexModel").dispatchEvent(new window.Event("change"));
   element("checkerReasoning").value = "low";
   element("checkerReasoning").dispatchEvent(new window.Event("change"));
+  const catalogueRequests = requests.filter((request) => request.action === "models").length;
+  element("refreshModels").click();
+  await waitUntil(() => requests.filter((request) => request.action === "models").length > catalogueRequests && !element("saveSettings").disabled);
+  assert.equal(element("checkerModel").value, "gpt-6-luna");
+  assert.equal(element("indexModel").value, "gpt-6-sol");
+  assert.equal(element("checkerReasoning").value, "low");
   element("checksEnabled").checked = true;
   element("checksEnabled").dispatchEvent(new window.Event("change"));
   element("saveSettings").click();
@@ -86,20 +93,35 @@ test("settings use account registrations, save preferences, and clear only saved
   element("clearSavedChecks").click();
   await waitUntil(() => element("feedback").textContent === "Saved blocker checks cleared.");
   assert.deepEqual(removed, ["blocker-result:first111"]);
-  // Empty models keep their distinct contracts: omit checker model, clear index override.
+  // The checker placeholder cannot be selected by the user or silently saved.
+  assert.equal(element("checkerModel").options[0].disabled, true);
   for (const id of ["checkerModel", "indexModel"]) {
     element(id).value = "";
     element(id).dispatchEvent(new window.Event("change"));
   }
   element("checksEnabled").checked = false;
   element("checksEnabled").dispatchEvent(new window.Event("change"));
+  const beforeInvalidSave = requests.filter((request) => request.action === "settings").length;
+  element("saveSettings").click();
+  await waitUntil(() => element("feedback").textContent === "Choose an available checker model before saving.");
+  assert.equal(requests.filter((request) => request.action === "settings").length, beforeInvalidSave);
+  element("checkerModel").value = "gpt-6-luna";
+  element("checkerModel").dispatchEvent(new window.Event("change"));
   element("saveSettings").click();
   await waitUntil(() => element("feedback").textContent === "Settings saved.");
   const body = requests.findLast((request) => request.action === "settings").body;
   assert.equal(body.enabled, false);
   assert.equal(body.accountFallback, false);
   assert.equal(body.indexModel, null);
-  assert.equal(Object.hasOwn(body, "model"), false);
+  assert.equal(body.model, "gpt-6-luna");
+  models = [{ slug: "test", name: "Test model" }];
+  element("indexModel").value = "gpt-6-sol";
+  element("indexModel").dispatchEvent(new window.Event("change"));
+  element("refreshModels").click();
+  await waitUntil(() => element("checkerModel").value === "" && element("checkerModel").selectedIndex === 0);
+  assert.equal(element("indexModel").value, "");
+  assert.equal(element("indexModel").selectedIndex, 0);
+  assert.equal(element("checkerModel").options[0].disabled, true);
 });
 
 

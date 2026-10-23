@@ -22,6 +22,7 @@ const fixture = async (t, platform = 'indeed', stored = {}, resolveTitle = null,
   const changes = [];
   const renderers = [];
   const readiness = [];
+  let scheduled = 0;
   const render = (page) => { for (const renderer of renderers) renderer(page); };
   const page = { cards: new Map(), jobUrl: 'https://uk.indeed.com/viewjob?jk=fixture111', heading: window.document.querySelector('h1') };
   if (includeAnalysisActions) {
@@ -40,12 +41,12 @@ const fixture = async (t, platform = 'indeed', stored = {}, resolveTitle = null,
   await runScriptsInDom(window, ['contracts/job-urls.js', 'contracts/job-storage-keys.js', 'contracts/job-marks.js', 'contracts/indeed-availability.js', 'contracts/identifiers.js', 'contracts/job-analyses.js', 'contracts/messages.js', 'extension-context.js']);
   window.jobSearchCompanion = { ...window.jobSearchCompanion, platform, pageDecorations: {
     register: (fn, promise) => { renderers.push(fn); readiness.push(promise); },
-    schedule: () => render(page),
+    schedule: () => { scheduled++; render(page); },
   } };
   await runScriptsInDom(window, ['job-analysis-store.js', ...(includeAnalysisActions ? ['job-analyses.js'] : []), 'indeed-to-apply-renderer.js', 'indeed-to-apply.js']);
   await Promise.all(readiness);
   render(page);
-  return { window, saved, page, render, change: async (values) => { for (const listener of changes) listener(values, 'local'); await Promise.resolve(); } };
+  return { window, saved, page, render, get scheduled() { return scheduled; }, change: async (values) => { for (const listener of changes) listener(values, 'local'); await Promise.resolve(); } };
 };
 
 test('Indeed counter includes only unapplied positive verdicts, with safe job links and remembered titles', async (t) => {
@@ -225,4 +226,19 @@ test('one analysis storage change updates both the badge and To apply list', asy
   await change({ 'analyzed-job:indeed:fixture111': { newValue: undefined } });
   assert.equal(badge(), null);
   assert.equal(summary(), 'To apply · 1');
+});
+
+
+test('To apply ignores blocker results and LinkedIn metadata notifications', async (t) => {
+  const state = await fixture(t);
+  await new Promise((resolve) => setImmediate(resolve));
+  const before = state.scheduled;
+  await state.change({
+    'blocker-result:fixture111': { newValue: {} },
+    'job-title:linkedin:123456789': { newValue: 'Unrelated title' },
+  });
+  assert.equal(state.scheduled, before);
+  await state.change({ 'applied-job:indeed:fixture111': { newValue: { appliedAt: '2026-10-19' } } });
+  assert.equal(state.scheduled, before + 1);
+  assert.equal(state.window.document.querySelector('summary').textContent, 'To apply · 1');
 });

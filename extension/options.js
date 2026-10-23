@@ -146,7 +146,8 @@ const render = (state, { preserveEdits = false } = {}) => {
   updateSave();
 };
 const load = async (options) => render(await request("status"), options);
-const loadModels = async () => {
+const loadModels = async ({ preserveSelections = false } = {}) => {
+  const selections = preserveSelections ? readPreferences() : settingsState?.settings;
   if (!settingsState?.connectionStatus.planUsageEnabled) {
     byId("checkerModel").replaceChildren(option("", "Connect ChatGPT plan usage first"));
     byId("indexModel").replaceChildren(option("", "Use checker model"));
@@ -156,13 +157,15 @@ const loadModels = async () => {
     return;
   }
   const { models } = await request("models");
+  const placeholder = option("", "Choose a model");
+  placeholder.disabled = true;
   byId("checkerModel").replaceChildren(
-    option("", "Choose a model"),
+    placeholder,
     ...models.map((model) => option(model.slug, model.name)),
   );
-  byId("checkerModel").value = settingsState.settings.model || "";
+  byId("checkerModel").value = models.some((model) => model.slug === selections.model) ? selections.model : "";
   byId("indexModel").replaceChildren(option("", "Use checker model"), ...models.map((model) => option(model.slug, model.name)));
-  byId("indexModel").value = settingsState.settings.indexModel || "";
+  byId("indexModel").value = models.some((model) => model.slug === selections.indexModel) ? selections.indexModel : "";
   renderInferenceSettings();
   modelsLoaded = true;
   updateSave();
@@ -203,14 +206,17 @@ for (const [id, work] of Object.entries({
     await load();
     await loadModels();
   },
-  refreshModels: loadModels,
+  refreshModels: () => loadModels({ preserveSelections: true }),
   saveSettings: async () => {
+    const body = readPreferences();
+    if (body.model === null && settingsState.connectionStatus.planUsageEnabled) {
+      throw new Error("Choose an available checker model before saving.");
+    }
+    // Disconnected accounts have no catalogue or checker model to save.
+    if (!settingsState.connectionStatus.planUsageEnabled) delete body.model;
+    const resuming = Boolean(settingsState.pausedReason && body.enabled);
     saving = true;
     updateSave();
-    const body = readPreferences();
-    // An empty checker selection must not clear the bridge's chosen model.
-    if (body.model === null) delete body.model;
-    const resuming = Boolean(settingsState.pausedReason && body.enabled);
     try {
       render(await request("settings", body));
       feedback(resuming ? "Settings saved. Checks resumed." : "Settings saved.");

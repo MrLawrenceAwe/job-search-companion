@@ -1,7 +1,7 @@
 (() => {
   const companion = globalThis.jobSearchCompanion;
   if (companion.platform !== "indeed") return;
-  const { isRetainableResult } = globalThis.jobSearchContracts.blockers;
+  const { isRetainableResult, limits } = globalThis.jobSearchContracts.blockers;
   const { reasoningForModel } = globalThis.jobSearchContracts.inferenceSettings;
   const recordStore = globalThis.jobSearchBlockerResults.createStore();
   const checks = new Map();
@@ -194,7 +194,7 @@
           compact(node.innerText || node.textContent || "") === compactDescription &&
           companion.dom.getRenderedRect(node),
       );
-    if (!descriptionElement || text.length < 40 || text.length > 80_000) {
+    if (!descriptionElement || text.trim().length < limits.minimumDescriptionCharacters || text.length > limits.maximumDescriptionCharacters) {
       selection = null;
       cancelDwell();
       scheduleRender();

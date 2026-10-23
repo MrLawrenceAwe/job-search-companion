@@ -103,3 +103,28 @@ for (const kind of ["applied", "unsuitable"]) {
     assert.equal(fixture.storage[`${kind}-job:indeed:secondjob111`], undefined);
   });
 }
+
+
+test("mark subscribers ignore unrelated storage keys and receive removals", async () => {
+  const fixture = await createMenuFixture({ runtime });
+  const store = fixture.context.jobSearchCompanion.jobMarks.createStore();
+  await store.ready;
+  let notifications = 0;
+  store.subscribe(() => notifications++);
+  const emit = async (changes, area = "local") => {
+    for (const listener of fixture.storageChanges) listener(changes, area);
+    await new Promise((resolve) => setImmediate(resolve));
+  };
+  await emit({ "blocker-result:fixture111": { newValue: {} },
+    "job-title:indeed:fixture111": { newValue: "Support Advisor" } });
+  assert.equal(notifications, 0);
+  const key = "applied-job:indeed:fixture111";
+  await emit({ [key]: { newValue: { appliedAt: "2026-10-19" } } }, "sync");
+  assert.equal(notifications, 0);
+  await emit({ [key]: { newValue: { appliedAt: "2026-10-19" } } });
+  assert.equal(notifications, 1);
+  assert.equal(store.isMarked(jobUrl, "applied"), true);
+  await emit({ [key]: { newValue: undefined } });
+  assert.equal(notifications, 2);
+  assert.equal(store.isMarked(jobUrl, "applied"), false);
+});

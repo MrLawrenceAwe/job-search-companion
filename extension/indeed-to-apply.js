@@ -40,7 +40,8 @@
     } else if (kind === "title") {
       if (typeof value === "string") titles.set(key, value);
       else titles.delete(key);
-    }
+    } else return false;
+    return true;
   };
   const ready = Promise.all([
     analyses.ready,
@@ -167,8 +168,11 @@
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
     void ready.then(() => {
-      for (const [key, { newValue }] of Object.entries(changes)) read(key, newValue);
-      companion.pageDecorations.schedule();
+      let relevant = false;
+      for (const [key, { newValue }] of Object.entries(changes)) {
+        if (read(key, newValue)) relevant = true;
+      }
+      if (relevant) companion.pageDecorations.schedule();
     });
   });
   analyses.subscribe(companion.pageDecorations.schedule);

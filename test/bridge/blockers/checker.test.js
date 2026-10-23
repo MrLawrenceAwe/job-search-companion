@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtemp, readFile, stat, realpath } from "node:fs/promises";
+import { mkdtemp, readFile, stat, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { openBlockerChecker } from "../../../bridge/blockers/checker.js";
@@ -287,4 +287,27 @@ test("accepted challenge integrates the profile and future checks use the correc
   } finally {
     checker.close();
   }
+});
+
+
+test("checker enforces description and challenge boundaries before inference", async (t) => {
+  const { checker, directory } = await setup(async () => noBlockers);
+  t.after(async () => { checker.close(); await rm(directory, { recursive: true, force: true }); });
+  for (const length of [39, 80_001]) {
+    await assert.rejects(checker.start({ ...job(), description: "x".repeat(length) }), /between 40 and 80,000/);
+  }
+  for (const length of [40, 80_000]) {
+    const check = await checker.start({ ...job(), description: "x".repeat(length) });
+    await waitUntil(() => checker.get(check.id).status === "completed");
+  }
+  const description = "x".repeat(2000);
+  for (const challenge of [
+    { requirementQuote: description + "x", reason: "Please reconsider." },
+    { requirementQuote: description, reason: "x".repeat(2001) },
+  ]) {
+    await assert.rejects(checker.start({ ...job(), description, challenge }), /up to 2,000 characters/);
+  }
+  const check = await checker.start({ ...job(), description,
+    challenge: { requirementQuote: description, reason: "x".repeat(2000) } });
+  await waitUntil(() => checker.get(check.id).status === "completed");
 });

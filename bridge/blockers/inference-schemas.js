@@ -1,6 +1,7 @@
 import { blockerContract } from "../../shared/contracts.js";
+import { requirementClasses } from "./requirement-policy.js";
 
-const { suggestedChallengeLimits } = blockerContract;
+const { suggestedChallengeLimits, limits } = blockerContract;
 
 const requirementSchema = ({ categories, necessities, evidenceStates, producesFinding = false, factIds }) => ({
   type: "object",
@@ -9,8 +10,8 @@ const requirementSchema = ({ categories, necessities, evidenceStates, producesFi
     category: { type: "string", enum: categories },
     necessity: { type: "string", enum: necessities },
     evidence: { type: "string", enum: evidenceStates },
-    requirementQuote: { type: "string", minLength: 1, maxLength: 2000 },
-    explanation: producesFinding ? { type: "string", minLength: 1, maxLength: 2000 } : { type: "null" },
+    requirementQuote: { type: "string", minLength: 1, maxLength: limits.maximumQuoteCharacters },
+    explanation: producesFinding ? { type: "string", minLength: 1, maxLength: limits.maximumExplanationCharacters } : { type: "null" },
     suggestedChallenge: producesFinding ? { type: "string", minLength: 1, maxLength: suggestedChallengeLimits.maximumCharacters } : { type: "null" },
     evidenceFactIds: {
       type: "array",
@@ -35,29 +36,10 @@ export const createRequirementInventorySchema = (factIds) => ({
   properties: {
     requirements: {
       type: "array",
-      maxItems: 60,
-      items: { anyOf: [
-        ...entryVariants({
-          categories: ["eligibility"], necessities: ["mandatory"],
-          evidenceStates: ["incompatible", "missing", "conflicting"], producesFinding: true, factIds,
-        }),
-        ...entryVariants({
-          categories: ["work_arrangement"], necessities: ["mandatory"],
-          evidenceStates: ["incompatible"], producesFinding: true, factIds,
-        }),
-        ...entryVariants({
-          categories: ["eligibility", "work_arrangement"], necessities: ["mandatory"],
-          evidenceStates: ["supported"], factIds,
-        }),
-        ...entryVariants({
-          categories: ["work_arrangement"], necessities: ["mandatory"],
-          evidenceStates: ["missing", "conflicting"], factIds,
-        }),
-        ...entryVariants({
-          categories: ["eligibility", "work_arrangement"], necessities: ["unclear", "preferred", "excluded"],
-          evidenceStates: ["supported", "incompatible", "missing", "conflicting"], factIds,
-        }),
-      ] },
+      maxItems: limits.maximumRequirements,
+      items: { anyOf: requirementClasses.flatMap((classification) =>
+        entryVariants({ ...classification, factIds })),
+      },
     },
   },
   required: ["requirements"],

@@ -49,50 +49,28 @@ task because submission may have happened before confirmation was saved.
 
 ## Extension structure
 
-The content scripts are ordered by dependency in the manifest:
+[The manifest](../extension/manifest.json) defines content-script dependency order
+and execution worlds. Shared browser/Node contracts live in `extension/contracts/`
+and are imported by Node through `shared/contracts.js`.
 
-- `contracts/job-urls.js`, `contracts/blockers.js`, and `contracts/cv-fit-submissions.js` define shared URL, blocker-result, and CV submission-status contracts, also consumed by Node through `shared/contracts.js`;
-- `contracts/inference-settings.js` defines model reasoning capabilities and request options for checking and CV indexing;
-- `contracts/job-storage-keys.js` builds and parses persisted job keys for content scripts,
-  worker services, and Node without changing saved key values;
-- `contracts/job-marks.js` shares manual-mark timestamp fields and record validation between badges and list exclusions;
-- `contracts/indeed-availability.js` shares listing statuses, record validation and cache freshness between the content script and worker;
-- `contracts/cv-fit-settings.js` shares the required Codex settings between submission
-  automation and the draft-review message;
-- `contracts/identifiers.js` supplies UUID validation for request and chat IDs;
-- `contracts/shortcuts.js` defines keyboard bindings used by dispatch and menu hints;
-- `contracts/messages.js` owns extension message names, and `blockers/client.js` sends checker requests for content scripts and settings;
-- `extension-context.js` creates the content-page cross-script API, selectors, UI configuration, and shared job-title normalisation;
-- `dom-visibility.js` provides rendered-element and viewport visibility checks, plus queries that include the root element;
-- `job-url.js` parses and normalizes Indeed and LinkedIn page and job URLs;
-- `job-resolution.js` resolves the selected job from URL, DOM, title, and page data, and shares rendered detail-heading lookup with page decorations and manual marks;
-- `job-navigation.js` owns results-page navigation, hiding, and undo state;
-- `feedback.js` provides shared toast feedback independently of CV submission;
-- `cv-fit-submission.js` owns bridge messaging, completion polling, and submission feedback;
-- `job-mark-store.js` owns manual mark identity, persistence, pending writes, and storage synchronization;
-- `page-decorations.js` batches page observation, builds a shared snapshot of cards and the selected heading for renderers, owns stable action/findings containers, and lets the blocker checker subscribe to page changes through the same observer and navigation listeners;
-- `job-marks.js` decorates cards, job headers, and menu actions using that store;
-- `job-analysis-store.js` owns the shared completed-analysis records, validation, and storage notifications;
-- `job-analyses.js` renders analysis actions from that store;
-- `indeed-to-apply-renderer.js` renders the **To apply** panel from supplied jobs
-  and application-sync status;
-- `indeed-to-apply.js` tracks Indeed exclusions, captures listing metadata, and
-  refreshes missing metadata separately from selecting eligible analysed jobs;
-- `shortcuts.js` dispatches the N/J/K/H/U keyboard actions and ignores editable targets, modifier keys, repeated key events and composition;
-- `job-menu.js` creates and inserts the CV fit and job-record actions;
-- `job-menu-observer.js` detects newly opened job menus;
-- `blockers/indeed-description-store.js` observes captured descriptions and extracts inert text;
-- `blockers/result-store.js` owns local findings and storage-change notifications;
-- `blockers/renderer.js` registers the page renderer and uses local helpers for finding rows, challenge forms, and override controls; and
-- `blockers/checker.js` coordinates selection verification, dwell timing, and request polling.
+The content-page API in `extension-context.js` connects three boundaries:
 
-The separate `blockers/indeed-description-capture.js` MAIN-world script observes descriptions before the isolated content scripts start. `service-worker.js` loads `bridge-config.js` and the installer-generated `local-config.js` for private bridge settings. It registers feature handlers from `worker/`. `worker/bridge-client.js` owns bridge
-request headers and timeouts; `worker/cv-fit.js`, `worker/blockers.js`, and
-`worker/analyses.js` own their message boundaries. `worker/indeed-applications.js`
-synchronizes application history. `worker/indeed-listings.js` shares in-flight
-listing reads between title and availability requests while keeping their caches
-separate; `worker/indeed-listing-parser.js` extracts both fields from one JSON-LD
-traversal. `worker/senders.js` shares job-site sender validation. `options.html`, `options.js`, and `options.css` implement settings.
+- Job identity and selection: URL adapters and `job-resolution.js` resolve jobs;
+  navigation and menus consume that identity without guessing ambiguous jobs.
+- Persistent state: mark, analysis and blocker stores own initial snapshots and
+  storage notifications. Consumers subscribe only to their relevant records.
+- Presentation: `page-decorations.js` shares page observation and a snapshot of
+  cards, the selected heading, and stable control containers across renderers.
+  The To apply coordinator selects eligible jobs separately from its renderer.
+
+The MAIN-world description capture feeds the isolated blocker coordinator; see
+[blocker-checking internals](#blocker-checking-internals). The service worker
+registers feature handlers from `worker/`; `worker/bridge-client.js` owns bridge
+headers and timeouts, and `worker/senders.js` validates job-site senders.
+Listing title and availability requests share in-flight fetches and one JSON-LD
+parse while retaining separate caches. Installer-generated `local-config.js`
+provides private bridge settings. `options.html`, `options.js`, and `options.css`
+implement blocker settings; available model selections survive catalogue refresh.
 
 `cvFitSubmissions` is the content-page API for sending Codex tasks. The bridge's
 `cv-fit-submission-store.js` persists their statuses; `cv-fit-submission-service.js` owns locking, execution and terminal-submission history pruning. `analysis-routes.js` owns completion, listing and chat opening, with scoped completion dispatched before general-token authentication. The native helper publishes
@@ -225,22 +203,14 @@ may convert CV files, call the model, and save a refreshed index.
 Evidence status also reports whether the CV index is current, pending a refresh,
 or disabled, separately from the evidence hash.
 
-`cv-index.js` fingerprints current source CVs and maintains a private compact index
-of exact excerpts. Its `ensureCurrent()` method may extract files and call the
-model; `readCurrent()` reads a matching saved index without inference. Source hashing
-and conversion use up to three concurrent workers, preserving sorted source order
-and passage IDs. Failure or cancellation drains active workers before a retry;
-source content checks and final collection verification still apply.
-
-`chatgpt-response.js` parses completed JSON streams shared by checking and indexing.
-`inference.js` validates the requirement inventory, exact description quotes, and
-known evidence IDs before deriving findings. Each request binds evidence references
-to the supplied fact IDs, requires references for supported/incompatible/conflicting
-evidence, and forbids references for missing evidence. The structured schema requires prose
-for findings and null explanations for other entries. See [requirement policy](#requirement-policy) for classification rules.
-`inference-prompts.js` owns instructions, `inference-schemas.js` owns structured
-response shapes, and `inference-validation.js` owns finding, correction, and
-challenge validation. `inference.js` constructs requests and allows one corrective request for an invalid quote, requirement entry, or inconsistent challenge decision.
+`cv-index.js` owns source fingerprints and the exact-excerpt index;
+see [CV extraction and reuse](#cv-extraction-and-reuse) for its lifecycle.
+`chatgpt-response.js` parses completed JSON streams for checking and indexing.
+`inference.js` constructs requests and coordinates one corrective attempt.
+`inference-prompts.js` owns instructions, `requirement-policy.js` defines disjoint
+classification groups used by both `inference-schemas.js` and
+`inference-validation.js`, and the validator also checks quotes, evidence IDs,
+profile corrections and challenge decisions. See [requirement policy](#requirement-policy).
 
 `chatgpt-accounts.js` exposes `openChatGPTAccountManager()` for registrations,
 active-account selection, OAuth, and authenticated requests. `fallbackAccountIds()`
@@ -248,7 +218,7 @@ returns eligible registration IDs. The checker has separate endpoints and status
 from CV Fit submissions.
 
 `extension/contracts/blockers.js` defines result labels, version, retention,
-record bounds, suggested-challenge word and character limits, and retention
+record bounds, input limits, suggested-challenge word and character limits, and retention
 eligibility for both runtimes. Inference prompts, schemas and validation reuse
 those limits. `extension/contracts/inference-settings.js` owns application
 policies for model reasoning selection and processing tier, plus inference request
@@ -274,7 +244,14 @@ fields, quoted description evidence, and known profile fact IDs.
 also disables checking and clears model selection before account operations.
 For account eligibility, see [fallback accounts](blocker-checker.md#fallback-accounts).
 
-Automatic checks begin after a 1.5-second dwell in a visible tab. One model request runs at a time. Recent eligible selections take precedence over waiting jobs, with at most ten waiting checks. Already-running checks finish when selection changes; turning checks off, clearing findings, shutdown, and account changes cancel work. Identical checks share a task across tabs. Requests time out after 90 seconds. Result polling waits in the bridge for completion (up to eight seconds per poll), so finished checks appear without an additional polling delay. Disconnected tabs release their wait without cancelling the shared check. A completed response with a non-verbatim requirement quote or invalid requirement fields gets one corrective request within the same 90-second deadline. Feedback identifies the rejected entry and validation problem, including empty explanations, invalid evidence references and oversized suggested challenges. The complete inventory is validated again; a second validation failure shows a specific checker error and says blocker status is unknown. Other failed checks require an explicit retry; transient failures do not retry automatically or switch billing.
+One model request runs at a time, with at most ten waiting checks. Recent
+selections take precedence; identical inputs share a task across tabs. Polls wait
+up to eight seconds, below the worker request deadline. Disconnecting a tab
+releases its wait without cancelling the shared check. Invalid quotes, requirement
+entries, or challenge decisions receive one corrective request under the original
+90-second deadline; the complete inventory is validated again. See
+[processing and findings](blocker-checker.md#processing-and-findings) for dwell,
+cancellation, failures and recovery.
 
 The bridge cache is keyed by Indeed job ID, description hash, evidence hash,
 checker version, model, and reasoning effort. Challenges also enter the in-flight
@@ -287,6 +264,8 @@ for retention, clearing, and sign-out behavior.
 
 ### CV extraction and reuse
 
+`ensureCurrent()` extracts files and may call inference; `readCurrent()` reads a
+matching saved index without inference. Both verify current source fingerprints.
 CV source reads and extraction honour the check's cancellation signal and 90-second
 deadline. Cancellation stops active PDF/Word converters and prevents remaining
 CVs from being extracted or submitted for indexing.

@@ -7,7 +7,15 @@
   const suggestedChallengeLimits = Object.freeze({ maximumCharacters: 300, maximumWords: 25 });
   const contract = {
     suggestedChallengeLimits,
-    version: 14,
+    limits: Object.freeze({
+      minimumDescriptionCharacters: 40,
+      maximumDescriptionCharacters: 80_000,
+      maximumQuoteCharacters: 2000,
+      maximumChallengeCharacters: 2000,
+      maximumExplanationCharacters: 2000,
+      maximumRequirements: 60,
+    }),
+    version: 15,
     retentionMs: 30 * 86400_000,
     maximumRecords: 300,
     storagePrefix: "blocker-result:",

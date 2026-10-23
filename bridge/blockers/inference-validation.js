@@ -1,6 +1,7 @@
 import { blockerContract } from "../../shared/contracts.js";
+import { classificationFor } from "./requirement-policy.js";
 
-const { suggestedChallengeLimits } = blockerContract;
+const { suggestedChallengeLimits, limits } = blockerContract;
 
 const normalizeQuote = (text) => text.replace(/\s+/g, " ").trim();
 
@@ -26,7 +27,7 @@ export class RequirementValidationError extends Error {
 }
 
 export const deriveValidatedFindings = (requirements, description, evidence) => {
-  if (!Array.isArray(requirements) || requirements.length > 60)
+  if (!Array.isArray(requirements) || requirements.length > limits.maximumRequirements)
     throw new Error("Invalid checker requirements");
   const facts = new Map(evidence.facts.map((fact) => [fact.id, fact]));
   const normalizedDescription = normalizeQuote(description);
@@ -34,24 +35,20 @@ export const deriveValidatedFindings = (requirements, description, evidence) => 
   if (!requirements.length && /\b(?:must|required|essential|experience\s+(?:in|with)|proven(?:\s+\w+){0,5}\s+experience|qualifications?|certifications?)\b/i.test(description))
     throw new Error("Checker returned no requirement inventory for an advert with candidate requirements. Retry the check.");
   for (const [index, requirement] of requirements.entries()) {
-    const producesFinding = requirement &&
-      requirement.necessity === "mandatory" && requirement.evidence !== "supported" &&
-      (requirement.category === "eligibility" || requirement.evidence === "incompatible");
     const reject = (problem) => { throw new RequirementValidationError(index, requirement, problem); };
     if (!requirement || Object.keys(requirement).sort().join(",") !==
         "category,evidence,evidenceFactIds,explanation,necessity,requirementQuote,suggestedChallenge")
       reject("invalid requirement fields");
-    if (!["eligibility", "work_arrangement"].includes(requirement.category) ||
-        !["mandatory", "unclear", "preferred", "excluded"].includes(requirement.necessity) ||
-        !["supported", "incompatible", "missing", "conflicting"].includes(requirement.evidence))
-      reject("invalid requirement classification");
+    const classification = classificationFor(requirement);
+    if (!classification) reject("invalid requirement classification");
+    const { producesFinding } = classification;
     if (typeof requirement.requirementQuote !== "string" || !requirement.requirementQuote.trim() ||
-        requirement.requirementQuote.length > 2000)
+        requirement.requirementQuote.length > limits.maximumQuoteCharacters)
       reject("missing or oversized advert quote");
     if (producesFinding) {
       if (typeof requirement.explanation !== "string" || !requirement.explanation.trim())
         reject("missing requirement explanation");
-      if (requirement.explanation.length > 2000) reject("requirement explanation is too long");
+      if (requirement.explanation.length > limits.maximumExplanationCharacters) reject("requirement explanation is too long");
       if (typeof requirement.suggestedChallenge !== "string" || !requirement.suggestedChallenge.trim())
         reject("missing suggested challenge");
       if (requirement.suggestedChallenge.length > suggestedChallengeLimits.maximumCharacters || requirement.suggestedChallenge.trim().split(/\s+/).length > suggestedChallengeLimits.maximumWords)
