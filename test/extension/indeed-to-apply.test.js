@@ -57,11 +57,21 @@ test('Indeed counter includes only unapplied positive verdicts, with safe job li
   assert.equal(links[0].textContent, 'Support Advisor');
   assert.equal(links[0].href, page.jobUrl);
   assert.equal(links[1].href, 'https://uk.indeed.com/viewjob?jk=fixture222');
+  assert.deepEqual([...panel.querySelectorAll('li > span')].map((node) => node.textContent), ['Use as is', 'Edit CV']);
   assert.equal(saved['job-title:indeed:fixture111'], 'Support Advisor');
   panel.open = true;
   render(page);
   assert.equal(panel.open, true);
   assert.equal(panel.querySelector('a'), links[0]);
+});
+
+test('verdict labels remain accurate outside the current To apply subset', async (t) => {
+  const { window } = await fixture(t);
+  const render = window.jobSearchCompanion.indeedToApply.createRenderer();
+  render({ jobs: [{ url: 'https://uk.indeed.com/viewjob?jk=fixture111', title: 'Support Advisor',
+    verdict: 'not enough information' }], syncState: 'ready' });
+  const panels = [...window.document.querySelectorAll('.jsc-to-apply')];
+  assert.equal(panels.at(-1).querySelector('li > span').textContent, 'Not enough information');
 });
 
 test('storage updates remove applied jobs, restore unmarked jobs, and refresh changed/deleted verdicts', async (t) => {

@@ -248,7 +248,9 @@ returns eligible registration IDs. The checker has separate endpoints and status
 from CV Fit submissions.
 
 `extension/contracts/blockers.js` defines result labels, version, retention,
-record bounds, and retention eligibility for both runtimes. `extension/contracts/inference-settings.js` owns model
+record bounds, suggested-challenge word and character limits, and retention
+eligibility for both runtimes. Inference prompts, schemas and validation reuse
+those limits. `extension/contracts/inference-settings.js` owns model
 reasoning-selection capability and inference request options, shared by settings,
 requirement inference, and CV indexing. The internal `blocker` result name covers both
 confirmed shortfalls and missing or conflicting evidence; the UI uses **Potential
@@ -383,7 +385,8 @@ Completion callbacks require an exact CV-fit verdict. The completion helper
 accepts it as a quoted third argument. It is validated, saved, and synchronized
 with the analysis record. Repeating a callback with a different verdict is
 rejected. Existing records without verdict metadata retain their links and
-neutral blue appearance. Verdict colours use the shared analysis contract.
+neutral blue appearance. Verdict labels, colours and **To apply** eligibility use
+the shared analysis contract.
 
 ## Test organisation
 
@@ -391,7 +394,9 @@ neutral blue appearance. Verdict colours use the shared analysis contract.
 with synthetic jobs, mock browser APIs and temporary installation fixtures.
 Suites mirror source boundaries under `test/extension/`, `test/bridge/`,
 `test/installer/`, and `test/shared/`. `test-support/` owns VM/JSDOM script loaders,
-shared fixtures, and separate event-loop draining and timed-wait helpers.
+shared fixtures, and separate event-loop draining and timed-wait helpers. Both
+wait helpers take an options object with an attempt limit and failure message,
+and fail if the condition remains unmet; timed waits also accept an interval.
 Tests cover resolution, mark persistence, navigation, HTTP authentication,
 submission recovery and installation transactions. CI runs on macOS with Node 22
 and 24. Real Accessibility permission and task submission require the

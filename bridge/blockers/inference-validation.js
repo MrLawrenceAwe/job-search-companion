@@ -1,3 +1,7 @@
+import { blockerContract } from "../../shared/contracts.js";
+
+const { suggestedChallengeLimits } = blockerContract;
+
 const normalizeQuote = (text) => text.replace(/\s+/g, " ").trim();
 
 export class RequirementQuoteError extends Error {
@@ -50,8 +54,8 @@ export const deriveValidatedFindings = (requirements, description, evidence) => 
       if (requirement.explanation.length > 2000) reject("requirement explanation is too long");
       if (typeof requirement.suggestedChallenge !== "string" || !requirement.suggestedChallenge.trim())
         reject("missing suggested challenge");
-      if (requirement.suggestedChallenge.length > 300 || requirement.suggestedChallenge.trim().split(/\s+/).length > 25)
-        reject("suggested challenge exceeds 25 words or 300 characters");
+      if (requirement.suggestedChallenge.length > suggestedChallengeLimits.maximumCharacters || requirement.suggestedChallenge.trim().split(/\s+/).length > suggestedChallengeLimits.maximumWords)
+        reject(`suggested challenge exceeds ${suggestedChallengeLimits.maximumWords} words or ${suggestedChallengeLimits.maximumCharacters} characters`);
     } else if (requirement.explanation !== null || requirement.suggestedChallenge !== null) {
       reject("non-blocking requirement must have null explanation and suggested challenge");
     }

@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
 
-export const drainEventLoopUntil = async (condition, attempts = 30) => {
+export const drainEventLoopUntil = async (
+  condition,
+  { attempts = 30, message = "Expected state did not arrive" } = {},
+) => {
   for (let attempt = 0; attempt < attempts && !condition(); attempt += 1) {
     await new Promise((resolve) => setImmediate(resolve));
   }
+  assert.ok(condition(), message);
 };
 
 export const waitUntil = async (

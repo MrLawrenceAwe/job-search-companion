@@ -23,7 +23,7 @@
       chrome.runtime.sendMessage(message, (response) => {
         if (chrome.runtime.lastError) {
           reject(
-            new Error("Couldn’t reach the Job Search Companion service. Check that it is running."),
+            Object.assign(new Error("Couldn’t reach the Job Search Companion service. Check that it is running."), { uncertain: true }),
           );
         } else if (!response?.ok) {
           reject(new Error(response?.error || "Task submission failed"));
@@ -84,7 +84,7 @@
         jobUrl,
       });
       if (!submission?.id) {
-        throw new Error("The local bridge did not return a submission ID");
+        throw Object.assign(new Error("The local bridge did not return a submission ID"), { uncertain: true });
       }
       accepted = true;
       const status = await waitForSubmissionResult(submission.id);
@@ -98,9 +98,12 @@
           : `CV Fit Advisor draft is ready—check ${globalThis.jobSearchContracts.cvFitSettings.map(({ category, label }) => `${category}: ${label}`).join(", ")} in Codex, then send it.`,
       );
     } catch (error) {
+      const uncertain = error.uncertain || (accepted && !error.definiteFailure);
       showToast(
-        `Couldn’t confirm the CV Fit Advisor submission. Check Codex before retrying: ${error.message}`,
-        error.uncertain || (accepted && !error.definiteFailure) ? "warning" : "error",
+        uncertain
+          ? `Couldn’t confirm the CV Fit Advisor submission. Check Codex before retrying: ${error.message}`
+          : `CV Fit Advisor submission failed: ${error.message}`,
+        uncertain ? "warning" : "error",
       );
     } finally {
       submissionInProgress = false;

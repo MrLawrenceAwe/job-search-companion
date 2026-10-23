@@ -97,15 +97,9 @@ Open an Indeed or LinkedIn job, then either:
 - open its job menu and choose **Analyse with CV Fit Advisor**. On LinkedIn,
   this is under the job detail pane’s **More options** button.
 
-On an Indeed or LinkedIn results page, press **J** to move to the next rendered
-job and **K** to move to the previous one. Press **H** to hide the selected job
-locally on the current page; this does not dismiss the job in Indeed or LinkedIn.
-Selection moves to the next available result, or the previous one when there is
-no next result. Press **U** to undo the most recent **J**, **K**, or **H** action.
-Shortcuts are ignored while focus is in a
-text field, select control, or editable region. After a page refresh, hidden jobs
-reappear and navigation and undo history reset, so the first **J** selects the
-top rendered job.
+A matching Codex draft should be submitted, or left ready for review when its
+settings do not match. Check the extension’s notice and the prepared task in Codex.
+See [the usage guide](usage.md) for navigation, hiding, undo and refresh behaviour.
 
 To check the bridge directly:
 

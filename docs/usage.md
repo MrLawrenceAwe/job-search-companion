@@ -33,9 +33,12 @@ the listing's published expiry date. Remaining jobs are checked in the
 background, with results cached for an hour. Opening an expired job removes it
 immediately. Network errors and verification pages preserve the saved status.
 
-Use **J/K** to navigate rendered results, **H** to hide a result on the current
-page, and **U** to undo navigation or hiding. Shortcuts ignore editable fields;
-hidden results return after reload.
+Use **J/K** to select the next or previous rendered result. **H** hides the
+selected result on the current page and selects the next result, or the previous
+one if there is no next result. **U** undoes the latest navigation or hide.
+Shortcuts ignore text fields, select controls and editable regions. Hiding does
+not dismiss jobs on the job board. Reloading restores hidden results and resets
+navigation and undo history; the first **J** selects the top rendered result.
 
 Detail controls stay bound to the displayed job while another result loads.
 If the displayed job cannot be identified safely, job-specific controls are omitted.

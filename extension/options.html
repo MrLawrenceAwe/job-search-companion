@@ -19,12 +19,13 @@
         <div class="section-heading"><div><span class="eyebrow">Account</span><h2 id="accountHeading">ChatGPT connection</h2></div><span id="connectionBadge" class="badge">Loading</span></div>
         <p id="connection" class="description" role="status">Loading connection…</p>
         <label class="field-label" for="currentAccount">Current account</label>
-        <select id="currentAccount" aria-label="Current ChatGPT account"></select>
+        <select id="currentAccount" aria-label="Current ChatGPT account" aria-describedby="accountChangeHint"></select>
+        <p id="accountChangeHint" class="note">Switching accounts or starting sign-in turns checks off and clears both model selections. Afterwards, choose your models, enable checks and save.</p>
         <div class="buttons account-actions">
           <button id="connectChatGPT" class="primary">Continue with ChatGPT</button>
           <button id="addAccount">Add account</button>
           <button id="cancelSignIn" hidden>Cancel sign-in</button>
-          <button id="signOut" class="quiet">Sign out</button>
+          <button id="signOut" class="quiet">Sign out current account</button>
           <a href="https://chatgpt.com/settings/usage" target="_blank" rel="noopener noreferrer">Manage usage <span aria-hidden="true">↗</span></a>
         </div>
         <div class="divider"></div>
@@ -42,7 +43,7 @@
         <div class="model-row"><select id="checkerModel" aria-label="Checker model"></select><button id="refreshModels" class="icon-button" aria-label="Refresh models" title="Refresh models"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 7a7 7 0 0 1 11.5-1L20 9M4 15l2.4 3A7 7 0 0 0 17.9 17"/></svg></button></div>
         <label class="field-label" for="checkerReasoning">Checker reasoning level</label>
         <select id="checkerReasoning" aria-describedby="reasoningHint">
-          <option value="low">Light (low)</option>
+          <option value="low">Low</option>
           <option value="medium">Medium</option>
         </select>
         <p id="reasoningHint" class="note"></p>

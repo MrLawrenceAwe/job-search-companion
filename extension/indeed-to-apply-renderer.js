@@ -1,4 +1,5 @@
 (() => {
+  const contract = globalThis.jobSearchContracts.jobAnalyses;
   const createRenderer = () => {
     let panel;
     let signature;
@@ -23,11 +24,11 @@
         link.href = job.url;
         link.textContent = job.title;
         const verdict = document.createElement("span");
-        verdict.textContent = job.verdict === "use as-is" ? "Use as is" : "Edit CV";
+        verdict.textContent = contract.labelFor(job.verdict);
         item.append(link, verdict);
         list.append(item);
       }
-      if (!jobs.length) note.textContent = "No eligible unapplied jobs with a Use as is or Edit CV verdict.";
+      if (!jobs.length) note.textContent = `No eligible unapplied jobs with a ${contract.toApplyVerdicts.map(contract.labelFor).join(" or ")} verdict.`;
       const status = document.createElement("p");
       status.setAttribute("role", "status");
       status.textContent = syncState === "checking" ? "Checking Indeed applications…"

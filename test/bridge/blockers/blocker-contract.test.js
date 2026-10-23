@@ -43,6 +43,11 @@ test("saved blockers require concise prepared suggestions", () => {
   const finding = { kind: "blocker", suggestedChallenge: "What evidence would resolve this finding?" };
   const blocker = { ...record, outcome: "blocker", findings: [finding] };
   assert.equal(blockerContract.isRetainableResult(blocker), true);
+  const { maximumCharacters, maximumWords } = blockerContract.suggestedChallengeLimits;
+  for (const suggestedChallenge of ["a".repeat(maximumCharacters), Array(maximumWords).fill("word").join(" ")]) {
+    assert.equal(blockerContract.isRetainableResult({ ...blocker,
+      findings: [{ ...finding, suggestedChallenge }] }), true);
+  }
   for (const suggestedChallenge of [undefined, null, "", "  ", "a".repeat(301), "word ".repeat(26)]) {
     assert.equal(blockerContract.isRetainableResult({ ...blocker,
       findings: [{ ...finding, suggestedChallenge }] }), false);

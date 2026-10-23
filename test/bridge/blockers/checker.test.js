@@ -21,7 +21,7 @@ test("checker deduplicates across tabs, persists results, and invalidates profil
   const { checker, directory, chatgpt } = await setup(async () => { calls++; return noBlockers; }, async () => currentProfile);
   const a = await checker.start(job()); const b = await checker.start(job());
   assert.equal(a.id, b.id);
-  await drainEventLoopUntil(() => checker.get(a.id).status === "completed", 100);
+  await drainEventLoopUntil(() => checker.get(a.id).status === "completed", { attempts: 100 });
   assert.equal(checker.get(a.id).status, "completed");
   assert.equal((await checker.start(job())).cached, true); assert.equal(calls, 1);
   currentProfile = { ...profile, hash: "profile-v2" };

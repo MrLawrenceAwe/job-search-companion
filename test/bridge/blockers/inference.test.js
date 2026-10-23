@@ -3,6 +3,7 @@ import test from "node:test";
 import { runBlockerInference } from "../../../bridge/blockers/inference.js";
 import { deriveValidatedFindings } from "../../../bridge/blockers/inference-validation.js";
 import { requirementInventorySchema } from "../../../bridge/blockers/inference-schemas.js";
+import { blockerContract } from "../../../shared/contracts.js";
 
 const profile = { hash: "profile-v1", facts: [{ id: "F1", text: "Provisional UK driving licence only.", source: "Profile evidence" }], sources: [] };
 const job = (id = "job111111") => ({ jobUrl: `https://uk.indeed.com/viewjob?jk=${id}`, description: "You must hold a full UK driving licence to visit customer sites in this role." });
@@ -435,6 +436,7 @@ test("every blocker returns a concise prepared challenge; drafts never become ca
   assert.equal(input.blockerChallenge, undefined);
   assert.match(captured.instructions, /Prepare it in this same response, not on demand/);
   assert.match(captured.instructions, /at most 25 words/);
+  assert.ok(captured.instructions.includes(`at most ${blockerContract.suggestedChallengeLimits.maximumWords} words and ${blockerContract.suggestedChallengeLimits.maximumCharacters} characters`));
   assert.match(captured.instructions, /Never invent candidate experience/);
   for (const invalid of [undefined, null, "", "  ", "a".repeat(301), "word ".repeat(26)]) {
     assert.throws(() => deriveValidatedFindings([{ ...requirement, suggestedChallenge: invalid }], job().description, profile), /invalid assessment/);
@@ -513,5 +515,6 @@ test("blocking schema fields cannot be empty strings", () => {
     if (properties.explanation.type !== "string") continue;
     assert.equal(properties.explanation.minLength, 1);
     assert.equal(properties.suggestedChallenge.minLength, 1);
+    assert.equal(properties.suggestedChallenge.maxLength, blockerContract.suggestedChallengeLimits.maximumCharacters);
   }
 });

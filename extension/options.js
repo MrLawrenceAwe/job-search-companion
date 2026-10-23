@@ -11,7 +11,7 @@ const renderInferenceSettings = () => {
   byId("reasoningHint").hidden = supportsReasoningSelection;
   byId("reasoningHint").textContent = supportsReasoningSelection
     ? ""
-    : "Other models use their default reasoning level. Select GPT-6 Luna to choose Light or Medium.";
+    : "Other models use their default reasoning level. Select GPT-6 Luna to choose Low or Medium.";
   byId("checkerSpeed").textContent = supportsReasoningSelection
     ? "Checker processing speed: Fast requested (priority). The delivered speed tier is unconfirmed."
     : "Checker processing speed: model default. Fast processing is requested only for GPT-6 Luna.";

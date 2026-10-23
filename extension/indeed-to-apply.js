@@ -119,7 +119,7 @@
       const { platform, id } = keys.parse(key);
       if (platform !== "indeed") continue;
       if (applied.has(key) || indeedApplied.has(key) || unsuitable.has(key) || dismissed.has(key)
-        || !["use as-is", "edit the CV"].includes(record.verdict)) continue;
+        || !contract.isToApplyVerdict(record.verdict)) continue;
       candidates.push({ id, record });
     }
     return candidates;

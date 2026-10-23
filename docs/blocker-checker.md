@@ -162,7 +162,16 @@ the CV index or accepted profile corrections.
 
 The index is saved privately as `cv-index.json` in the checker data directory, with exact CV passages, the indexing model and source fingerprints. Full CV text is sent only when refreshing the index; routine checks send the compact excerpts and profile facts.
 
-Checker data lives in `~/Library/Application Support/Job Search Companion/blockers/`. OAuth tokens remain in the bridge. Signing out clears local credentials and attempts remote revocation; settings reports if revocation is unconfirmed. Sign-out preserves the issued registration and stable host ID. Multiple registrations remain distinct even when they use the same email. Matching account labels include a registration number to distinguish them in settings. Changing accounts or starting sign-in turns checks off and clears model selection.
+Checker data lives in `~/Library/Application Support/Job Search Companion/blockers/`.
+OAuth tokens remain in the bridge. **Sign out current account** clears only that
+account’s local credentials and attempts remote revocation; other connected
+accounts remain signed in. Settings reports if revocation is unconfirmed.
+Sign-out preserves the issued registration and stable host ID. Multiple
+registrations remain distinct even when they use the same email. Matching account
+labels include a registration number to distinguish them in settings.
+
+Manually switching accounts or starting sign-in turns checks off and clears both
+model selections. Choose your models again, enable checks and save to resume.
 
 ## Limitations and validation
 
@@ -170,7 +179,7 @@ Unsupported model capabilities pause checking for settings review. Finding a mod
 
 GPT-6 Luna requests Fast processing (`service_tier: "priority"`), but the delivered tier remains unconfirmed. Settings shows this as a processing request, not a verified latency guarantee. Other models use their default processing tier and reasoning level.
 
-For GPT-6 Luna, **Checker reasoning level** selects **Light (low)** or **Medium** and sends an explicit `reasoning.effort`. Medium remains the default. Saving a different level cancels pending checks and keeps results from the previous level from being reused as current findings. Account fallback retains the chosen level. This control applies to job checks. CV indexing uses Medium for GPT-6 Luna and the model default for other models; its processing tier follows the indexing model.
+For GPT-6 Luna, **Checker reasoning level** selects **Low** or **Medium** and sends an explicit `reasoning.effort`. Medium remains the default. Saving a different level cancels pending checks and keeps results from the previous level from being reused as current findings. Account fallback retains the chosen level. This control applies to job checks. CV indexing uses Medium for GPT-6 Luna and the model default for other models; its processing tier follows the indexing model.
 
 Evaluation commands, methodology and historical measurements are documented in [evaluations](evaluations/README.md).
 

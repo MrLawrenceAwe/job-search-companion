@@ -4,7 +4,9 @@
     blocker: "Potential blocker",
     no_blockers_found: "No blockers found",
   });
+  const suggestedChallengeLimits = Object.freeze({ maximumCharacters: 300, maximumWords: 25 });
   const contract = {
+    suggestedChallengeLimits,
     version: 14,
     retentionMs: 30 * 86400_000,
     maximumRecords: 300,
@@ -27,8 +29,8 @@
           Array.isArray(record.findings) &&
           record.findings.every((finding) => finding?.kind === "blocker" &&
             typeof finding.suggestedChallenge === "string" &&
-            finding.suggestedChallenge.trim().length > 0 && finding.suggestedChallenge.length <= 300 &&
-            finding.suggestedChallenge.trim().split(/\s+/).length <= 25) &&
+            finding.suggestedChallenge.trim().length > 0 && finding.suggestedChallenge.length <= suggestedChallengeLimits.maximumCharacters &&
+            finding.suggestedChallenge.trim().split(/\s+/).length <= suggestedChallengeLimits.maximumWords) &&
           (record.overriddenRequirementQuotes === undefined ||
             (Array.isArray(record.overriddenRequirementQuotes) &&
               new Set(record.overriddenRequirementQuotes).size === record.overriddenRequirementQuotes.length &&
