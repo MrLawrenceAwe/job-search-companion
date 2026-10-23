@@ -49,20 +49,30 @@ export const requirementInventorySchema = createRequirementInventorySchema();
 
 export const createChallengeReviewSchema = (factIds) => {
   const inventory = createRequirementInventorySchema(factIds);
+  const editableFactIds = factIds.filter((id) => id.startsWith("F"));
   return {
     ...inventory,
     properties: {
       ...inventory.properties,
-      challengeResponse: { type: "string", description: "Reply only about blockerChallenge.requirementQuote and the candidate clarification. If accepted, return only Challenge accepted. If rejected, explain why this finding remains without discussing other blockers or challenges." },
+      challengeResponse: {
+        type: ["string", "null"],
+        minLength: 1,
+        maxLength: limits.maximumChallengeResponseCharacters,
+        pattern: "\\S",
+        description: `Null when accepted. When rejected, explain only why blockerChallenge.requirementQuote remains a blocker, in at most ${limits.maximumChallengeResponseWords} words.`,
+      },
       challengeAccepted: { type: "boolean" },
       profileUpdates: {
         type: "array",
+        maxItems: limits.maximumProfileUpdates,
         items: {
           type: "object",
           additionalProperties: false,
           properties: {
-            text: { type: "string" },
-            replacesFactIds: { type: "array", items: { type: "string" } },
+            text: { type: "string", minLength: 1, maxLength: limits.maximumProfileFactCharacters,
+              pattern: "^[^\\r\\n]*\\S[^\\r\\n]*$" },
+            replacesFactIds: { type: "array", maxItems: editableFactIds.length,
+              items: { type: "string", ...(editableFactIds.length ? { enum: editableFactIds } : {}) } },
           },
           required: ["text", "replacesFactIds"],
         },

@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-process.env.JSC_BRIDGE_TOKEN ||= "test-token";
-process.env.JSC_EXTENSION_ORIGIN ||= "chrome-extension://test";
-const { createTaskDeepLink, createTaskPrompt } = await import("../../../bridge/codex/deep-link.js");
+import { createTaskDeepLink, createTaskPrompt } from "../../../bridge/codex/deep-link.js";
 
 const completion = { id: "12345678-1234-1234-1234-123456789abc", token: "a".repeat(64) };
 

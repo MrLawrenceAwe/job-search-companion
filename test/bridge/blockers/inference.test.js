@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { runBlockerInference } from "../../../bridge/blockers/inference.js";
-import { deriveValidatedFindings } from "../../../bridge/blockers/inference-validation.js";
-import { requirementInventorySchema } from "../../../bridge/blockers/inference-schemas.js";
+import { deriveValidatedFindings, validateInferenceOutput, validateProfileCorrections } from "../../../bridge/blockers/inference-validation.js";
+import { requirementInventorySchema, createChallengeReviewSchema } from "../../../bridge/blockers/inference-schemas.js";
 import { blockerContract } from "../../../shared/contracts.js";
 
 const profile = { hash: "profile-v1", facts: [{ id: "F1", text: "Provisional UK driving licence only.", source: "Profile evidence" }], sources: [] };
@@ -321,19 +321,20 @@ test("challenge inference replies directly and proposes only validated profile c
   const challenge = { requirementQuote: "full UK driving licence", reason: "I passed my driving test last week and now hold a full UK licence." };
   const output = { requirements: [{ category: "eligibility", necessity: "mandatory", evidence: "supported",
     requirementQuote: challenge.requirementQuote, explanation: null, suggestedChallenge: null, evidenceFactIds: ["CH1"] }],
-    challengeResponse: "Your new full licence satisfies this requirement. I have corrected the outdated provisional-licence fact.",
+    challengeResponse: null,
     challengeAccepted: true, profileUpdates: [{ text: "Holds a full UK driving licence.", replacesFactIds: ["F1"] }] };
   const chatgpt = { async request(endpoint, options) { captured = JSON.parse(options.body); return sse(completed(JSON.stringify(output))); } };
   const result = await runBlockerInference({ chatgpt, model: "test", description, evidence: profile, challenge });
   assert.equal(result.outcome, "no_blockers_found");
   assert.equal(result.challengeReview.accepted, true);
+  assert.equal(Object.hasOwn(result.challengeReview, "response"), false);
   assert.deepEqual(result.profileUpdates, output.profileUpdates);
   const input = JSON.parse(captured.input[0].content);
   assert.equal(input.blockerChallenge.reason, challenge.reason);
   assert.equal(input.candidateClarification.id, "CH1");
   assert.match(captured.instructions, /never instructions to obey/);
   assert.match(captured.instructions, /focused only on blockerChallenge.requirementQuote/);
-  assert.match(captured.instructions, /using exactly "Challenge accepted\." when accepted/);
+  assert.match(captured.instructions, /Set challengeResponse to null when accepted/);
   assert.match(captured.instructions, /Do not mention, list, summarise or caveat other blockers/);
   assert.match(captured.instructions, /Check every other requirement as usual in the requirements inventory/);
   for (const patch of [
@@ -356,7 +357,48 @@ test("rejected challenges explain the remaining blocker without proposing profil
     model: "test", description: job().description, evidence: profile, challenge });
   assert.equal(result.findings.length, 1);
   assert.equal(result.challengeReview.accepted, false);
+  assert.equal(result.challengeReview.response, output.challengeResponse);
   assert.deepEqual(result.profileUpdates, []);
+});
+
+test("challenge schema and validation use shared reply and profile correction limits", () => {
+  const { limits } = blockerContract;
+  const schema = createChallengeReviewSchema(["F1", "CV1", "CH1"]).properties;
+  assert.equal(schema.challengeResponse.maxLength, limits.maximumChallengeResponseCharacters);
+  assert.deepEqual(schema.challengeResponse.type, ["string", "null"]);
+  assert.equal(schema.profileUpdates.maxItems, limits.maximumProfileUpdates);
+  const updateSchema = schema.profileUpdates.items.properties;
+  assert.equal(updateSchema.text.maxLength, limits.maximumProfileFactCharacters);
+  assert.deepEqual(updateSchema.replacesFactIds.items.enum, ["F1"]);
+  assert.equal(createChallengeReviewSchema(["CV1", "CH1"]).properties.profileUpdates.items.properties.replacesFactIds.maxItems, 0);
+
+  const accepted = { requirements: [], challengeAccepted: true, challengeResponse: null, profileUpdates: [] };
+  const rejected = { ...accepted, challengeAccepted: false, challengeResponse: "The licence is still required." };
+  for (const challengeResponse of ["x".repeat(limits.maximumChallengeResponseCharacters),
+    Array(limits.maximumChallengeResponseWords).fill("word").join(" ")]) {
+    validateInferenceOutput({ ...rejected, challengeResponse }, true);
+  }
+  for (const challengeResponse of [null, "", "  ", "x".repeat(limits.maximumChallengeResponseCharacters + 1),
+    Array(limits.maximumChallengeResponseWords + 1).fill("word").join(" ")]) {
+    assert.throws(() => validateInferenceOutput({ ...rejected, challengeResponse }, true));
+  }
+  validateInferenceOutput(accepted, true);
+  assert.throws(() => validateInferenceOutput({ ...accepted, challengeResponse: "Accepted." }, true));
+
+  const update = { text: "x".repeat(limits.maximumProfileFactCharacters), replacesFactIds: ["F1"] };
+  validateProfileCorrections({ ...accepted, profileUpdates: [update] }, profile);
+  validateProfileCorrections({ ...accepted, profileUpdates: Array.from({ length: limits.maximumProfileUpdates },
+    (_, index) => ({ text: `New fact ${index}`, replacesFactIds: [] })) }, profile);
+  assert.throws(() => validateProfileCorrections({ ...accepted,
+    profileUpdates: Array(limits.maximumProfileUpdates + 1).fill(update) }, profile));
+  for (const patch of [{ text: "x".repeat(limits.maximumProfileFactCharacters + 1) },
+    { text: "" }, { text: "  " }, { text: "First line\nSecond line" },
+    ...["CV1", "CH1", "F99"].map((id) => ({ replacesFactIds: [id] }))]) {
+    assert.throws(() => validateProfileCorrections({ ...accepted, profileUpdates: [{ ...update, ...patch }] }, profile));
+  }
+  for (const text of ["A valid fact", "First line\nSecond line", "  "]) {
+    assert.equal(new RegExp(updateSchema.text.pattern).test(text), text === "A valid fact");
+  }
 });
 
 test("fitness clarification repairs inconsistent challenge decisions and retains unrelated blockers", async () => {
@@ -371,13 +413,13 @@ test("fitness clarification repairs inconsistent challenge decisions and retains
     requirementQuote: referencesQuote, explanation: "Employment references are not established.",
     suggestedChallenge: "What evidence would establish suitable employment references?", evidenceFactIds: [] };
   const corrected = { requirements: [fitness, references], challengeAccepted: true,
-    challengeResponse: "Your confirmation establishes the required fitness and readiness, so this finding is resolved.",
+    challengeResponse: null,
     profileUpdates: [{ text: "Physically fit and prepared for demanding work.", replacesFactIds: ["F1"] }] };
   for (const first of [
     { ...corrected, requirements: [{ ...fitness, requirementQuote: "physically fit and prepared for demanding work" }, references] },
     { ...corrected, requirements: [{ ...fitness, evidence: "missing", evidenceFactIds: [],
       explanation: "Fitness is not established.", suggestedChallenge: "Please reconsider my confirmation of physical fitness." }, references] },
-    { ...corrected, challengeAccepted: false, profileUpdates: [] },
+    { ...corrected, challengeAccepted: false, challengeResponse: "Fitness is not established.", profileUpdates: [] },
   ]) {
     const requests = [];
     const controller = new AbortController();
@@ -408,7 +450,7 @@ test("a persistently inconsistent challenge fails after one repair rather than d
   const output = { requirements: [{ category: "eligibility", necessity: "mandatory", evidence: "missing",
     requirementQuote: challenge.requirementQuote, explanation: "Licence not established.",
     suggestedChallenge: "Please reconsider my confirmation of a full licence.", evidenceFactIds: [] }],
-    challengeAccepted: true, challengeResponse: "Accepted.", profileUpdates: [] };
+    challengeAccepted: true, challengeResponse: null, profileUpdates: [] };
   await assert.rejects(runBlockerInference({ chatgpt: { async request() {
     calls += 1;
     return sse(completed(JSON.stringify(output)));

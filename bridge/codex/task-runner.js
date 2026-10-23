@@ -19,7 +19,7 @@ export const createAccessibilityHelperArguments = ({ jobUrl, completion }) => [
   "auto-submit-if-configured",
   JSON.stringify({
     jobUrl,
-    newTaskUrl: createTaskDeepLink({ jobUrl, completion }),
+    newTaskUrl: createTaskDeepLink({ jobUrl, completion, workspacePath: config.cvFit.workspacePath }),
     bundleIdentifier: config.codex.bundleId,
     settings: config.cvFit.settings.map(({ category, label, match }) => ({
       category,

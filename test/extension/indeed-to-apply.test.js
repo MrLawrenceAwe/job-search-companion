@@ -4,7 +4,7 @@ import { JSDOM } from 'jsdom';
 import { runScriptsInDom } from '../../test-support/extension-scripts.js';
 
 const analysis = (verdict) => ({ threadId: '01a11fef-d2cd-7410-953a-37e6497346d8', analyzedAt: '2026-10-19T09:00:00Z', verdict });
-const fixture = async (t, platform = 'indeed', stored = {}, resolveTitle = null, { includeAnalysisActions = false } = {}) => {
+const fixture = async (t, platform = 'indeed', stored = {}, resolveTitle = null, { includeAnalysisActions = false, includeMarkActions = false } = {}) => {
   const dom = new JSDOM('<body><h1>Support Advisor</h1></body>', { url: 'https://uk.indeed.com/', runScripts: 'outside-only' });
   t.after(() => dom.window.close());
   const { window } = dom;
@@ -25,7 +25,7 @@ const fixture = async (t, platform = 'indeed', stored = {}, resolveTitle = null,
   let scheduled = 0;
   const render = (page) => { for (const renderer of renderers) renderer(page); };
   const page = { cards: new Map(), jobUrl: 'https://uk.indeed.com/viewjob?jk=fixture111', heading: window.document.querySelector('h1') };
-  if (includeAnalysisActions) {
+  if (includeAnalysisActions || includeMarkActions) {
     const card = window.document.createElement('article');
     card.innerHTML = '<h2>Support Advisor</h2>';
     window.document.body.append(card);
@@ -43,7 +43,8 @@ const fixture = async (t, platform = 'indeed', stored = {}, resolveTitle = null,
     register: (fn, promise) => { renderers.push(fn); readiness.push(promise); },
     schedule: () => { scheduled++; render(page); },
   } };
-  await runScriptsInDom(window, ['job-analysis-store.js', ...(includeAnalysisActions ? ['job-analyses.js'] : []), 'indeed-to-apply-renderer.js', 'indeed-to-apply.js']);
+  await runScriptsInDom(window, ['job-url.js', 'job-mark-store.js', ...(includeMarkActions ? ['job-marks.js'] : []),
+    'job-analysis-store.js', ...(includeAnalysisActions ? ['job-analyses.js'] : []), 'indeed-to-apply-renderer.js', 'indeed-to-apply.js']);
   await Promise.all(readiness);
   render(page);
   return { window, saved, page, render, get scheduled() { return scheduled; }, change: async (values) => { for (const listener of changes) listener(values, 'local'); await Promise.resolve(); } };
@@ -228,6 +229,25 @@ test('one analysis storage change updates both the badge and To apply list', asy
   assert.equal(summary(), 'To apply · 1');
 });
 
+
+test('one manual mark update changes both the badge and To apply filter', async (t) => {
+  const { window, change, page } = await fixture(t, 'indeed', {}, null, { includeMarkActions: true });
+  const marks = window.jobSearchCompanion.jobMarkStore;
+  const summary = () => window.document.querySelector('.jsc-to-apply > summary').textContent;
+  for (const kind of ['applied', 'unsuitable']) {
+    const badge = () => window.document.querySelector(`.jsc-${kind}-badge`);
+    const key = `${kind}-job:indeed:fixture111`;
+    assert.equal(marks.isMarked(page.jobUrl, kind), false);
+    await change({ [key]: { newValue: { [`${kind}At`]: '2026-10-19' } } });
+    assert.equal(marks.isMarked(page.jobUrl, kind), true);
+    assert.equal(badge().dataset.jobUrl, page.jobUrl);
+    assert.equal(summary(), 'To apply · 1');
+    await change({ [key]: { newValue: undefined } });
+    assert.equal(marks.isMarked(page.jobUrl, kind), false);
+    assert.equal(badge(), null);
+    assert.equal(summary(), 'To apply · 2');
+  }
+});
 
 test('To apply ignores blocker results and LinkedIn metadata notifications', async (t) => {
   const state = await fixture(t);

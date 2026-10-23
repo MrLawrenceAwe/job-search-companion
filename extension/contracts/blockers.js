@@ -14,12 +14,19 @@
       maximumChallengeCharacters: 2000,
       maximumExplanationCharacters: 2000,
       maximumRequirements: 60,
+      maximumChallengeResponseCharacters: 2000,
+      maximumChallengeResponseWords: 80,
+      maximumProfileUpdates: 5,
+      maximumProfileFactCharacters: 1000,
     }),
-    version: 15,
+    version: 16,
     retentionMs: 30 * 86400_000,
     maximumRecords: 300,
     storagePrefix: "blocker-result:",
     labels,
+    canCheck(state) {
+      return Boolean(state?.settings?.enabled && state.connectionStatus?.planUsageEnabled && !state.pausedReason);
+    },
     getRemainingFindings(record) {
       return record.findings.filter((finding) => !record.overriddenRequirementQuotes?.includes(finding.requirementQuote));
     },

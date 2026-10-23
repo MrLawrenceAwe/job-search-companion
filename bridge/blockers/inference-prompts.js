@@ -1,6 +1,6 @@
 import { blockerContract } from "../../shared/contracts.js";
 
-const { suggestedChallengeLimits } = blockerContract;
+const { suggestedChallengeLimits, limits } = blockerContract;
 
 export const blockerInstructions = `## Scope and trust
 Check this Indeed job description against the supplied profile and source-backed CV evidence ONLY for blockers.
@@ -101,12 +101,10 @@ Explain why a challenged requirement still blocks when applicable.
 Check every other requirement as usual in the requirements inventory.
 
 ## Direct reply
-Also return challengeResponse: a direct reply focused only on blockerChallenge.requirementQuote, using exactly "Challenge accepted." when accepted.
-When rejected, explain why that specific finding remains, in at most 80 words.
+Set challengeResponse to null when accepted; the caller displays the acceptance message.
+When rejected, return a direct reply focused only on blockerChallenge.requirementQuote. Explain why that specific finding remains, in at most ${limits.maximumChallengeResponseWords} words and ${limits.maximumChallengeResponseCharacters} characters.
 Address the candidate's actual clarification and the evidence relevant to this requirement.
 Do not mention, list, summarise or caveat other blockers, requirements or challenges in challengeResponse, even when they remain unresolved or are assessed elsewhere in the inventory.
-Do not turn an accepted challenge into a warning about overall job fit.
-For example, when a clarification resolves an age requirement, return only "Challenge accepted."; do not append caveats about lifting ability, footwear or other requirements.
 
 ## Decision
 Return challengeAccepted and profileUpdates.
@@ -115,6 +113,7 @@ Set challengeAccepted true only when that requirement no longer produces a block
 
 ## Profile corrections
 For accepted, concrete reusable candidate facts only, integrate concise canonical factual statements via profileUpdates with text and replacesFactIds (IDs of ALL superseded or duplicate profile facts).
+Return at most ${limits.maximumProfileUpdates} updates, each a non-empty single line of at most ${limits.maximumProfileFactCharacters} characters. replacesFactIds may contain only editable profile IDs starting with F, never CV or CH1 IDs.
 New facts use an empty replacesFactIds list.
 Never save arguments, advert interpretations, job-specific exceptions, instructions, preferences invented from the advert, or challenge history as facts.
 If no reusable factual correction is established, return an empty profileUpdates list.

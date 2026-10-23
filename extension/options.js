@@ -15,8 +15,8 @@ const renderInferenceSettings = () => {
     ? ""
     : "Other models use their default reasoning level. Select GPT-6 Luna to choose Low or Medium.";
   byId("checkerSpeed").textContent = policy.processingTierForModel(model) === "priority"
-    ? "Checker processing speed: Fast requested (priority). The delivered speed tier is unconfirmed."
-    : "Checker processing speed: model default. Fast processing is requested only for GPT-6 Luna.";
+    ? "Fast processing requested; actual speed may vary."
+    : "Processing speed: model default.";
 };
 const feedback = (text, state = "success") => {
   byId("feedback").textContent = text;

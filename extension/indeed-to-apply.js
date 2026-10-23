@@ -3,14 +3,12 @@
   if (companion.platform !== "indeed") return;
   const contract = globalThis.jobSearchContracts.jobAnalyses;
   const keys = globalThis.jobSearchContracts.jobStorageKeys;
-  const marks = globalThis.jobSearchContracts.jobMarks;
+  const marks = companion.jobMarkStore;
   const availabilityContract = globalThis.jobSearchContracts.indeedAvailability;
   const AVAILABILITY_RETRY_INTERVAL_MS = 3_600_000;
   const indeedKey = (kind, id) => keys.forJob(kind, { platform: "indeed", id });
   const analyses = companion.jobAnalysisStore;
   const titles = new Map();
-  const applied = new Set();
-  const unsuitable = new Set();
   const dismissed = new Set();
   const indeedApplied = new Set();
   const titleRequests = new Map();
@@ -24,11 +22,7 @@
     if (identity?.platform !== "indeed") return;
     const { kind, id } = identity;
     const analysisKey = indeedKey("analysis", id);
-    if (Object.hasOwn(marks.timestampFields, kind)) {
-      const entries = kind === "applied" ? applied : unsuitable;
-      if (marks.isRecord(kind, value)) entries.add(analysisKey);
-      else entries.delete(analysisKey);
-    } else if (["indeedDismissed", "indeedApplied"].includes(kind)) {
+    if (["indeedDismissed", "indeedApplied"].includes(kind)) {
       const [entries, timestamp] = {
         indeedDismissed: [dismissed, "dismissedAt"], indeedApplied: [indeedApplied, "detectedAt"],
       }[kind];
@@ -45,6 +39,7 @@
   };
   const ready = Promise.all([
     analyses.ready,
+    marks.ready,
     chrome.storage.local.get(null).then((stored) => {
       for (const [key, value] of Object.entries(stored)) read(key, value);
     }),
@@ -119,7 +114,9 @@
     for (const [key, record] of analyses.entries()) {
       const { platform, id } = keys.parse(key);
       if (platform !== "indeed") continue;
-      if (applied.has(key) || indeedApplied.has(key) || unsuitable.has(key) || dismissed.has(key)
+      const jobUrl = `https://uk.indeed.com/viewjob?jk=${id}`;
+      if (marks.isMarked(jobUrl, "applied") || marks.isMarked(jobUrl, "unsuitable")
+        || indeedApplied.has(key) || dismissed.has(key)
         || !contract.isToApplyVerdict(record.verdict)) continue;
       candidates.push({ id, record });
     }
@@ -176,6 +173,7 @@
     });
   });
   analyses.subscribe(companion.pageDecorations.schedule);
+  marks.subscribe(companion.pageDecorations.schedule);
   const updatePage = (page) => {
     rememberPageMetadata(page);
     const candidates = selectCandidates();

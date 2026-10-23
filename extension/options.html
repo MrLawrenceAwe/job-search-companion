@@ -11,7 +11,7 @@
     <header class="page-header">
       <div class="brand"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><rect x="4" y="7" width="16" height="13" rx="3"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M4 12a19 19 0 0 0 16 0M12 11v4"/></svg></span>Job Search Companion</div>
       <h1>Settings</h1>
-      <p>Find essential Indeed job requirements your profile and CV evidence may not establish.</p>
+      <p>Find potential blockers in Indeed jobs using your profile and CV evidence.</p>
     </header>
 
     <div class="settings-grid">
@@ -50,7 +50,7 @@
         <p id="checkerSpeed" class="note" role="status"></p>
         <label class="field-label" for="indexModel">CV indexing model</label>
         <select id="indexModel" aria-describedby="indexReasoningHint"></select>
-        <p id="indexReasoningHint" class="note">CV indexing uses Medium reasoning for GPT-6 Luna; other indexing models use their default reasoning and processing tier.</p>
+        <p id="indexReasoningHint" class="note">CV indexing uses Medium reasoning for GPT-6 Luna and the default for other models.</p>
         <p id="evidence" class="note evidence-status" role="status">Loading evidence…</p>
         <div class="divider"></div>
         <label class="toggle-row" for="checksEnabled">
@@ -60,7 +60,7 @@
       </section>
 
       <section class="card storage-card" aria-labelledby="storageHeading">
-        <div><span class="eyebrow">Local data</span><h2 id="storageHeading">Saved blocker checks</h2><p class="description">Checks stop being reused after 30 days; expired records are removed when another result is saved. Clear removes saved checks from the bridge and this Chrome profile. Your CV index and accepted profile corrections are kept.</p></div>
+        <div><span class="eyebrow">Local data</span><h2 id="storageHeading">Saved blocker checks</h2><p class="description">Saved checks expire after 30 days. Clear removes saved checks from the bridge and this Chrome profile. Your CV index and accepted profile corrections are kept.</p></div>
         <button id="clearSavedChecks" class="danger">Clear saved blocker checks</button>
       </section>
     </div>

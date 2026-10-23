@@ -5,7 +5,8 @@
 The installer records the chosen checkout location. Keep the unpacked extension
 in a stable directory so its identity and local job records remain
 available. See [setup and removal](setup.md) before installing the bridge.
-`job-mark-store.js` stores each manual applied or unsuitable mark separately in
+`job-mark-store.js` exposes one page-wide `jobMarkStore` for mark controls, badges,
+and To apply filtering. It stores each manual applied or unsuitable mark separately in
 `chrome.storage.local`, keyed by platform and job ID, with a normalized source
 URL and ISO recording date. Per-job writes cannot overwrite unrelated marks.
 The `storage` permission is used only for extension-local state. It adds no new
@@ -234,8 +235,14 @@ completed analyses retain their storage contracts.
 OAuth attempts use fresh state, nonce and PKCE values, a loopback callback,
 and ID-token signature, issuer, audience, expiry and nonce validation. Refreshes
 are serialized in the bridge. Inference has no tools and treats job text as
-untrusted evidence. Results require a completed response, valid JSON and outcome
-fields, quoted description evidence, and known profile fact IDs.
+untrusted evidence. Responses require completed inference, valid JSON and a
+requirements inventory with quoted description evidence and known fact IDs from
+the profile, CV index, or job-specific challenge clarification. The bridge derives
+findings and the outcome from the validated inventory. Profile corrections may
+replace only editable profile facts. Response and correction limits are shared
+by the schema, prompts and local validation. Accepted challenges return no reply
+text; the UI displays a fixed acceptance label, while rejected challenges include
+a bounded explanation.
 
 ### Scheduling and storage contracts
 

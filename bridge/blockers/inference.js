@@ -79,8 +79,8 @@ export const runBlockerInference = async ({
       ...(challenge ? {
         challengeReview: {
           requirementQuote: challenge.requirementQuote,
-          response: output.challengeResponse,
           accepted: output.challengeAccepted,
+          ...(output.challengeAccepted ? {} : { response: output.challengeResponse }),
         },
         profileUpdates: output.profileUpdates,
       } : {}),

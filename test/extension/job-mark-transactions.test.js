@@ -107,7 +107,7 @@ for (const kind of ["applied", "unsuitable"]) {
 
 test("mark subscribers ignore unrelated storage keys and receive removals", async () => {
   const fixture = await createMenuFixture({ runtime });
-  const store = fixture.context.jobSearchCompanion.jobMarks.createStore();
+  const store = fixture.context.jobSearchCompanion.jobMarkStore;
   await store.ready;
   let notifications = 0;
   store.subscribe(() => notifications++);

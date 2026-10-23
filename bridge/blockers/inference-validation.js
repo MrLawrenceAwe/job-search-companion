@@ -80,8 +80,12 @@ const hasExactKeys = (value, keys) => Boolean(value &&
   Object.keys(value).sort().join(",") === keys);
 
 export const validateInferenceOutput = (output, hasChallenge) => {
-  if (hasChallenge && (typeof output?.challengeResponse !== "string" ||
-      !output.challengeResponse.trim() || output.challengeResponse.length > 2000)) {
+  const response = output?.challengeResponse;
+  const validResponse = output?.challengeAccepted === true ? response === null
+    : typeof response === "string" && response.trim() &&
+      response.length <= limits.maximumChallengeResponseCharacters &&
+      response.trim().split(/\s+/).length <= limits.maximumChallengeResponseWords;
+  if (hasChallenge && !validResponse) {
     throw new Error("Checker did not respond to your challenge. Try again.");
   }
   const keys = hasChallenge
@@ -94,11 +98,12 @@ export const validateProfileCorrections = (output, evidence) => {
   const editableFactIds = new Set(evidence.facts.filter((fact) => fact.id.startsWith("F"))
     .map((fact) => fact.id));
   const validUpdate = (update) => hasExactKeys(update, "replacesFactIds,text") &&
-    typeof update.text === "string" && update.text.trim() && update.text.length <= 1000 &&
+    typeof update.text === "string" && update.text.trim() && update.text.length <= limits.maximumProfileFactCharacters &&
     !/[\r\n]/.test(update.text) && Array.isArray(update.replacesFactIds) &&
+    update.replacesFactIds.length <= editableFactIds.size &&
     update.replacesFactIds.every((id) => editableFactIds.has(id));
   if (typeof output.challengeAccepted !== "boolean" || !Array.isArray(output.profileUpdates) ||
-      output.profileUpdates.length > 5 || (!output.challengeAccepted && output.profileUpdates.length) ||
+      output.profileUpdates.length > limits.maximumProfileUpdates || (!output.challengeAccepted && output.profileUpdates.length) ||
       !output.profileUpdates.every(validUpdate)) {
     throw new Error("Invalid profile correction in challenge response");
   }

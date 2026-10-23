@@ -255,7 +255,7 @@ test("accepted challenge integrates the profile and future checks use the correc
       received.push(input);
       if (input.challenge) await new Promise((resolve) => { release = resolve; });
       return input.challenge ? { ...noBlockers,
-        challengeReview: { accepted: true, requirementQuote: "full UK driving licence", response: "The full licence satisfies this requirement." },
+        challengeReview: { accepted: true, requirementQuote: "full UK driving licence" },
         profileUpdates: [{ text: "Holds a full UK driving licence.", replacesFactIds: ["F1"] }] } : noBlockers;
     } });
   try {

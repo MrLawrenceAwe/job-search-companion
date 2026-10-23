@@ -54,15 +54,15 @@ const installChromeMocks = (window, initialStorage) => {
   const calls = [];
   const storage = { ...initialStorage };
   const listeners = [];
+  const status = {
+    settings: { enabled: true, model: "test" },
+    connectionStatus: { planUsageEnabled: true },
+    evidence: { hash: "profile" },
+  };
   window.chrome = {
     runtime: {
       async sendMessage(message) {
-        if (message.action === "status") return {
-          ok: true,
-          settings: { enabled: true, model: "test" },
-          connectionStatus: { planUsageEnabled: true },
-          evidence: { hash: "profile" },
-        };
+        if (message.action === "status") return structuredClone({ ok: true, ...status });
         if (message.action === "check") {
           calls.push(message.body);
           return { ok: true, check: await createCompletedCheck(message.body) };
@@ -81,7 +81,7 @@ const installChromeMocks = (window, initialStorage) => {
       onChanged: { addListener(listener) { listeners.push(listener); } },
     },
   };
-  return { calls, storage, listeners };
+  return { calls, storage, listeners, status };
 };
 
 const createBlockerFixture = async (initialStorage = {}, { initiallyHidden = false, dwellDelayMs = 10 } = {}) => {
@@ -173,6 +173,42 @@ const createBlockerFixture = async (initialStorage = {}, { initiallyHidden = fal
     },
   };
 };
+
+test("paused and disconnected checks disable manual controls and recover after status refresh", async () => {
+  const fixture = await createBlockerFixture({}, { initiallyHidden: true, dwellDelayMs: 60_000 });
+  try {
+    const doc = fixture.window.document;
+    const checkButton = () => [...doc.querySelectorAll(".jsc-blocker-controls button")]
+      .find((node) => ["Check now", "Recheck"].includes(node.textContent));
+    fixture.status.pausedReason = "Plan usage limit reached";
+    fixture.setHidden(false);
+    await waitUntil(() => checkButton()?.disabled && doc.querySelector(".jsc-blocker-panel").textContent.includes("Plan usage limit"));
+    checkButton().click();
+    assert.equal(fixture.calls.length, 0);
+
+    fixture.status.pausedReason = null;
+    fixture.setHidden(false);
+    await waitUntil(() => checkButton() && !checkButton().disabled);
+    fixture.status.connectionStatus.planUsageEnabled = false;
+    fixture.setHidden(false);
+    await waitUntil(() => checkButton().disabled);
+    checkButton().click();
+    assert.equal(fixture.calls.length, 0);
+
+    fixture.status.connectionStatus.planUsageEnabled = true;
+    fixture.setHidden(false);
+    await waitUntil(() => !checkButton().disabled);
+    checkButton().click();
+    await waitUntil(() => checkButton()?.textContent === "Recheck" && !checkButton().disabled);
+    assert.equal(fixture.calls.length, 1);
+    fixture.status.pausedReason = "Plan usage limit reached";
+    fixture.setHidden(false);
+    await waitUntil(() => checkButton().disabled);
+    assert.equal(checkButton().textContent, "Recheck");
+  } finally {
+    await fixture.close();
+  }
+});
 
 test("initial embedded descriptions produce one check and a visible result without fetching jobs", async () => {
   const fixture = await createBlockerFixture();
@@ -431,7 +467,6 @@ test("challenging a blocker sends the objection, shows the reply, and does not r
         check.result.findings = [{ kind: "blocker", suggestedChallenge: "Please reconsider whether this requirement blocks me using the full advert and my existing evidence.", requirementQuote: "full UK driving licence", explanation: "Only a provisional licence is documented.", evidenceFacts: [] }];
       } else if (message.body.challenge) check.result.challengeReview = {
         accepted: true, profileUpdated: false, requirementQuote: message.body.challenge.requirementQuote,
-        response: "The clarification resolves this job-specific blocker.",
       };
       return { ok: true, check };
     };
@@ -568,7 +603,7 @@ test("an accepted profile correction refreshes evidence and keeps its reply visi
       } else {
         corrected = true;
         check.result.evidenceHash = "profile-corrected";
-        check.result.challengeReview = { accepted: true, profileUpdated: true, requirementQuote: "full UK driving licence", response: "Your full licence resolves the blocker." };
+        check.result.challengeReview = { accepted: true, profileUpdated: true, requirementQuote: "full UK driving licence" };
       }
       return { ok: true, check };
     };
@@ -716,7 +751,7 @@ for (const failSecond of [false, true]) test(`challenges run in order with fresh
           check.result.findings = findings.slice(index + 1);
           check.result.outcome = check.result.findings.length ? 'blocker' : 'no_blockers_found';
           check.result.challengeReview = { accepted: true, profileUpdated: index === 0,
-            requirementQuote: quotes[index], response: 'Your clarification resolves this finding.' };
+            requirementQuote: quotes[index] };
           resolve({ ok: true, check });
         };
       });

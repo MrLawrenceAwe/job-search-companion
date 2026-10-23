@@ -1,6 +1,6 @@
 (() => {
   const companion = globalThis.jobSearchCompanion;
-  const { labels: LABELS, limits, isRetainableResult, getRemainingFindings, canOverrideFinding } = globalThis.jobSearchContracts.blockers;
+  const { labels: LABELS, limits, isRetainableResult, getRemainingFindings, canOverrideFinding, canCheck } = globalThis.jobSearchContracts.blockers;
   companion.blockers.registerRenderer = ({ recordStore, checks, getCurrentResult, startCheck, getContext }) => {
     const drafts = new Map();
     const openDrafts = new Set();
@@ -69,7 +69,7 @@
       inputLabel.append(input);
       const actions = element("div", null, "jsc-blocker-controls");
       const submit = button(busy ? "Queue challenge" : "Send challenge", () => form.requestSubmit());
-      submit.disabled = pending || !checkerState?.settings.enabled || !checkerState?.connectionStatus.planUsageEnabled || Boolean(checkerState?.pausedReason);
+      submit.disabled = pending || !canCheck(checkerState);
       const cancel = button("Cancel", () => { openDrafts.delete(draftKey); form.hidden = true; toggle.hidden = false; });
       actions.append(submit, cancel);
       form.append(inputLabel, element("p", "Accepted factual corrections can update your profile files for future checks."), actions);
@@ -180,6 +180,7 @@
         checkedAt: result?.checkedAt,
         overriddenRequirementQuotes: result?.overriddenRequirementQuotes,
         enabled: checkerState?.settings.enabled,
+        canCheck: canCheck(checkerState),
         pausedReason: checkerState?.pausedReason,
         error: checkerState?.error,
       };
@@ -257,10 +258,7 @@
       }
       const controls = element("div", null, "jsc-blocker-controls");
       const checkButton = button(result ? "Recheck" : "Check now", () => void startCheck(true));
-      checkButton.disabled =
-        !checkerState?.settings.enabled ||
-        !checkerState?.connectionStatus.planUsageEnabled ||
-        busy;
+      checkButton.disabled = busy || !canCheck(checkerState);
       controls.append(checkButton);
       panel.append(controls);
       findings.append(panel);

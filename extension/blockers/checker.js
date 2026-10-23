@@ -1,7 +1,7 @@
 (() => {
   const companion = globalThis.jobSearchCompanion;
   if (companion.platform !== "indeed") return;
-  const { isRetainableResult, limits } = globalThis.jobSearchContracts.blockers;
+  const { isRetainableResult, limits, canCheck } = globalThis.jobSearchContracts.blockers;
   const { reasoningForModel } = globalThis.jobSearchContracts.inferenceSettings;
   const recordStore = globalThis.jobSearchBlockerResults.createStore();
   const checks = new Map();
@@ -34,8 +34,7 @@
   const runCheck = async (captured, force, challenge) => {
     if (
       !captured ||
-      !checkerState?.settings.enabled || checkerState?.pausedReason ||
-      !checkerState?.connectionStatus.planUsageEnabled ||
+      !canCheck(checkerState) ||
       (!force && document.hidden)
     )
       return;
@@ -126,8 +125,7 @@
   const scheduleDwell = () => {
     if (
       running || dwellTimer !== null || !selection || document.hidden ||
-      !checkerState?.settings.enabled || checkerState?.pausedReason ||
-      !checkerState?.connectionStatus.planUsageEnabled ||
+      !canCheck(checkerState) ||
       getCurrentResult() || checks.has(selection.signature)
     ) return;
     dwellTimer = setTimeout(() => {

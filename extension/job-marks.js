@@ -10,7 +10,7 @@
       icon: "✕",
     },
   };
-  const store = companion.jobMarks.createStore();
+  const store = companion.jobMarkStore;
   const { ready, isMarked } = store;
 
   const canMarkApplied = (jobUrl, cards = null) => {

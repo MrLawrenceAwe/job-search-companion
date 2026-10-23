@@ -68,7 +68,7 @@ test("settings use account registrations, save preferences, and clear only saved
   element("checkerModel").dispatchEvent(new window.Event("change"));
   assert.equal(element("checkerReasoning").disabled, false);
   assert.equal(element("reasoningHint").hidden, true);
-  assert.match(element("checkerSpeed").textContent, /Fast requested.*unconfirmed/);
+  assert.match(element("checkerSpeed").textContent, /Fast processing requested; actual speed may vary/);
   element("indexModel").value = "gpt-6-sol";
   element("indexModel").dispatchEvent(new window.Event("change"));
   element("checkerReasoning").value = "low";
