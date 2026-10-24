@@ -48,7 +48,7 @@ const loadMenuScripts = (context) =>
     "cv-fit-submission.js",
     "job-url.js",
     "job-resolution.js",
-    "job-mark-store.js",
+    "storage-observer.js", "job-mark-store.js",
     "page-decorations.js", "job-marks.js",
     "job-menu.js",
   ]);

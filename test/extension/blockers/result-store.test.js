@@ -42,7 +42,7 @@ const createStoreFixture = async (initialStorage = {}, readStorage, { maximumSto
       },
     },
   });
-  await runScriptsInVm(context, ["contracts/blockers.js", "blockers/result-store.js"]);
+  await runScriptsInVm(context, ["contracts/blockers.js", "storage-observer.js", "blockers/result-store.js"]);
   return { storage, notify, createStore: context.jobSearchBlockerResults.createStore };
 };
 

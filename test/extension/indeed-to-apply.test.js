@@ -43,7 +43,7 @@ const fixture = async (t, platform = 'indeed', stored = {}, resolveTitle = null,
     register: (fn, promise) => { renderers.push(fn); readiness.push(promise); },
     schedule: () => { scheduled++; render(page); },
   } };
-  await runScriptsInDom(window, ['job-url.js', 'job-mark-store.js', ...(includeMarkActions ? ['job-marks.js'] : []),
+  await runScriptsInDom(window, ['job-url.js', 'storage-observer.js', 'job-mark-store.js', ...(includeMarkActions ? ['job-marks.js'] : []),
     'job-analysis-store.js', ...(includeAnalysisActions ? ['job-analyses.js'] : []), 'indeed-to-apply-renderer.js', 'indeed-to-apply.js']);
   await Promise.all(readiness);
   render(page);

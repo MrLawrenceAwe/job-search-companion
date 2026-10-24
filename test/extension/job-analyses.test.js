@@ -25,7 +25,7 @@ const fixture = async (t, saved = {}) => {
   companion.jobs.collectJobCarriers = () => [{ element: window.document.querySelector("#job"), jobUrl }];
   companion.jobs.resolvePageJobUrl = () => jobUrl;
   companion.showToast = (...args) => toasts.push(args);
-  await runScriptsInDom(window, ["page-decorations.js", "job-analysis-store.js", "job-analyses.js"]);
+  await runScriptsInDom(window, ["page-decorations.js", "storage-observer.js", "job-analysis-store.js", "job-analyses.js"]);
   return { window, messages, toasts, change: (changes) => storageChange(changes, "local") };
 };
 

@@ -58,8 +58,9 @@ The content-page API in `extension-context.js` connects three boundaries:
 
 - Job identity and selection: URL adapters and `job-resolution.js` resolve jobs;
   navigation and menus consume that identity without guessing ambiguous jobs.
-- Persistent state: mark, analysis and blocker stores own initial snapshots and
-  storage notifications. Consumers subscribe only to their relevant records.
+- Persistent state: `storage-observer.js` orders initial snapshots and storage
+  notifications. Feature stores own validation, records, and writes; consumers
+  subscribe only to their relevant records.
 - Presentation: `page-decorations.js` shares page observation and a snapshot of
   cards, the selected heading, and stable control containers across renderers.
   The To apply coordinator selects eligible jobs separately from its renderer.
@@ -177,9 +178,9 @@ notifications, and clearing through `jobSearchBlockerResults.createStore()`;
 settings and the checker share that API. `blockers/renderer.js` reads results
 through the store and registers its renderer without changing manual marks. The
 checker requests deferred rendering through `pageDecorations.schedule()`.
-Each result store exposes a `ready` promise for its initial snapshot. Storage
-notifications apply after that snapshot so a late read cannot replace newer
-findings or resurrect a removed result. Saves and clearing also await readiness.
+Each result store uses `storage-observer.js` and exposes its `ready` promise
+for the initial snapshot. Storage notifications apply after that snapshot so a
+late read cannot replace newer findings or resurrect a removed result. Saves and clearing also await readiness.
 
 The selected full description must match the captured embedded or `/viewjob`
 response description before checking. Initial selections use Indeed's
@@ -204,8 +205,10 @@ may convert CV files, call the model, and save a refreshed index.
 Evidence status also reports whether the CV index is current, pending a refresh,
 or disabled, separately from the evidence hash.
 
-`cv-index.js` owns source fingerprints and the exact-excerpt index;
-see [CV extraction and reuse](#cv-extraction-and-reuse) for its lifecycle.
+`cv-index.js` owns source fingerprints and the exact-excerpt index. Its shared
+limits drive the prompt, schema, and validation; the schema restricts selection
+to supplied passage IDs. Empty selections still fail local validation.
+See [CV extraction and reuse](#cv-extraction-and-reuse) for its lifecycle.
 `chatgpt-response.js` parses completed JSON streams for checking and indexing.
 `inference.js` constructs requests and coordinates one corrective attempt.
 `inference-prompts.js` owns instructions, `requirement-policy.js` defines disjoint

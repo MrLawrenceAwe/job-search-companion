@@ -75,6 +75,7 @@
         "job-navigation.js",
         "feedback.js",
         "cv-fit-submission.js",
+        "storage-observer.js",
         "job-mark-store.js",
         "page-decorations.js",
         "job-marks.js",

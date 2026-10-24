@@ -147,7 +147,7 @@ const createBlockerFixture = async (initialStorage = {}, { initiallyHidden = fal
   await runScriptsInDom(window, [
     "blockers/indeed-description-capture.js",
     "blockers/indeed-description-store.js",
-    "blockers/result-store.js",
+    "storage-observer.js", "blockers/result-store.js",
     "page-decorations.js", "blockers/renderer.js",
     "blockers/checker.js",
   ]);
@@ -666,7 +666,7 @@ test("a rejected challenge can be overridden and undone without changing evidenc
     assert.match(doc.querySelector(".jsc-blocker-review").textContent, /Finding retained.*still requires driving/);
     assert.match(doc.querySelector(".jsc-blocker-badge").textContent, /Potential blocker/);
     assert.equal(doc.querySelector(".jsc-blocker-results > summary").textContent,
-      "1 potential blocker · Show findings");
+      "1 potential blocker");
     assert.equal(doc.querySelectorAll(".jsc-blocker-finding").length, 2);
     button("Undo override").click();
     await waitUntil(() => button("Override for this check"));
@@ -704,7 +704,7 @@ test("overriding the last rejected blocker labels the user's decision; recheck r
     await waitUntil(() => button("Undo override"));
     assert.match(doc.querySelector(".jsc-blocker-badge").textContent, /Blockers overridden by you/);
     assert.equal(doc.querySelector(".jsc-blocker-results > summary").textContent,
-      "All blockers overridden by you · Show findings");
+      "All blockers overridden by you");
     assert.equal(doc.querySelector(".jsc-blocker-panel").classList.contains("jsc-blocker"), false);
     assert.equal(fixture.storage["blocker-result:first1111"].outcome, "blocker", "original AI outcome is retained");
     button("Recheck").click();
@@ -712,7 +712,7 @@ test("overriding the last rejected blocker labels the user's decision; recheck r
     assert.equal(fixture.storage["blocker-result:first1111"].overriddenRequirementQuotes, undefined);
     assert.match(doc.querySelector(".jsc-blocker-badge").textContent, /Potential blocker/);
     assert.equal(doc.querySelector(".jsc-blocker-results > summary").textContent,
-      "1 potential blocker · Show findings");
+      "1 potential blocker");
     assert.equal(button("Override for this check"), undefined, "the new check needs a rejected challenge before overriding");
   } finally { await fixture.close(); }
 });
@@ -796,6 +796,13 @@ for (const failSecond of [false, true]) test(`challenges run in order with fresh
     assert.equal(requests.length, 2);
     releases[1]();
     await waitUntil(() => releases[2]);
+    if (failSecond) {
+      await waitUntil(() => doc.querySelector('.jsc-blocker-error')?.textContent.includes('Review failed'));
+      const errors = [...doc.querySelectorAll('.jsc-blocker-error')]
+        .filter((node) => node.textContent.includes('Review failed'));
+      assert.equal(errors.length, 1, 'a failed challenge has one requirement-specific error');
+      assert.ok(errors[0].textContent.includes(quotes[1]));
+    }
     assert.equal(requests[2].reason, 'Unfinished third clarification');
     assert.equal(requests[2].evidenceHash, 'updated-profile');
     releases[2]();

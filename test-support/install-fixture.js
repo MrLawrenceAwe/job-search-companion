@@ -1,15 +1,14 @@
-import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
+import { makeTemporaryDirectory } from "./temporary-directory.js";
 import { install } from "../installer/lifecycle.js";
 import { sha256 } from "../shared/sha256.js";
 
 export { sha256 };
 
 export const makeInstallFixture = async (context) => {
-  const directory = await mkdtemp(join(await realpath(tmpdir()), "jsc-install-"));
-  context.after(() => rm(directory, { recursive: true, force: true }));
+  const directory = await makeTemporaryDirectory(context, "jsc-install-");
   const paths = {
     rootPath: join(directory, "checkout with & chars"),
     workspacePath: join(directory, "CV Fit & Review"),

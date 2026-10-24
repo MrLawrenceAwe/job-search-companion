@@ -54,7 +54,7 @@ test("settings use account registrations, save preferences, and clear only saved
       },
     },
   };
-  await runScriptsInDom(window, ["contracts/blockers.js", "contracts/inference-settings.js", "contracts/messages.js", "blockers/client.js", "blockers/result-store.js", "options.js"]);
+  await runScriptsInDom(window, ["contracts/blockers.js", "contracts/inference-settings.js", "contracts/messages.js", "blockers/client.js", "storage-observer.js", "blockers/result-store.js", "options.js"]);
   const element = (id) => window.document.getElementById(id);
   await waitUntil(() => element("saveSettings").textContent === "Saved");
   assert.match(element("evidence").textContent, /Profile loaded.*refresh on the next check/);
@@ -143,7 +143,7 @@ test("returning to settings detects a pause and preserves unsaved preferences", 
     } },
     storage: { local: { async get() { return {}; } }, onChanged: { addListener() {} } },
   };
-  await runScriptsInDom(window, ["contracts/blockers.js", "contracts/inference-settings.js", "contracts/messages.js", "blockers/client.js", "blockers/result-store.js", "options.js"]);
+  await runScriptsInDom(window, ["contracts/blockers.js", "contracts/inference-settings.js", "contracts/messages.js", "blockers/client.js", "storage-observer.js", "blockers/result-store.js", "options.js"]);
   const element = (id) => window.document.getElementById(id);
   await waitUntil(() => element("saveSettings").textContent === "Saved");
   state.pausedReason = "Plan usage limit reached";

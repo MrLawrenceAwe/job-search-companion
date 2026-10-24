@@ -37,13 +37,10 @@
     } else return false;
     return true;
   };
-  const ready = Promise.all([
-    analyses.ready,
-    marks.ready,
-    chrome.storage.local.get(null).then((stored) => {
-      for (const [key, value] of Object.entries(stored)) read(key, value);
-    }),
-  ]);
+  const metadata = globalThis.jobSearchStorage.observe({
+    read, errorMessage: "Job metadata update failed:",
+  });
+  const ready = Promise.all([analyses.ready, marks.ready, metadata.ready]);
   const rememberTitle = (jobUrl, title, updates) => {
     const key = keys.forUrl("title", jobUrl);
     const clean = companion.text.normalizeJobTitle(title);
@@ -162,16 +159,7 @@
       companion.pageDecorations.schedule();
     }).catch((error) => console.debug("Indeed dismissal could not be saved:", error));
   }, true);
-  chrome.storage.onChanged.addListener((changes, area) => {
-    if (area !== "local") return;
-    void ready.then(() => {
-      let relevant = false;
-      for (const [key, { newValue }] of Object.entries(changes)) {
-        if (read(key, newValue)) relevant = true;
-      }
-      if (relevant) companion.pageDecorations.schedule();
-    });
-  });
+  metadata.subscribe(companion.pageDecorations.schedule);
   analyses.subscribe(companion.pageDecorations.schedule);
   marks.subscribe(companion.pageDecorations.schedule);
   const updatePage = (page) => {

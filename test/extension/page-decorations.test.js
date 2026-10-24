@@ -45,7 +45,7 @@ test('pending keyboard navigation keeps detail marks bound to the displayed job'
   const companion = window.jobSearchCompanion;
   companion.dom.getRenderedRect = companion.dom.getViewportRect = () => ({ width: 500, height: 100, left: 0, top: 0 });
   companion.showToast = () => {};
-  await runScriptsInDom(window, ['page-decorations.js', 'job-mark-store.js', 'job-marks.js']);
+  await runScriptsInDom(window, ['page-decorations.js', 'storage-observer.js', 'job-mark-store.js', 'job-marks.js']);
   await waitUntil(() => window.document.querySelector('.jsc-unsuitable-action'));
   companion.jobs.navigateJob(1);
   companion.jobs.navigateJob(1);
@@ -103,7 +103,7 @@ const fixture = async (t, { applyMarkup = "", cardMarkup = "" } = {}) => {
   };
   companion.jobs.resolvePageJobUrl = () => selectedJob;
   companion.showToast = () => {};
-  await runScriptsInDom(window, ['page-decorations.js', 'job-mark-store.js', 'job-marks.js', 'job-analysis-store.js', 'job-analyses.js', 'blockers/renderer.js']);
+  await runScriptsInDom(window, ['page-decorations.js', 'storage-observer.js', 'job-mark-store.js', 'job-marks.js', 'job-analysis-store.js', 'job-analyses.js', 'blockers/renderer.js']);
   const scheduleFindings = companion.pageDecorations.schedule;
   companion.blockers.registerRenderer({
     recordStore: { get: () => result }, checks: new Map(),
@@ -281,7 +281,7 @@ test('LinkedIn SDUI detail titles render marks and saved analyses without select
   window.jobSearchCompanion.dom.getRenderedRect = (element) =>
     element.isConnected && !element.closest('[hidden]') ? { width: 100, height: 30 } : null;
   await runScriptsInDom(window, [
-    'page-decorations.js', 'job-mark-store.js', 'job-marks.js', 'job-analysis-store.js', 'job-analyses.js',
+    'page-decorations.js', 'storage-observer.js', 'job-mark-store.js', 'job-marks.js', 'job-analysis-store.js', 'job-analyses.js',
   ]);
   await waitUntil(() => window.document.querySelector('.jsc-analysis-detail'));
   const pane = window.document.querySelector('[data-sdui-screen]');

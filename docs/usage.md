@@ -1,5 +1,7 @@
 # Using Job Search Companion
 
+## Track applications
+
 Applied and unsuitable marks are manual records in this Chrome profile. Mark a
 listing after applying on the employer's website; marks do not update Indeed or
 LinkedIn's application history. Removing the extension clears these local records.
@@ -8,6 +10,8 @@ On Indeed, **Mark as applied** is hidden in the detail pane and menu when the
 job has an Easily apply badge or Indeed Apply control. Use it for jobs that
 require an employer website, email, or another application route. Saved badges
 remain visible, and **Mark as unsuitable** stays available.
+
+## Revisit jobs to apply to
 
 The collapsible **To apply** counter on Indeed lists analysed jobs with a
 **Use as is** or **Edit CV** verdict. It excludes manual Applied marks and
@@ -33,6 +37,8 @@ the listing's published expiry date. Remaining jobs are checked in the
 background, with results cached for an hour. Opening an expired job removes it
 immediately. Network errors and verification pages preserve the saved status.
 
+## Browse job results
+
 Use **J/K** to select the next or previous rendered result. **H** hides the
 selected result on the current page and selects the next result, or the previous
 one if there is no next result. **U** undoes the latest navigation or hide.
@@ -42,6 +48,8 @@ navigation and undo history; the first **J** selects the top rendered result.
 
 Detail controls stay bound to the displayed job while another result loads.
 If the displayed job cannot be identified safely, job-specific controls are omitted.
+
+## Request CV-fit analysis
 
 **Analyse with CV Fit Advisor** and **N** prepare a task using the local bridge.
 Blocker checks operate on complete loaded Indeed descriptions; see the

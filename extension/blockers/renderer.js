@@ -221,10 +221,10 @@
         results.open = Boolean(keepResultsOpen);
         const count = getRemainingFindings(result).length;
         const summaryLabel = !result.findings.length
-          ? "No blockers found · Show details"
+          ? "No blockers found"
           : count === 0
-            ? "All blockers overridden by you · Show findings"
-            : `${count} potential blocker${count === 1 ? "" : "s"} · Show findings`;
+            ? "All blockers overridden by you"
+            : `${count} potential blocker${count === 1 ? "" : "s"}`;
         results.append(element("summary", summaryLabel));
         const resultBody = element("div", null, "jsc-blocker-result-body");
         results.append(resultBody);

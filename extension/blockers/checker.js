@@ -31,6 +31,11 @@
       ? record
       : null;
   };
+  const checkState = ({ id, status, error, code }, challenge) => ({
+    id, status, code,
+    // Challenge entries own their requirement-specific errors.
+    ...(!challenge && error ? { error } : {}),
+  });
   const runCheck = async (captured, force, challenge) => {
     if (
       !captured ||
@@ -47,11 +52,11 @@
         force,
         ...(challenge ? { challenge } : {}),
       });
-      checks.set(captured.signature, check);
+      checks.set(captured.signature, checkState(check, challenge));
       scheduleRender();
       while (["checking", "queued"].includes(check.status)) {
         ({ check } = await request("poll", null, check.id));
-        checks.set(captured.signature, check);
+        checks.set(captured.signature, checkState(check, challenge));
         // Poll completion regardless of later selection, but render only the current job.
         scheduleRender();
       }
@@ -67,10 +72,7 @@
       scheduleRender();
       return check;
     } catch (error) {
-      checks.set(captured.signature, {
-        status: "failed",
-        error: error.message,
-      });
+      checks.set(captured.signature, checkState({ status: "failed", error: error.message }, challenge));
       scheduleRender();
       return { status: "failed", error: error.message };
     }

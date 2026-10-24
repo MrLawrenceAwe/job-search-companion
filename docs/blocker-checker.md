@@ -58,7 +58,7 @@ explicitly. If checking pauses, review
 the message in settings, resolve the connection or model issue, and choose
 **Resume checks**.
 
-The selected detail shows **Blocker check** with a collapsed finding count. Expand **Show findings** to review results in a scrollable area, challenge them, or override eligible findings. **Recheck** stays visible when results are collapsed. The expanded results show **Potential blocker** findings
+The selected detail shows **Blocker check** with a collapsed finding count. Expand the finding count to review results in a scrollable area, challenge them, or override eligible findings. **Recheck** stays visible when results are collapsed. The expanded results show **Potential blocker** findings
 or **No blockers found**. A potential blocker means an essential requirement is
 not established by the supplied evidence. Its explanation distinguishes missing
 or conflicting evidence from an explicit incompatibility. It does not prove that

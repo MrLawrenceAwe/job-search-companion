@@ -4,7 +4,6 @@
 
   const records = new Map();
   const pendingWrites = new Set();
-  const listeners = new Set();
   // Preserve saved record keys: changing these would discard existing marks.
   const keyFor = (jobUrl, kind) => {
     const normalized = companion.jobs.jobUrlFromPageUrl(jobUrl);
@@ -19,28 +18,14 @@
     else records.delete(key);
     return true;
   };
-  const ready = chrome.storage.local.get(null).then((stored) => {
-    for (const [key, value] of Object.entries(stored)) readRecord(key, value);
-  });
-  // Apply notifications after the initial snapshot so newer changes win.
-  chrome.storage.onChanged.addListener((changes, area) => {
-    if (area !== "local") return;
-    void ready.then(() => {
-      let relevant = false;
-      for (const [key, { newValue }] of Object.entries(changes)) {
-        if (readRecord(key, newValue)) relevant = true;
-      }
-      if (relevant) for (const listener of listeners) listener();
-    }).catch((error) => console.debug("Job record update failed:", error));
+  const { ready, subscribe } = globalThis.jobSearchStorage.observe({
+    read: readRecord, errorMessage: "Job record update failed:",
   });
   companion.jobMarkStore = Object.freeze({
     ready,
     isMarked: (jobUrl, kind) => isRecord(kind, records.get(keyFor(jobUrl, kind))),
     isPending: (jobUrl, kind) => pendingWrites.has(keyFor(jobUrl, kind)),
-    subscribe(listener) {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
+    subscribe,
     async toggle(jobUrl, kind) {
       const key = keyFor(jobUrl, kind);
       if (pendingWrites.has(key)) return null;

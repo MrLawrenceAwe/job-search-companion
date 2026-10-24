@@ -1,17 +1,24 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtemp, readFile, writeFile, unlink, stat, realpath, rm } from "node:fs/promises";
+import { readFile, writeFile, unlink, stat } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { openCvIndex, validateCvIndex, extractCvText } from "../../../bridge/blockers/cv-index.js";
+import { makeTemporaryDirectory } from "../../../test-support/temporary-directory.js";
+import { openCvIndex, validateCvIndex, extractCvText, createCvIndexSchema, cvIndexLimits } from "../../../bridge/blockers/cv-index.js";
 
 const text = "WORK EXPERIENCE Software Tester - Boeing | 2023 - 2024 Executed manual tests. PROJECTS Personal Chrome extension | 2026 Built automated project tests.";
 const documents = [{ id: "P1", name: "source.pdf", text }];
 const response = (output) => new Response(`data: ${JSON.stringify({ type: "response.completed", response: { status: "completed", output: [{ type: "message", role: "assistant", content: [{ type: "output_text", text: JSON.stringify(output) }] }] } })}\n\n`);
 
 test("CV indexing rejects invented evidence and preserves employment/project context verbatim", () => {
+  const schema = createCvIndexSchema(documents).properties.passageIds;
+  assert.equal(schema.maxItems, cvIndexLimits.maximumPassages);
+  assert.deepEqual(schema.items.enum, ["P1"]);
+  assert.throws(() => validateCvIndex({ passageIds: Array(cvIndexLimits.maximumPassages + 1).fill("P1") }, documents));
+  assert.throws(() => validateCvIndex({ passageIds: ["P1"] }, [
+    { ...documents[0], text: "x".repeat(cvIndexLimits.maximumCharacters + 1) },
+  ]));
   const passageIds = ["P1"];
   assert.deepEqual(validateCvIndex({ passageIds }, documents), [{ text, source: "CV: source.pdf" }]);
   for (const output of [{ passageIds: [] }, { passageIds: ["P99"] },
@@ -19,8 +26,8 @@ test("CV indexing rejects invented evidence and preserves employment/project con
     assert.throws(() => validateCvIndex(output, documents));
 });
 
-test("CV index persists once, shares concurrent refreshes, and rebuilds on edits, additions and deletions", async () => {
-  const directory = await mkdtemp(join(await realpath(tmpdir()), "jsc-cv-index-"));
+test("CV index persists once, shares concurrent refreshes, and rebuilds on edits, additions and deletions", async (t) => {
+  const directory = await makeTemporaryDirectory(t, "jsc-cv-index-");
   const name = "Lawrence_Awe_CV_Test.pdf";
   await writeFile(join(directory, name), text);
   let calls = 0;
@@ -36,6 +43,7 @@ test("CV index persists once, shares concurrent refreshes, and rebuilds on edits
       assert.equal(request.reasoning, undefined);
     }
     const docs = JSON.parse(request.input[0].content).passages;
+    assert.deepEqual(request.text.format.schema, createCvIndexSchema(docs));
     return response({ passageIds: docs.map((document) => document.id) });
   } };
   const options = { directory, cvDirectory: directory, chatgpt, extract: (path) => readFile(path, "utf8") };
@@ -60,8 +68,8 @@ test("CV index persists once, shares concurrent refreshes, and rebuilds on edits
   assert.ok(await restored.readCurrent({ model: "gpt-6-sol" }));
 });
 
-test("failed or cancelled index refresh never publishes a current index", async () => {
-  const directory = await mkdtemp(join(await realpath(tmpdir()), "jsc-cv-index-"));
+test("failed or cancelled index refresh never publishes a current index", async (t) => {
+  const directory = await makeTemporaryDirectory(t, "jsc-cv-index-");
   await writeFile(join(directory, "Lawrence_Awe_CV_Test.pdf"), text);
   const controller = new AbortController();
   const read = await openCvIndex({ directory, cvDirectory: directory, extract: (path) => readFile(path, "utf8"),
@@ -71,8 +79,7 @@ test("failed or cancelled index refresh never publishes a current index", async 
 });
 
 test("CV refresh converts only changed sources and reuses extraction across models and request failures", async (t) => {
-  const directory = await mkdtemp(join(await realpath(tmpdir()), "jsc-cv-reuse-"));
-  t.after(() => rm(directory, { recursive: true, force: true }));
+  const directory = await makeTemporaryDirectory(t, "jsc-cv-reuse-");
   const first = join(directory, "Lawrence_Awe_CV_A.txt");
   const second = join(directory, "Lawrence_Awe_CV_B.txt");
   await writeFile(first, text);
@@ -109,8 +116,7 @@ test("CV refresh converts only changed sources and reuses extraction across mode
 });
 
 test("a CV edited during conversion is never reused under the original content hash", async (t) => {
-  const directory = await mkdtemp(join(await realpath(tmpdir()), "jsc-cv-conversion-edit-"));
-  t.after(() => rm(directory, { recursive: true, force: true }));
+  const directory = await makeTemporaryDirectory(t, "jsc-cv-conversion-edit-");
   const path = join(directory, "Lawrence_Awe_CV_A.txt");
   await writeFile(path, text);
   let conversions = 0;
@@ -133,8 +139,7 @@ test("a CV edited during conversion is never reused under the original content h
 
 test("final verification rejects CV edits, additions and removals during inference", async (t) => {
   for (const change of ["edit", "add", "remove"]) {
-    const directory = await mkdtemp(join(await realpath(tmpdir()), "jsc-cv-inference-edit-"));
-    t.after(() => rm(directory, { recursive: true, force: true }));
+    const directory = await makeTemporaryDirectory(t, "jsc-cv-inference-edit-");
     const path = join(directory, "Lawrence_Awe_CV_A.txt");
     await writeFile(path, text);
     const index = await openCvIndex({ directory, cvDirectory: directory,
@@ -152,8 +157,7 @@ test("final verification rejects CV edits, additions and removals during inferen
 });
 
 test("cancellation during extraction stops remaining CVs and permits a fresh retry", async (t) => {
-  const directory = await mkdtemp(join(await realpath(tmpdir()), "jsc-cv-cancel-"));
-  t.after(() => rm(directory, { recursive: true, force: true }));
+  const directory = await makeTemporaryDirectory(t, "jsc-cv-cancel-");
   for (let i = 0; i < 3; i++)
     await writeFile(join(directory, `Lawrence_Awe_CV_${i}.txt`), text);
   const controller = new AbortController();
@@ -181,8 +185,7 @@ test("cancellation during extraction stops remaining CVs and permits a fresh ret
 });
 
 test("CV conversion overlaps at most three sources and retains sorted evidence despite completion order", async (t) => {
-  const directory = await mkdtemp(join(await realpath(tmpdir()), "jsc-cv-parallel-"));
-  t.after(() => rm(directory, { recursive: true, force: true }));
+  const directory = await makeTemporaryDirectory(t, "jsc-cv-parallel-");
   const { waitUntil } = await import("../../../test-support/async.js");
   const names = Array.from({ length: 6 }, (_, i) => `Lawrence_Awe_CV_${i}.txt`);
   await Promise.all(names.map((name, i) => writeFile(join(directory, name), `${text} Source ${i}.`)));
@@ -220,8 +223,7 @@ test("CV conversion overlaps at most three sources and retains sorted evidence d
 });
 
 test("a failed conversion aborts and drains sibling converters before a retry", async (t) => {
-  const directory = await mkdtemp(join(await realpath(tmpdir()), "jsc-cv-sibling-failure-"));
-  t.after(() => rm(directory, { recursive: true, force: true }));
+  const directory = await makeTemporaryDirectory(t, "jsc-cv-sibling-failure-");
   const { waitUntil } = await import("../../../test-support/async.js");
   for (let i = 0; i < 6; i++) await writeFile(join(directory, `Lawrence_Awe_CV_${i}.txt`), text);
   let fail;
@@ -258,8 +260,7 @@ test("a failed conversion aborts and drains sibling converters before a retry", 
 });
 
 test("cancellation drains all active conversions and skips waiting sources", async (t) => {
-  const directory = await mkdtemp(join(await realpath(tmpdir()), "jsc-cv-active-cancel-"));
-  t.after(() => rm(directory, { recursive: true, force: true }));
+  const directory = await makeTemporaryDirectory(t, "jsc-cv-active-cancel-");
   const { waitUntil } = await import("../../../test-support/async.js");
   for (let i = 0; i < 6; i++) await writeFile(join(directory, `Lawrence_Awe_CV_${i}.txt`), text);
   const controller = new AbortController();
@@ -297,8 +298,7 @@ test("already cancelled extraction never opens a source file or starts a convert
 test("Word extraction cancels an active converter without waiting for its process timeout", {
   skip: process.platform !== "darwin", timeout: 5000,
 }, async (t) => {
-  const directory = await mkdtemp(join(await realpath(tmpdir()), "jsc-cv-converter-"));
-  t.after(() => rm(directory, { recursive: true, force: true }));
+  const directory = await makeTemporaryDirectory(t, "jsc-cv-converter-");
   const path = join(directory, "waiting.docx");
   // A pipe with no writer keeps textutil blocked reading, until cancellation kills it.
   await promisify(execFile)("/usr/bin/mkfifo", [path]);
@@ -317,10 +317,11 @@ test("passages retain complete role and project context while deduplicating repe
   assert.ok(passages.some((p) => /no bookkeeping experience/.test(p.text)));
 });
 
-test("checker queues slow indexing without blocking the start response and exposes the same evidence hash in status/results", async () => {
+test("checker queues slow indexing without blocking the start response and exposes the same evidence hash in status/results", async (t) => {
   const { openBlockerChecker } = await import("../../../bridge/blockers/checker.js");
   const { waitUntil } = await import("../../../test-support/async.js");
-  const directory = await mkdtemp(join(await realpath(tmpdir()), "jsc-cv-checker-"));
+  let checker;
+  const directory = await makeTemporaryDirectory(t, "jsc-cv-checker-", () => checker?.close());
   const cv = join(directory, "Lawrence_Awe_CV_Test.txt");
   const profile = join(directory, "profile.md");
   await writeFile(cv, "WORK EXPERIENCE\nSoftware Tester - Boeing | 2023 - 2024\nExecuted manual software tests, recorded defects and produced reports for review.\nEDUCATION\nBSc Computer Science, University of Kent.");
@@ -338,7 +339,7 @@ test("checker queues slow indexing without blocking the start response and expos
       return response({ passageIds: passages.map((p) => p.id) });
     },
   };
-  const checker = await openBlockerChecker({ directory, cvDirectory: directory,
+  checker = await openBlockerChecker({ directory, cvDirectory: directory,
     profileSources: [{ kind: "application", path: profile }], chatgpt,
     infer: async ({ evidence }) => {
       assert.ok(evidence.facts.some((f) => /Boeing/.test(f.text)));
@@ -358,5 +359,4 @@ test("checker queues slow indexing without blocking the start response and expos
   assert.equal(calls, 1);
   await writeFile(cv, (await readFile(cv, "utf8")) + "\nISTQB Foundation certified.");
   assert.notEqual((await checker.status()).evidence.hash, hash);
-  checker.close();
 });
