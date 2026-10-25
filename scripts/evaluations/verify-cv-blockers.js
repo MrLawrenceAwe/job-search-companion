@@ -1,3 +1,4 @@
+import { runEvaluationCase } from "./run-case.js";
 import { inferenceSettingsContract } from "../../shared/contracts.js";
 import { cvVerificationCases } from "./cases.js";
 import { combineProfileAndCvEvidence } from "../../bridge/blockers/evidence.js";
@@ -21,16 +22,15 @@ const evidence = combineProfileAndCvEvidence(base, index);
 const cases = cvVerificationCases;
 const runs = [];
 for (const fixture of cases) {
-  const start = performance.now();
-  const result = await runBlockerInference({ chatgpt, model: "gpt-6-luna", reasoningEffort, evidence,
-    description: fixture.description, signal: AbortSignal.timeout(90_000) });
-  const run = { case: fixture.name, durationMs: Math.round(performance.now() - start), outcome: result.outcome,
-    expected: fixture.expected, passed: result.outcome === fixture.expected, findings: result.findings };
-  if (fixture.name === "renewables-specialist-v1")
-    run.passed &&= result.findings.some((finding) => /renew|energy/i.test(finding.requirementQuote))
-      && result.findings.some((finding) => /MCS|compliance documentation/i.test(finding.requirementQuote));
+  const { result, error, durationMs, passed, stop } = await runEvaluationCase(fixture, () =>
+    runBlockerInference({ chatgpt, model: "gpt-6-luna", reasoningEffort, evidence,
+      description: fixture.description, signal: AbortSignal.timeout(90_000) }));
+  const run = { case: fixture.name, durationMs, outcome: result?.outcome || null,
+    expected: fixture.expected, passed, findings: result?.findings || [],
+    ...(error ? { error } : {}) };
   runs.push(run);
   console.log(JSON.stringify({ ...run, findings: run.findings.map(({ kind, requirementQuote }) => ({ kind, requirementQuote })) }));
+  if (stop) break;
 }
 const report = { measuredAt: new Date().toISOString(), model: "gpt-6-luna", reasoningEffort,
   ...inferenceReportMetadata(evidence),

@@ -1,3 +1,4 @@
+import { findingPolicyDescription } from "./requirement-policy.js";
 import { blockerContract } from "../../shared/contracts.js";
 
 const { suggestedChallengeLimits, limits } = blockerContract;
@@ -68,8 +69,7 @@ Include these only when the advert explicitly requires residency within a stated
 For example, "The job's base or service area is not specified, so commute or relocation fit cannot be determined" must never appear as a finding.
 
 ## Finding policy
-The caller derives findings only for mandatory requirements: an unsupported mandatory eligibility requirement is a blocker, whether evidence is incompatible, missing or conflicting; a mandatory work arrangement is a blocker only with explicit incompatible evidence.
-Unclear, preferred and excluded requirements, supported requirements, and work arrangements with missing or conflicting evidence produce no findings.
+${findingPolicyDescription}
 An eligibility blocker means the supplied evidence does not establish a concrete essential prerequisite; do not claim the candidate lacks experience when it is merely undocumented.
 
 ## Output fields
@@ -112,6 +112,7 @@ Keep the challenged requirementQuote unchanged in the inventory.
 Set challengeAccepted true only when that requirement no longer produces a blocker; otherwise set it false.
 
 ## Profile corrections
+Job-specific arguments and exceptions apply only to this check. Accepted reusable factual corrections may be saved for future checks.
 For accepted, concrete reusable candidate facts only, integrate concise canonical factual statements via profileUpdates with text and replacesFactIds (IDs of ALL superseded or duplicate profile facts).
 Return at most ${limits.maximumProfileUpdates} updates, each a non-empty single line of at most ${limits.maximumProfileFactCharacters} characters. replacesFactIds may contain only editable profile IDs starting with F, never CV or CH1 IDs.
 New facts use an empty replacesFactIds list.

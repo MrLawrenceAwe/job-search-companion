@@ -1,3 +1,4 @@
+import { runEvaluationCase } from "./run-case.js";
 import { inferenceSettingsContract } from "../../shared/contracts.js";
 import { benchmarkCases } from "./cases.js";
 import { fileURLToPath } from "node:url";
@@ -9,27 +10,22 @@ const evidence = await readEvaluationProfile();
 const cases = benchmarkCases;
 const chatgpt = createEvaluationClient();
 const runs = [];
-for (let round = 0; round < 2; round++) {
+benchmark: for (let round = 0; round < 2; round++) {
   for (const [index, fixture] of cases.entries()) {
     // Alternate first effort across cases and rounds to reduce ordering bias.
     const efforts = inferenceSettingsContract.checkerReasoningEfforts;
     for (const reasoningEffort of (round + index) % 2 ? [...efforts].reverse() : efforts) {
-      const started = performance.now();
-      let result = null;
-      let error = null;
-      try {
-        result = await runBlockerInference({ chatgpt, model: "gpt-6-luna", reasoningEffort,
-          description: fixture.description, evidence, signal: AbortSignal.timeout(90_000) });
-      } catch (failure) {
-        error = failure.message;
-      }
+      const { result, error, durationMs, passed, stop } = await runEvaluationCase(fixture, () =>
+        runBlockerInference({ chatgpt, model: "gpt-6-luna", reasoningEffort,
+          description: fixture.description, evidence, signal: AbortSignal.timeout(90_000) }));
       const run = { round: round + 1, case: fixture.name, reasoningEffort,
-        durationMs: Math.round(performance.now() - started), outcome: result?.outcome || null,
-        expected: fixture.expected, passed: result?.outcome === fixture.expected,
+        durationMs, outcome: result?.outcome || null,
+        expected: fixture.expected, passed,
         findings: result?.findings.map(({ kind, requirementQuote }) => ({ kind, requirementQuote })) || [],
         ...(error ? { error } : {}) };
       runs.push(run);
       console.log(JSON.stringify(run));
+      if (stop) break benchmark;
     }
   }
 }

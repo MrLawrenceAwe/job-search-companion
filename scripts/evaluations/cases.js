@@ -39,6 +39,7 @@ const missingEvidence = Object.freeze({
 
 const renewablesSpecialist = Object.freeze({
   name: "renewables-specialist-v1",
+  requiredQuotePatterns: ["renew|energy", "MCS|compliance documentation"],
   description: await readFile(new URL("../../test-support/renewables-administrator.txt", import.meta.url), "utf8"),
   expected: "blocker",
 });

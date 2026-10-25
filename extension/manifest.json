@@ -58,16 +58,12 @@
         "contracts/job-urls.js",
         "contracts/job-storage-keys.js",
         "contracts/job-marks.js",
-        "contracts/indeed-availability.js",
         "contracts/identifiers.js",
         "contracts/job-analyses.js",
-        "contracts/blockers.js",
-        "contracts/inference-settings.js",
         "contracts/messages.js",
         "contracts/cv-fit-submissions.js",
         "contracts/cv-fit-settings.js",
         "contracts/shortcuts.js",
-        "blockers/client.js",
         "extension-context.js",
         "dom-visibility.js",
         "job-url.js",
@@ -81,19 +77,34 @@
         "job-marks.js",
         "job-analysis-store.js",
         "job-analyses.js",
+        "shortcuts.js",
+        "job-menu.js",
+        "job-menu-observer.js"
+      ],
+      "css": [
+        "content.css"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://indeed.com/*",
+        "https://*.indeed.com/*",
+        "https://indeed.co.uk/*",
+        "https://*.indeed.co.uk/*"
+      ],
+      "js": [
+        "contracts/indeed-availability.js",
+        "contracts/blockers.js",
+        "contracts/inference-settings.js",
+        "blockers/client.js",
         "indeed-job-metadata.js",
         "indeed-to-apply-renderer.js",
         "indeed-to-apply.js",
-        "shortcuts.js",
-        "job-menu.js",
-        "job-menu-observer.js",
         "blockers/indeed-description-store.js",
         "blockers/result-store.js",
         "blockers/renderer.js",
         "blockers/checker.js"
-      ],
-      "css": [
-        "content.css"
       ],
       "run_at": "document_start"
     }

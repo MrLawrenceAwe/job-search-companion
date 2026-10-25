@@ -51,7 +51,9 @@ task because submission may have happened before confirmation was saved.
 ## Extension structure
 
 [The manifest](../extension/manifest.json) defines content-script dependency order
-and execution worlds. Shared browser/Node contracts live in `extension/contracts/`
+and execution worlds. Common isolated scripts load first; a following Indeed-only
+declaration loads metadata, To apply and blocker features. Shared browser/Node
+contracts live in `extension/contracts/`
 and are imported by Node through `shared/contracts.js`.
 
 The content-page API in `extension-context.js` connects three boundaries:
@@ -74,7 +76,8 @@ headers and timeouts, and `worker/senders.js` validates job-site senders.
 Listing title and availability requests share in-flight fetches and one JSON-LD
 parse while retaining separate caches. Installer-generated `local-config.js`
 provides private bridge settings. `options.html`, `options.js`, and `options.css`
-implement blocker settings; available model selections survive catalogue refresh.
+implement blocker settings. Saved or draft model choices survive catalogue refresh;
+unavailable choices remain visible and disabled while absent from the catalogue.
 
 `cvFitSubmissions` is the content-page API for sending Codex tasks. The bridge's
 `cv-fit-submission-store.js` persists their statuses; `cv-fit-submission-service.js` owns locking, execution and terminal-submission history pruning. `analysis-routes.js` owns completion, listing and chat opening, with scoped completion dispatched before general-token authentication. The native helper publishes
@@ -214,8 +217,8 @@ See [CV extraction and reuse](#cv-extraction-and-reuse) for its lifecycle.
 `chatgpt-response.js` parses completed JSON streams for checking and indexing.
 `inference.js` constructs requests and coordinates one corrective attempt.
 `inference-prompts.js` owns instructions, `requirement-policy.js` defines disjoint
-classification groups used by both `inference-schemas.js` and
-`inference-validation.js`, and the validator also checks quotes, evidence IDs,
+classification groups shared by the generated finding-policy instructions,
+`inference-schemas.js` and `inference-validation.js`, and the validator also checks quotes, evidence IDs,
 profile corrections and challenge decisions. See [requirement policy](#requirement-policy).
 
 `chatgpt-accounts.js` exposes `openChatGPTAccountManager()` for registrations,

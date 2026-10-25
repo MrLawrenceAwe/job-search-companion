@@ -1,3 +1,4 @@
+import { runEvaluationCase } from "./run-case.js";
 import { comparisonCases } from "./cases.js";
 import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
@@ -41,11 +42,8 @@ try {
     const inference = variant === "baseline" ? baseline.runBlockerInference : runBlockerInference;
     const chatgpt = createMeasuredClient(client);
     const reasoningEffort = variant === "baseline" ? "medium" : currentReasoningEffort;
-    const started = performance.now();
-    let result;
-    let error;
-    try {
-      result = await inference({
+    const { result, error, durationMs, passed, stop } = await runEvaluationCase(fixture, () =>
+      inference({
         chatgpt,
         model: "gpt-6-luna",
         reasoningEffort,
@@ -53,30 +51,19 @@ try {
         // Older revisions intentionally keep their historical input contract.
         ...(variant === "baseline" && baselineContract.version < 13 ? { profile: evidence } : { evidence }),
         signal: AbortSignal.timeout(90_000),
-      });
-    } catch (failure) {
-      error = failure.message;
-    }
-    // Compare finding presence across revisions; retain each revision's raw outcome
-    // in the report so a result-label rename cannot masquerade as an accuracy change.
+      }));
     const findings = result?.findings || [];
-    let passed = Boolean(result) && (fixture.expected === "blocker"
-      ? findings.length > 0
-      : findings.length === 0);
-    if (fixture.name === "renewables-specialist-v1" && result) {
-      passed &&= findings.some((finding) => /renew|energy/i.test(finding.requirementQuote))
-        && findings.some((finding) => /MCS|compliance documentation/i.test(finding.requirementQuote));
-    }
     return {
       round,
       case: fixture.name,
       variant,
       reasoningEffort,
-      durationMs: Math.round(performance.now() - started),
+      durationMs,
       ...chatgpt.metrics,
       outcome: result?.outcome || null,
       expected: fixture.expected,
       passed,
+      stop,
       findings,
       ...(error ? { error } : {}),
     };
@@ -89,13 +76,13 @@ try {
           ? ["baseline", "current"]
           : ["current", "baseline"];
         for (const variant of order) {
-          const run = await runCase(fixture, round, variant);
+          const { stop, ...run } = await runCase(fixture, round, variant);
           runs.push(run);
           console.log(JSON.stringify({
             ...run,
             findings: run.findings.map(({ kind, requirementQuote }) => ({ kind, requirementQuote })),
           }));
-          if (run.error && /usage.limit|429|Refresh the connected|401|403/i.test(run.error)) return;
+          if (stop) return;
         }
       }
     }

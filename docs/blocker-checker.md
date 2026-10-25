@@ -178,6 +178,12 @@ labels include a registration number to distinguish them in settings.
 Manually switching accounts or starting sign-in turns checks off and clears both
 model selections. Choose your models again, enable checks and save to resume.
 
+Refreshing the model catalogue preserves saved and unsaved model choices. A choice
+missing from the catalogue is shown as **(unavailable)**; saving another preference
+does not replace it. Choose **Use checker model** explicitly to clear a separate
+CV indexing model. An unavailable checker model must be replaced before enabling
+or resuming checks.
+
 ## Limitations and validation
 
 Unsupported model capabilities pause checking for settings review. Finding a model in the catalog does not establish that it supports checking for your account. Live sign-in, account-specific model admission, and structured-output support require verification with an eligible ChatGPT account.

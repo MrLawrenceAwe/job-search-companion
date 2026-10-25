@@ -16,3 +16,9 @@ export const classificationFor = ({ category, necessity, evidence }) => requirem
   ({ categories, necessities, evidenceStates }) => categories.includes(category) &&
     necessities.includes(necessity) && evidenceStates.includes(evidence),
 );
+
+// Use the same classification vocabulary in instructions, schema and validation.
+export const findingPolicyDescription = "The caller derives findings from these classification groups:\n" +
+  requirementClasses.map(({ categories, necessities, evidenceStates, producesFinding }) =>
+    `- category: ${categories.join(" or ")}; necessity: ${necessities.join(" or ")}; evidence: ${evidenceStates.join(" or ")}: ${producesFinding ? "produce a finding" : "produce no finding"}.`,
+  ).join("\n");

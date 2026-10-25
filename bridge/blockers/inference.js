@@ -17,7 +17,7 @@ export const runBlockerInference = async ({
 }) => {
   const clarification = challenge ? {
     id: "CH1",
-    source: "Your blocker challenge (self-reported, this job only)",
+    source: "Your blocker challenge (self-reported)",
     text: `Regarding “${challenge.requirementQuote}”: ${challenge.reason}`,
   } : null;
   const checkEvidence = clarification

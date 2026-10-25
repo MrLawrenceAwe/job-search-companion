@@ -58,9 +58,7 @@ const normalizePreference = (property, value) => property === "checked" ? Boolea
 const readPreferences = () => Object.fromEntries(Object.entries(preferenceFields).map(([key, [id, property]]) =>
   [key, normalizePreference(property, byId(id)[property])],
 ));
-// A missing catalogue selection cannot clear the saved checker model.
 const preferenceChanged = (key, value) =>
-  !(key === "model" && value === null) &&
   value !== normalizePreference(preferenceFields[key][1], settingsState.settings[key]);
 const updateSave = () => {
   const button = byId("saveSettings");
@@ -154,24 +152,21 @@ const render = (state, { preserveEdits = false } = {}) => {
 const load = async (options) => render(await request("status"), options);
 const loadModels = async ({ preserveSelections = false } = {}) => {
   const selections = preserveSelections ? readPreferences() : settingsState?.settings;
-  if (!settingsState?.connectionStatus.planUsageEnabled) {
-    byId("checkerModel").replaceChildren(option("", "Connect ChatGPT plan usage first"));
-    byId("indexModel").replaceChildren(option("", "Use checker model"));
-    modelsLoaded = true;
-    renderInferenceSettings();
-    updateSave();
-    return;
+  const connected = settingsState.connectionStatus.planUsageEnabled;
+  const { models } = connected ? await request("models") : { models: [] };
+  for (const [id, value, placeholderLabel] of [
+    ["checkerModel", selections.model, connected ? "Choose a model" : "Connect ChatGPT plan usage first"],
+    ["indexModel", selections.indexModel, "Use checker model"],
+  ]) {
+    const placeholder = option("", placeholderLabel);
+    placeholder.disabled = id === "checkerModel";
+    const unavailable = value && !models.some((model) => model.slug === value)
+      ? option(value, `${value} (unavailable)`) : null;
+    if (unavailable) unavailable.disabled = true;
+    byId(id).replaceChildren(placeholder, ...models.map((model) => option(model.slug, model.name)),
+      ...(unavailable ? [unavailable] : []));
+    byId(id).value = value || "";
   }
-  const { models } = await request("models");
-  const placeholder = option("", "Choose a model");
-  placeholder.disabled = true;
-  byId("checkerModel").replaceChildren(
-    placeholder,
-    ...models.map((model) => option(model.slug, model.name)),
-  );
-  byId("checkerModel").value = models.some((model) => model.slug === selections.model) ? selections.model : "";
-  byId("indexModel").replaceChildren(option("", "Use checker model"), ...models.map((model) => option(model.slug, model.name)));
-  byId("indexModel").value = models.some((model) => model.slug === selections.indexModel) ? selections.indexModel : "";
   renderInferenceSettings();
   modelsLoaded = true;
   updateSave();
@@ -216,7 +211,7 @@ for (const [id, work] of Object.entries({
   saveSettings: async () => {
     const preferences = readPreferences();
     const resuming = Boolean(settingsState.pausedReason && preferences.enabled);
-    if (preferences.enabled && !preferences.model) {
+    if (preferences.enabled && (!preferences.model || byId("checkerModel").selectedOptions[0]?.disabled)) {
       throw new Error("Choose an available checker model before enabling checks.");
     }
     const body = Object.fromEntries(Object.entries(preferences)

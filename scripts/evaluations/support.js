@@ -31,7 +31,7 @@ export const createEvaluationClient = ({
     const state = JSON.parse(await readFile(accountPath, "utf8"));
     const account = state.accounts.find((entry) => entry.id === state.activeId);
     if (!account?.accessToken || account.expiresAt <= Date.now() + 60_000)
-      throw new Error("Refresh the connected account through extension settings before evaluating.");
+      throw Object.assign(new Error("Refresh the connected account through extension settings before evaluating."), { code: "evaluation_account_unavailable" });
     const response = await fetchImpl(`https://api.openai.com/v1/${endpoint}`, {
       ...options,
       signal: options.signal || AbortSignal.timeout(90_000),
@@ -39,7 +39,7 @@ export const createEvaluationClient = ({
     });
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
-      throw new Error(`Evaluation request failed: ${response.status} ${body.error?.code || "unknown"}`);
+      throw Object.assign(new Error(`Evaluation request failed: ${response.status} ${body.error?.code || "unknown"}`), { status: response.status, code: body.error?.code });
     }
     return response;
   },

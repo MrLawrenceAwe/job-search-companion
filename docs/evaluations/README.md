@@ -96,8 +96,12 @@ baseline/current efforts. Use an explicit baseline ref after committing changes.
 relative dependencies are loaded from a temporary snapshot of that revision,
 removed after the comparison. Historical inference inputs are passed only to
 the baseline; current checks use the evidence contract.
-Account/access failures stop remaining requests. Accuracy checks compare finding
-presence and required specialist quotes across revisions, while reports retain
+All three inference commands use `run-case.js` for acceptance checks, durations and
+request failures. Account/access and usage-limit failures stop remaining requests;
+other per-case errors are recorded and evaluation continues. Reports retain completed
+runs and failures, including partial runs. Index-preparation failures still stop CV
+verification before per-case evaluation begins. Acceptance checks compare finding
+presence and fixture-defined specialist quotes across revisions, while reports retain
 each revision’s raw outcome labels. This keeps result-name changes separate from
 classification changes. Statistics share the median calculation and completed-pair
 selection used by the other evaluation commands.
@@ -115,7 +119,7 @@ for the baseline hash.
 | --- | --- |
 | `benchmark-blockers.js` | Per-run duration, outcome/error, accuracy and paired effort statistics; no request counts or output-byte measurements |
 | `compare-blocker-checks.js` | Per-run duration, outcome/error, accuracy, request counts and streamed output bytes, plus paired revision statistics |
-| `verify-cv-blockers.js` | Index preparation duration and size, plus per-case duration, findings and accuracy; a request error stops the command before a report is written |
+| `verify-cv-blockers.js` | Index preparation duration and size, plus per-case duration, findings, accuracy and request errors; partial case runs are saved |
 | `benchmark-cv-preparation.js` | Local cold/warm preparation, source and passage counts, source hashes and complete passage-input hash; no inference measurements |
 
 Streamed output bytes count text deltas across inference attempts, rather than the

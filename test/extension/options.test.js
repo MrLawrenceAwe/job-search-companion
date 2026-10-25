@@ -96,10 +96,11 @@ test("settings use account registrations, save preferences, and clear only saved
   // Losing catalogue access to the selected models must still allow disabling.
   models = [{ slug: "test", name: "Test model" }];
   element("refreshModels").click();
-  await waitUntil(() => element("checkerModel").value === "" && element("checkerModel").selectedIndex === 0);
-  assert.equal(element("indexModel").value, "");
-  assert.equal(element("indexModel").selectedIndex, 0);
+  await waitUntil(() => element("checkerModel").selectedOptions[0]?.textContent === "gpt-6-luna (unavailable)");
+  assert.equal(element("indexModel").value, "gpt-6-sol");
+  assert.equal(element("indexModel").selectedOptions[0].disabled, true);
   assert.equal(element("checkerModel").options[0].disabled, true);
+  assert.equal(element("saveSettings").textContent, "Saved");
   element("checksEnabled").checked = false;
   element("checksEnabled").dispatchEvent(new window.Event("change"));
   const beforeDisable = requests.filter((request) => request.action === "settings").length;
@@ -107,7 +108,7 @@ test("settings use account registrations, save preferences, and clear only saved
   element("saveSettings").click();
   await waitUntil(() => requests.filter((request) => request.action === "settings").length > beforeDisable && element("feedback").textContent === "Settings saved.");
   const body = requests.findLast((request) => request.action === "settings").body;
-  assert.deepEqual(structuredClone(body), { enabled: false, indexModel: null });
+  assert.deepEqual(structuredClone(body), { enabled: false });
   assert.equal(requests.filter((request) => request.action === "models").length, beforeDisableModels);
   await waitUntil(() => element("saveSettings").textContent === "Saved" && element("saveSettings").disabled);
   element("checksEnabled").checked = true;
