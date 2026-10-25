@@ -129,7 +129,7 @@ export const openCvIndex = async ({ directory, cvDirectory, chatgpt, extract = e
     signal?.throwIfAborted();
     return { snapshots, fingerprint: hashJson({ version: cvIndexVersion, model, sources: snapshots }) };
   };
-  const refresh = async ({ signal, model, reasoningEffort }) => {
+  const refresh = async ({ signal, model, reasoningEffort = inferenceSettingsContract.indexingReasoningEffort }) => {
     signal?.throwIfAborted();
     const { snapshots, fingerprint } = await snapshotCvSources(model, signal);
     const paths = new Set(snapshots.map((snapshot) => snapshot.path));

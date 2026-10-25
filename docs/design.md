@@ -226,7 +226,10 @@ from CV Fit submissions.
 `extension/contracts/blockers.js` defines result labels, version, retention,
 record bounds, input limits, suggested-challenge word and character limits, and retention
 eligibility for both runtimes. Inference prompts, schemas and validation reuse
-those limits. `extension/contracts/inference-settings.js` owns application
+those limits, including the 25-word finding explanation limit. Stored findings
+validate the quote, explanation, prepared challenge and evidence-fact shape before rendering.
+The blocker contract also owns the shared input comparison used for current results
+and overrides; overrides additionally require the same check timestamp. `extension/contracts/inference-settings.js` owns application
 policies for model reasoning selection and processing tier, plus inference request
 options, shared by settings, requirement inference, and CV indexing. The internal `blocker` result name covers both
 confirmed shortfalls and missing or conflicting evidence; the UI uses **Potential

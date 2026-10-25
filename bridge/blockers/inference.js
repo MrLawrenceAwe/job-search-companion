@@ -13,7 +13,7 @@ import {
 } from "./inference-validation.js";
 
 export const runBlockerInference = async ({
-  chatgpt, model, reasoningEffort = "medium", description, evidence, challenge = null, signal,
+  chatgpt, model, reasoningEffort = inferenceSettingsContract.defaultReasoningEffort, description, evidence, challenge = null, signal,
 }) => {
   const clarification = challenge ? {
     id: "CH1",

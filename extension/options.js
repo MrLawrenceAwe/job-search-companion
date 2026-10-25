@@ -5,6 +5,7 @@ let busy = false;
 let saving = false;
 let modelsLoaded = false;
 const { request } = globalThis.jobSearchBlockerClient;
+const effortLabel = (effort) => effort[0].toUpperCase() + effort.slice(1);
 const renderInferenceSettings = () => {
   const policy = globalThis.jobSearchContracts.inferenceSettings;
   const model = byId("checkerModel").value;
@@ -13,7 +14,8 @@ const renderInferenceSettings = () => {
   byId("reasoningHint").hidden = reasoningSelectable;
   byId("reasoningHint").textContent = reasoningSelectable
     ? ""
-    : "Other models use their default reasoning level. Select GPT-6 Luna to choose Low or Medium.";
+    : `Other models use their default reasoning level. Select GPT-6 Luna to choose ${policy.checkerReasoningEfforts.map(effortLabel).join(" or ")}.`;
+  byId("indexReasoningHint").textContent = `CV indexing uses ${effortLabel(policy.indexingReasoningEffort)} reasoning for GPT-6 Luna and the default for other models.`;
   byId("checkerSpeed").textContent = policy.processingTierForModel(model) === "priority"
     ? "Fast processing requested; actual speed may vary."
     : "Processing speed: model default.";
@@ -28,6 +30,8 @@ const option = (value, label) => {
   element.textContent = label;
   return element;
 };
+byId("checkerReasoning").replaceChildren(...globalThis.jobSearchContracts.inferenceSettings.checkerReasoningEfforts
+  .map((effort) => option(effort, effortLabel(effort))));
 const renderFallbacks = () => {
   const accounts = settingsState.connectionStatus.fallbackIds.map((id) =>
     settingsState.connectionStatus.accounts.find((account) => account.id === id),
@@ -54,7 +58,9 @@ const normalizePreference = (property, value) => property === "checked" ? Boolea
 const readPreferences = () => Object.fromEntries(Object.entries(preferenceFields).map(([key, [id, property]]) =>
   [key, normalizePreference(property, byId(id)[property])],
 ));
+// A missing catalogue selection cannot clear the saved checker model.
 const preferenceChanged = (key, value) =>
+  !(key === "model" && value === null) &&
   value !== normalizePreference(preferenceFields[key][1], settingsState.settings[key]);
 const updateSave = () => {
   const button = byId("saveSettings");
@@ -208,13 +214,14 @@ for (const [id, work] of Object.entries({
   },
   refreshModels: () => loadModels({ preserveSelections: true }),
   saveSettings: async () => {
-    const body = readPreferences();
-    if (body.model === null && settingsState.connectionStatus.planUsageEnabled) {
-      throw new Error("Choose an available checker model before saving.");
+    const preferences = readPreferences();
+    const resuming = Boolean(settingsState.pausedReason && preferences.enabled);
+    if (preferences.enabled && !preferences.model) {
+      throw new Error("Choose an available checker model before enabling checks.");
     }
-    // Disconnected accounts have no catalogue or checker model to save.
-    if (!settingsState.connectionStatus.planUsageEnabled) delete body.model;
-    const resuming = Boolean(settingsState.pausedReason && body.enabled);
+    const body = Object.fromEntries(Object.entries(preferences)
+      .filter(([key, value]) => preferenceChanged(key, value)));
+    if (resuming) body.enabled = true;
     saving = true;
     updateSave();
     try {

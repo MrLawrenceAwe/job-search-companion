@@ -49,6 +49,8 @@ export const deriveValidatedFindings = (requirements, description, evidence) => 
       if (typeof requirement.explanation !== "string" || !requirement.explanation.trim())
         reject("missing requirement explanation");
       if (requirement.explanation.length > limits.maximumExplanationCharacters) reject("requirement explanation is too long");
+      if (requirement.explanation.trim().split(/\s+/).length > limits.maximumExplanationWords)
+        reject(`requirement explanation exceeds ${limits.maximumExplanationWords} words`);
       if (typeof requirement.suggestedChallenge !== "string" || !requirement.suggestedChallenge.trim())
         reject("missing suggested challenge");
       if (requirement.suggestedChallenge.length > suggestedChallengeLimits.maximumCharacters || requirement.suggestedChallenge.trim().split(/\s+/).length > suggestedChallengeLimits.maximumWords)

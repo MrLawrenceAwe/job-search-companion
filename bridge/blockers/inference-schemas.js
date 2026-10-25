@@ -11,7 +11,8 @@ const requirementSchema = ({ categories, necessities, evidenceStates, producesFi
     necessity: { type: "string", enum: necessities },
     evidence: { type: "string", enum: evidenceStates },
     requirementQuote: { type: "string", minLength: 1, maxLength: limits.maximumQuoteCharacters },
-    explanation: producesFinding ? { type: "string", minLength: 1, maxLength: limits.maximumExplanationCharacters } : { type: "null" },
+    explanation: producesFinding ? { type: "string", minLength: 1, maxLength: limits.maximumExplanationCharacters,
+      description: `Explain the evidence gap or incompatibility in at most ${limits.maximumExplanationWords} words.` } : { type: "null" },
     suggestedChallenge: producesFinding ? { type: "string", minLength: 1, maxLength: suggestedChallengeLimits.maximumCharacters } : { type: "null" },
     evidenceFactIds: {
       type: "array",

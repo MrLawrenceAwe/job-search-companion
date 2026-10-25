@@ -40,7 +40,7 @@ test("shared blocker validation rejects expired, unknown and incomplete records"
 });
 
 test("saved blockers require concise prepared suggestions", () => {
-  const finding = { kind: "blocker", suggestedChallenge: "What evidence would resolve this finding?" };
+  const finding = { kind: "blocker", requirementQuote: "full licence required", explanation: "Only a provisional licence is documented.", evidenceFacts: [], suggestedChallenge: "What evidence would resolve this finding?" };
   const blocker = { ...record, outcome: "blocker", findings: [finding] };
   assert.equal(blockerContract.isRetainableResult(blocker), true);
   const { maximumCharacters, maximumWords } = blockerContract.suggestedChallengeLimits;
@@ -55,7 +55,7 @@ test("saved blockers require concise prepared suggestions", () => {
 });
 
 test("overrides reference actual findings without changing the original outcome", () => {
-  const finding = { kind: "blocker", requirementQuote: "full licence required", suggestedChallenge: "What licence evidence would resolve this finding?" };
+  const finding = { kind: "blocker", requirementQuote: "full licence required", explanation: "Only a provisional licence is documented.", evidenceFacts: [], suggestedChallenge: "What licence evidence would resolve this finding?" };
   const blocker = { ...record, outcome: "blocker", findings: [finding],
     overriddenRequirementQuotes: [finding.requirementQuote] };
   assert.equal(blockerContract.isRetainableResult(blocker), true);
@@ -63,4 +63,28 @@ test("overrides reference actual findings without changing the original outcome"
   for (const overriddenRequirementQuotes of [null, "full licence required", ["invented requirement"], [finding.requirementQuote, finding.requirementQuote]]) {
     assert.equal(blockerContract.isRetainableResult({ ...blocker, overriddenRequirementQuotes }), false);
   }
+});
+
+test("saved findings reject missing render fields and malformed evidence", () => {
+  const finding = { kind: "blocker", requirementQuote: "full licence required",
+    explanation: "Only a provisional licence is documented.", evidenceFacts: [],
+    suggestedChallenge: "What licence evidence would resolve this finding?" };
+  const retainable = (value) => blockerContract.isRetainableResult({ ...record, outcome: "blocker", findings: [value] });
+  for (const key of ["requirementQuote", "explanation", "evidenceFacts"]) {
+    const { [key]: omitted, ...incomplete } = finding;
+    assert.equal(retainable(incomplete), false);
+  }
+  for (const patch of [
+    { requirementQuote: " " }, { explanation: null }, { explanation: " " },
+    { explanation: "word ".repeat(blockerContract.limits.maximumExplanationWords + 1) },
+    { evidenceFacts: [null] }, { evidenceFacts: [{ id: "F1", source: "Profile" }] },
+  ]) assert.equal(retainable({ ...finding, ...patch }), false);
+  assert.equal(retainable({ ...finding, evidenceFacts: [{ id: "F1", source: "Profile", text: "Provisional licence" }] }), true);
+});
+
+test("stored check identity covers job, description, evidence, model and effort", () => {
+  const inputs = { jobId: "first111", descriptionHash: "description", evidenceHash: "evidence", model: "test", reasoningEffort: "medium" };
+  assert.equal(blockerContract.sameCheckInputs(inputs, { ...inputs, checkedAt: "later" }), true);
+  for (const key of Object.keys(inputs))
+    assert.equal(blockerContract.sameCheckInputs(inputs, { ...inputs, [key]: "changed" }), false);
 });

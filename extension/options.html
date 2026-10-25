@@ -42,15 +42,12 @@
         <label class="field-label" for="checkerModel">Checker model</label>
         <div class="model-row"><select id="checkerModel" aria-label="Checker model"></select><button id="refreshModels" class="icon-button" aria-label="Refresh models" title="Refresh models"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 7a7 7 0 0 1 11.5-1L20 9M4 15l2.4 3A7 7 0 0 0 17.9 17"/></svg></button></div>
         <label class="field-label" for="checkerReasoning">Checker reasoning level</label>
-        <select id="checkerReasoning" aria-describedby="reasoningHint">
-          <option value="low">Low</option>
-          <option value="medium">Medium</option>
-        </select>
+        <select id="checkerReasoning" aria-describedby="reasoningHint"></select>
         <p id="reasoningHint" class="note"></p>
         <p id="checkerSpeed" class="note" role="status"></p>
         <label class="field-label" for="indexModel">CV indexing model</label>
         <select id="indexModel" aria-describedby="indexReasoningHint"></select>
-        <p id="indexReasoningHint" class="note">CV indexing uses Medium reasoning for GPT-6 Luna and the default for other models.</p>
+        <p id="indexReasoningHint" class="note"></p>
         <p id="evidence" class="note evidence-status" role="status">Loading evidence…</p>
         <div class="divider"></div>
         <label class="toggle-row" for="checksEnabled">

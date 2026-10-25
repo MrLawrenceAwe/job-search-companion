@@ -73,7 +73,7 @@ Unclear, preferred and excluded requirements, supported requirements, and work a
 An eligibility blocker means the supplied evidence does not establish a concrete essential prerequisite; do not claim the candidate lacks experience when it is merely undocumented.
 
 ## Output fields
-For inventory entries that produce findings, return a non-empty explanation (at most 25 words) and suggestedChallenge. Explain missing or conflicting evidence without claiming confirmed absence.
+For inventory entries that produce findings, return a non-empty explanation (at most ${limits.maximumExplanationWords} words and ${limits.maximumExplanationCharacters} characters) and suggestedChallenge. Explain missing or conflicting evidence without claiming confirmed absence.
 Set explanation and suggestedChallenge to null for all other entries; retain their quotes, classifications and evidence IDs in the inventory.
 Combine closely related requirements only when their category, necessity and evidence are the same.
 

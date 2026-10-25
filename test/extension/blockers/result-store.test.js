@@ -73,7 +73,7 @@ test("initial storage reads cannot overwrite newer results or resurrect removed 
   const store = fixture.createStore();
   const changes = [];
   store.subscribe((batch) => changes.push(...batch));
-  const latest = { ...makeRecord("first111"), outcome: "blocker", findings: [{ kind: "blocker", suggestedChallenge: "Please reconsider this finding against the advert." }] };
+  const latest = { ...makeRecord("first111"), outcome: "blocker", findings: [{ kind: "blocker", requirementQuote: "full licence required", explanation: "Only a provisional licence is documented.", evidenceFacts: [], suggestedChallenge: "Please reconsider this finding against the advert." }] };
   fixture.notify({ "blocker-result:first111": { newValue: latest } });
   fixture.notify({ "blocker-result:second111": {} });
   resolveRead({
@@ -144,8 +144,8 @@ test("finding overrides persist, synchronize, reject stale decisions and reset w
   const second = fixture.createStore();
   await Promise.all([first.ready, second.ready]);
   const result = { ...makeRecord("first111"), outcome: "blocker", findings: [
-    { kind: "blocker", requirementQuote: "full UK driving licence", suggestedChallenge: "Does the advert permit alternative travel?" },
-    { kind: "blocker", requirementQuote: "required experience", suggestedChallenge: "What experience evidence would resolve this finding?" },
+    { kind: "blocker", requirementQuote: "full UK driving licence", explanation: "Only a provisional licence is documented.", evidenceFacts: [], suggestedChallenge: "Does the advert permit alternative travel?" },
+    { kind: "blocker", requirementQuote: "required experience", explanation: "Experience is not documented.", evidenceFacts: [], suggestedChallenge: "What experience evidence would resolve this finding?" },
   ], challengeReview: { accepted: false, requirementQuote: "full UK driving licence", response: "The full licence is still required." } };
   await first.saveResult(result);
   await assert.rejects(first.setFindingOverride(result, "required experience", true), /rejected challenge/);

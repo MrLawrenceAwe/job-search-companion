@@ -1,5 +1,5 @@
 (() => {
-  const { storagePrefix, isRetainableResult, maximumRecords, canOverrideFinding } = globalThis.jobSearchContracts.blockers;
+  const { storagePrefix, isRetainableResult, maximumRecords, canOverrideFinding, sameCheckInputs } = globalThis.jobSearchContracts.blockers;
 
   const createStore = () => {
     const records = new Map();
@@ -45,8 +45,7 @@
         await ready;
         const current = records.get(result.jobId);
         if (!isRetainableResult(current) || current.checkedAt !== result.checkedAt ||
-            current.descriptionHash !== result.descriptionHash || current.evidenceHash !== result.evidenceHash ||
-            current.model !== result.model || current.reasoningEffort !== result.reasoningEffort)
+            !sameCheckInputs(current, result))
           throw new Error("This check has changed. Use the latest finding.");
         if (!current.findings.some((finding) => finding.requirementQuote === requirementQuote) ||
             (overridden && !canOverrideFinding(current, requirementQuote)))

@@ -1,7 +1,7 @@
 (() => {
   const companion = globalThis.jobSearchCompanion;
   if (companion.platform !== "indeed") return;
-  const { isRetainableResult, limits, canCheck } = globalThis.jobSearchContracts.blockers;
+  const { isRetainableResult, limits, canCheck, sameCheckInputs } = globalThis.jobSearchContracts.blockers;
   const { reasoningForModel } = globalThis.jobSearchContracts.inferenceSettings;
   const recordStore = globalThis.jobSearchBlockerResults.createStore();
   const checks = new Map();
@@ -24,10 +24,10 @@
   const getCurrentResult = () => {
     const record = selection && recordStore.get(selection.jobId);
     return isRetainableResult(record) &&
-      record.descriptionHash === selection.descriptionHash &&
-      record.evidenceHash === evidenceHash &&
-      record.model === checkerState?.settings.model &&
-      record.reasoningEffort === reasoningForModel(checkerState?.settings.model, checkerState?.settings.reasoningEffort)
+      sameCheckInputs(record, {
+        ...selection, evidenceHash, model: checkerState?.settings.model,
+        reasoningEffort: reasoningForModel(checkerState?.settings.model, checkerState?.settings.reasoningEffort),
+      })
       ? record
       : null;
   };

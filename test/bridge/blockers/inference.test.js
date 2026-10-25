@@ -14,6 +14,8 @@ const completed = (text) => ({ type: "response.completed", response: { status: "
 test("evidence validation rejects invented quotes, profile IDs, and unsupported blocker claims", () => {
   const finding = { category: "eligibility", necessity: "mandatory", evidence: "incompatible", requirementQuote: "full UK driving licence", explanation: "A full licence is mandatory; the profile evidence confirms provisional only.", suggestedChallenge: "Please reconsider this requirement against the advert and my existing evidence.", evidenceFactIds: ["F1"] };
   assert.equal(deriveValidatedFindings([finding], job().description, profile)[0].evidenceFacts[0].id, "F1");
+  const explanation = Array(blockerContract.limits.maximumExplanationWords).fill("word").join(" ");
+  assert.equal(deriveValidatedFindings([{ ...finding, explanation }], job().description, profile)[0].explanation, explanation);
   for (const patch of [{ requirementQuote: "Commercial Kotlin required" }, { evidenceFactIds: ["F99"] }, { evidenceFactIds: [] }, { category: "eligibility", necessity: "good_fit" }]) {
     assert.throws(() => deriveValidatedFindings([{ ...finding, ...patch }], job().description, profile));
   }
@@ -533,6 +535,7 @@ test("persistent invalid fields fail after one correction with a specific checke
   for (const [patch, problem] of [
     [{ explanation: "" }, "missing requirement explanation"],
     [{ explanation: "   " }, "missing requirement explanation"],
+    [{ explanation: "word ".repeat(blockerContract.limits.maximumExplanationWords + 1) }, "requirement explanation exceeds 25 words"],
     [{ suggestedChallenge: "" }, "missing suggested challenge"],
     [{ suggestedChallenge: "word ".repeat(26) }, "suggested challenge exceeds 25 words or 300 characters"],
     [{ evidenceFactIds: ["F99"] }, "unknown evidence reference"],

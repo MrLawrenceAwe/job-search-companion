@@ -2,7 +2,8 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { blockerSources } from "../../shared/blocker-sources.js";
 import { blockerContract } from "../../shared/contracts.js";
-import { sha256 } from "../../shared/sha256.js";
+import { createRequirementInventorySchema } from "../../bridge/blockers/inference-schemas.js";
+import { sha256, hashJson } from "../../shared/sha256.js";
 import { readProfileEvidence } from "../../bridge/blockers/profile.js";
 import { blockerInstructions } from "../../bridge/blockers/inference-prompts.js";
 import { cvIndexInstructions, cvIndexVersion } from "../../bridge/blockers/cv-index.js";
@@ -12,6 +13,12 @@ export const evaluationVersions = Object.freeze({
   blockerPromptHash: sha256(blockerInstructions),
   cvIndexVersion,
   cvIndexPromptHash: sha256(cvIndexInstructions),
+});
+// Keep runtime evidence identity distinct from the exact candidate-facts payload.
+export const inferenceReportMetadata = (evidence) => ({
+  evidenceHash: evidence.hash,
+  evidencePayloadHash: hashJson(evidence.facts),
+  checkerSchemaHash: hashJson(createRequirementInventorySchema(evidence.facts.map((fact) => fact.id))),
 });
 export const readEvaluationProfile = () => readProfileEvidence(blockerSources().profileSources);
 

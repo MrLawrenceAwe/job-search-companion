@@ -7,17 +7,16 @@ import { sha256 } from "../../shared/sha256.js";
 import { blockerSources } from "../../shared/blocker-sources.js";
 import { combineProfileAndCvEvidence } from "../../bridge/blockers/evidence.js";
 import { runBlockerInference } from "../../bridge/blockers/inference.js";
-import { blockerInstructions } from "../../bridge/blockers/inference-prompts.js";
-import { requirementInventorySchema } from "../../bridge/blockers/inference-schemas.js";
+import { inferenceSettingsContract } from "../../shared/contracts.js";
 import { openRevision } from "./revision.js";
-import { createEvaluationClient, readEvaluationProfile, writeEvaluationReport } from "./support.js";
+import { createEvaluationClient, readEvaluationProfile, writeEvaluationReport, inferenceReportMetadata } from "./support.js";
 import { createMeasuredClient } from "./measured-client.js";
 import { summarizeCheckerComparison } from "./comparison-summary.js";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 const baselineRef = process.argv[2] || "HEAD";
-const currentReasoningEffort = process.argv[3] || "medium";
-if (!["low", "medium"].includes(currentReasoningEffort)) {
+const currentReasoningEffort = process.argv[3] || inferenceSettingsContract.defaultReasoningEffort;
+if (!inferenceSettingsContract.checkerReasoningEfforts.includes(currentReasoningEffort)) {
   throw new Error("Choose low or medium for the current checker comparison");
 }
 
@@ -110,9 +109,10 @@ try {
     accuracyMethod: "finding presence and required specialist quotes; raw revision outcomes retained",
     baselineRef: execFileSync("git", ["rev-parse", baselineRef], { cwd: root, encoding: "utf8" }).trim(),
     baselinePromptHash: sha256(baselinePrompts.blockerInstructions),
-    baselineSchemaHash: sha256(JSON.stringify(baselineSchemas.requirementInventorySchema)),
-    currentSchemaHash: sha256(JSON.stringify(requirementInventorySchema)),
-    currentPromptHash: sha256(blockerInstructions),
+    baselineSchemaHash: sha256(JSON.stringify(baselineSchemas.createRequirementInventorySchema
+      ? baselineSchemas.createRequirementInventorySchema(evidence.facts.map((fact) => fact.id))
+      : baselineSchemas.requirementInventorySchema)),
+    ...inferenceReportMetadata(evidence),
     model: "gpt-6-luna",
     baselineReasoningEffort: "medium",
     currentReasoningEffort,
@@ -122,7 +122,6 @@ try {
     indexFingerprint: index.fingerprint,
     indexModel: index.model,
     indexedAt: index.indexedAt,
-    evidenceHash: sha256(JSON.stringify(evidence.facts)),
     ...statistics,
     cases,
     runs,

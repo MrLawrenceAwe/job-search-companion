@@ -93,35 +93,29 @@ test("settings use account registrations, save preferences, and clear only saved
   element("clearSavedChecks").click();
   await waitUntil(() => element("feedback").textContent === "Saved blocker checks cleared.");
   assert.deepEqual(removed, ["blocker-result:first111"]);
-  // The checker placeholder cannot be selected by the user or silently saved.
-  assert.equal(element("checkerModel").options[0].disabled, true);
-  for (const id of ["checkerModel", "indexModel"]) {
-    element(id).value = "";
-    element(id).dispatchEvent(new window.Event("change"));
-  }
-  element("checksEnabled").checked = false;
-  element("checksEnabled").dispatchEvent(new window.Event("change"));
-  const beforeInvalidSave = requests.filter((request) => request.action === "settings").length;
-  element("saveSettings").click();
-  await waitUntil(() => element("feedback").textContent === "Choose an available checker model before saving.");
-  assert.equal(requests.filter((request) => request.action === "settings").length, beforeInvalidSave);
-  element("checkerModel").value = "gpt-6-luna";
-  element("checkerModel").dispatchEvent(new window.Event("change"));
-  element("saveSettings").click();
-  await waitUntil(() => element("feedback").textContent === "Settings saved.");
-  const body = requests.findLast((request) => request.action === "settings").body;
-  assert.equal(body.enabled, false);
-  assert.equal(body.accountFallback, false);
-  assert.equal(body.indexModel, null);
-  assert.equal(body.model, "gpt-6-luna");
+  // Losing catalogue access to the selected models must still allow disabling.
   models = [{ slug: "test", name: "Test model" }];
-  element("indexModel").value = "gpt-6-sol";
-  element("indexModel").dispatchEvent(new window.Event("change"));
   element("refreshModels").click();
   await waitUntil(() => element("checkerModel").value === "" && element("checkerModel").selectedIndex === 0);
   assert.equal(element("indexModel").value, "");
   assert.equal(element("indexModel").selectedIndex, 0);
   assert.equal(element("checkerModel").options[0].disabled, true);
+  element("checksEnabled").checked = false;
+  element("checksEnabled").dispatchEvent(new window.Event("change"));
+  const beforeDisable = requests.filter((request) => request.action === "settings").length;
+  const beforeDisableModels = requests.filter((request) => request.action === "models").length;
+  element("saveSettings").click();
+  await waitUntil(() => requests.filter((request) => request.action === "settings").length > beforeDisable && element("feedback").textContent === "Settings saved.");
+  const body = requests.findLast((request) => request.action === "settings").body;
+  assert.deepEqual(structuredClone(body), { enabled: false, indexModel: null });
+  assert.equal(requests.filter((request) => request.action === "models").length, beforeDisableModels);
+  await waitUntil(() => element("saveSettings").textContent === "Saved" && element("saveSettings").disabled);
+  element("checksEnabled").checked = true;
+  element("checksEnabled").dispatchEvent(new window.Event("change"));
+  const beforeInvalidSave = requests.filter((request) => request.action === "settings").length;
+  element("saveSettings").click();
+  await waitUntil(() => element("feedback").textContent === "Choose an available checker model before enabling checks.");
+  assert.equal(requests.filter((request) => request.action === "settings").length, beforeInvalidSave);
 });
 
 
@@ -136,9 +130,15 @@ test("returning to settings detects a pause and preserves unsaved preferences", 
     connectionStatus: { planUsageEnabled: true, connected: true, pending: false, activeId: "a", fallbackIds: [], accounts: [{ id: "a", label: "Account A" }] },
     evidence: { hash: "evidence" },
   };
+  const settingsRequests = [];
   window.chrome = {
     runtime: { async sendMessage(message) {
       if (message.action === "models") return { ok: true, models: [{ slug: "test", name: "Test" }, { slug: "gpt-6-luna", name: "Luna" }] };
+      if (message.action === "settings") {
+        settingsRequests.push(message.body);
+        Object.assign(state.settings, message.body);
+        state.pausedReason = null;
+      }
       return { ok: true, ...structuredClone(state) };
     } },
     storage: { local: { async get() { return {}; } }, onChanged: { addListener() {} } },
@@ -150,6 +150,12 @@ test("returning to settings detects a pause and preserves unsaved preferences", 
   window.dispatchEvent(new window.Event("focus"));
   await waitUntil(() => element("saveSettings").textContent === "Resume checks");
   assert.equal(element("saveSettings").disabled, false);
+  element("saveSettings").click();
+  await waitUntil(() => element("feedback").textContent === "Settings saved. Checks resumed.");
+  assert.deepEqual(structuredClone(settingsRequests), [{ enabled: true }]);
+  state.pausedReason = "Plan usage limit reached";
+  window.dispatchEvent(new window.Event("focus"));
+  await waitUntil(() => element("saveSettings").textContent === "Resume checks");
   element("checkerModel").value = "gpt-6-luna";
   element("checkerModel").dispatchEvent(new window.Event("change"));
   element("checkerReasoning").value = "low";

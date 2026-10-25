@@ -102,8 +102,26 @@ each revision’s raw outcome labels. This keeps result-name changes separate fr
 classification changes. Statistics share the median calculation and completed-pair
 selection used by the other evaluation commands.
 
-New reports use exclusive UTC timestamp filenames and record versions, prompt/schema
-hashes, evidence identity, request counts, JSON bytes, outcomes and paired latency.
+New reports use exclusive UTC timestamp filenames and shared version/prompt metadata.
+Inference reports also record `checkerSchemaHash` for the schema with the supplied
+fact IDs, `evidenceHash` from the runtime evidence contract, and
+`evidencePayloadHash` for the exact candidate-facts array. Comparison reports use
+`baselinePromptHash` and `baselineSchemaHash` for the historical revision; the
+shared `blockerPromptHash` and `checkerSchemaHash` identify the working tree.
+Historical revisions without a schema factory retain their original schema shape
+for the baseline hash.
+
+| Command | Measurements |
+| --- | --- |
+| `benchmark-blockers.js` | Per-run duration, outcome/error, accuracy and paired effort statistics; no request counts or output-byte measurements |
+| `compare-blocker-checks.js` | Per-run duration, outcome/error, accuracy, request counts and streamed output bytes, plus paired revision statistics |
+| `verify-cv-blockers.js` | Index preparation duration and size, plus per-case duration, findings and accuracy; a request error stops the command before a report is written |
+| `benchmark-cv-preparation.js` | Local cold/warm preparation, source and passage counts, source hashes and complete passage-input hash; no inference measurements |
+
+Streamed output bytes count text deltas across inference attempts, rather than the
+serialized final findings. Local preparation reports use `passageInputHash` for
+the full mocked indexing input.
+
 Compare only matched completed pairs; report request errors and accuracy separately.
 Low requires at least a 20% improvement and every outcome passing. New benchmark
 summaries call this decision rule `minimumImprovementPercent`; it is not a statistical

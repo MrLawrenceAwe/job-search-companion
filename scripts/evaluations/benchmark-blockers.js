@@ -1,6 +1,7 @@
+import { inferenceSettingsContract } from "../../shared/contracts.js";
 import { benchmarkCases } from "./cases.js";
 import { fileURLToPath } from "node:url";
-import { createEvaluationClient, readEvaluationProfile, writeEvaluationReport } from "./support.js";
+import { createEvaluationClient, readEvaluationProfile, writeEvaluationReport, inferenceReportMetadata } from "./support.js";
 import { runBlockerInference } from "../../bridge/blockers/inference.js";
 import { summarizeBlockerBenchmark } from "./benchmark-summary.js";
 
@@ -11,7 +12,8 @@ const runs = [];
 for (let round = 0; round < 2; round++) {
   for (const [index, fixture] of cases.entries()) {
     // Alternate first effort across cases and rounds to reduce ordering bias.
-    for (const reasoningEffort of (round + index) % 2 ? ["medium", "low"] : ["low", "medium"]) {
+    const efforts = inferenceSettingsContract.checkerReasoningEfforts;
+    for (const reasoningEffort of (round + index) % 2 ? [...efforts].reverse() : efforts) {
       const started = performance.now();
       let result = null;
       let error = null;
@@ -33,7 +35,7 @@ for (let round = 0; round < 2; round++) {
 }
 const summary = summarizeBlockerBenchmark(runs);
 const report = { measuredAt: new Date().toISOString(), model: "gpt-6-luna", requestedServiceTier: "priority",
-  deliveredServiceTier: "unconfirmed", rounds: 2, cases, runs, ...summary };
+  deliveredServiceTier: "unconfirmed", ...inferenceReportMetadata(evidence), rounds: 2, cases, runs, ...summary };
 const reportPath = await writeEvaluationReport("blocker-benchmark", report);
 console.log(`Report: ${fileURLToPath(reportPath)}`);
 console.log(JSON.stringify(summary));

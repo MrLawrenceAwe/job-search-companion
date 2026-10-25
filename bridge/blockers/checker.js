@@ -214,7 +214,7 @@ export const openBlockerChecker = async ({
     async configure(patch) {
       if (
         Object.keys(patch).some((key) => !["enabled", "model", "indexModel", "accountFallback", "reasoningEffort"].includes(key)) ||
-        (patch.reasoningEffort !== undefined && !["low", "medium"].includes(patch.reasoningEffort)) ||
+        (patch.reasoningEffort !== undefined && !inferenceSettingsContract.checkerReasoningEfforts.includes(patch.reasoningEffort)) ||
         ["enabled", "accountFallback"].some(
           (key) => patch[key] !== undefined && typeof patch[key] !== "boolean",
         )

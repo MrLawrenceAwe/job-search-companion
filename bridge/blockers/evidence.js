@@ -1,3 +1,4 @@
+import { inferenceSettingsContract } from "../../shared/contracts.js";
 import { hashJson } from "../../shared/sha256.js";
 import { readProfileEvidence } from "./profile.js";
 
@@ -46,7 +47,7 @@ export const createEvidenceProvider = ({ profileSources, cvIndex, indexPath, get
       const index = await cvIndex.ensureCurrent({
         signal: workSignal,
         model,
-        reasoningEffort: "medium",
+        reasoningEffort: inferenceSettingsContract.indexingReasoningEffort,
       });
       return combine(profile, index, model);
     },

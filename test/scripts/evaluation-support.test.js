@@ -4,7 +4,10 @@ import { mkdtemp, readFile, writeFile, rm, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { createEvaluationClient, writeEvaluationReport, evaluationVersions } from "../../scripts/evaluations/support.js";
+import { createEvaluationClient, writeEvaluationReport, evaluationVersions, inferenceReportMetadata } from "../../scripts/evaluations/support.js";
+
+import { hashJson } from "../../shared/sha256.js";
+import { createRequirementInventorySchema } from "../../bridge/blockers/inference-schemas.js";
 
 const fixture = async (t) => {
   const directory = await mkdtemp(join(await realpath(tmpdir()), 'jsc-evaluation-'));
@@ -39,4 +42,13 @@ test('dated evaluation reports carry contract and prompt metadata and cannot ove
   assert.match(path.pathname, /2026-10-09T12-00-00-000Z-fixture.json$/);
   await assert.rejects(writeEvaluationReport('fixture', { ...report, runs: ['new'] }, directory), { code: 'EEXIST' });
   assert.deepEqual(JSON.parse(await readFile(path, 'utf8')), saved);
+});
+
+test("inference reports separate runtime identity, fact payload and bound schema hashes", () => {
+  const evidence = { hash: "runtime-evidence-identity", facts: [{ id: "F1", text: "A fact", source: "Profile" }] };
+  assert.deepEqual(inferenceReportMetadata(evidence), {
+    evidenceHash: evidence.hash,
+    evidencePayloadHash: hashJson(evidence.facts),
+    checkerSchemaHash: hashJson(createRequirementInventorySchema(["F1"])),
+  });
 });

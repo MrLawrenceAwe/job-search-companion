@@ -13,17 +13,33 @@
       maximumQuoteCharacters: 2000,
       maximumChallengeCharacters: 2000,
       maximumExplanationCharacters: 2000,
+      maximumExplanationWords: 25,
       maximumRequirements: 60,
       maximumChallengeResponseCharacters: 2000,
       maximumChallengeResponseWords: 80,
       maximumProfileUpdates: 5,
       maximumProfileFactCharacters: 1000,
     }),
-    version: 16,
+    version: 17,
     retentionMs: 30 * 86400_000,
     maximumRecords: 300,
     storagePrefix: "blocker-result:",
     labels,
+    sameCheckInputs(left, right) {
+      return ["jobId", "descriptionHash", "evidenceHash", "model", "reasoningEffort"]
+        .every((key) => left[key] === right[key]);
+    },
+    isFinding(finding) {
+      const nonempty = (value, maximum) => typeof value === "string" && value.trim().length > 0 && value.length <= maximum;
+      return Boolean(finding?.kind === "blocker" &&
+        nonempty(finding.requirementQuote, contract.limits.maximumQuoteCharacters) &&
+        nonempty(finding.explanation, contract.limits.maximumExplanationCharacters) &&
+        finding.explanation.trim().split(/\s+/).length <= contract.limits.maximumExplanationWords &&
+        nonempty(finding.suggestedChallenge, suggestedChallengeLimits.maximumCharacters) &&
+        finding.suggestedChallenge.trim().split(/\s+/).length <= suggestedChallengeLimits.maximumWords &&
+        Array.isArray(finding.evidenceFacts) && finding.evidenceFacts.every((fact) =>
+          typeof fact?.id === "string" && typeof fact.source === "string" && typeof fact.text === "string"));
+    },
     canCheck(state) {
       return Boolean(state?.settings?.enabled && state.connectionStatus?.planUsageEnabled && !state.pausedReason);
     },
@@ -42,10 +58,7 @@
           record.checkerVersion === contract.version &&
           Object.hasOwn(labels, record.outcome) &&
           Array.isArray(record.findings) &&
-          record.findings.every((finding) => finding?.kind === "blocker" &&
-            typeof finding.suggestedChallenge === "string" &&
-            finding.suggestedChallenge.trim().length > 0 && finding.suggestedChallenge.length <= suggestedChallengeLimits.maximumCharacters &&
-            finding.suggestedChallenge.trim().split(/\s+/).length <= suggestedChallengeLimits.maximumWords) &&
+          record.findings.every(contract.isFinding) &&
           (record.overriddenRequirementQuotes === undefined ||
             (Array.isArray(record.overriddenRequirementQuotes) &&
               new Set(record.overriddenRequirementQuotes).size === record.overriddenRequirementQuotes.length &&

@@ -11,7 +11,8 @@ The checker uses Sign in with ChatGPT plan usage through the public Responses AP
 5. Choose a checker model and an optional separate **CV indexing model** from your account's catalog (for example, Luna checks with Sol indexing), turn on **Enable blocker checks**, and save.
 
 **Refresh models** preserves your selected models while they remain available.
-If the checker model is unavailable, choose another before saving. An unavailable
+If the checker model is unavailable, choose another before enabling or resuming checks.
+You can still turn checks off without an available checker model. An unavailable
 indexing selection returns to **Use checker model**.
 
 The bridge reads relevant constraint/profile facts from `~/Job Hunting/profile.md`

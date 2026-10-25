@@ -19,7 +19,7 @@ const revision = await openRevision(baselineRef);
 try {
   const baseline = await revision.importModule("bridge/blockers/cv-index.js");
   const runs = [];
-  let evidenceHash;
+  let passageInputHash;
   for (let round = 1; round <= 3; round++) {
     for (const variant of round % 2 ? ["baseline", "current"] : ["current", "baseline"]) {
       const directory = await mkdtemp(join(await realpath(tmpdir()), "jsc-cv-preparation-"));
@@ -32,8 +32,8 @@ try {
           chatgpt: { async request(endpoint, options) {
             passages = JSON.parse(JSON.parse(options.body).input[0].content).passages;
             const hash = sha256(JSON.stringify(passages));
-            evidenceHash ??= hash;
-            assert.equal(hash, evidenceHash, "Prepared evidence changed between runs");
+            passageInputHash ??= hash;
+            assert.equal(hash, passageInputHash, "Prepared evidence changed between runs");
             return new Response(`data: ${JSON.stringify({ type: "response.completed", response: {
               status: "completed", output: [{ type: "message", role: "assistant",
                 content: [{ type: "output_text", text: JSON.stringify({ passageIds: [passages[0].id] }) }] }],
@@ -65,7 +65,7 @@ try {
     baselineRef: execFileSync("git", ["rev-parse", baselineRef], { cwd: root, encoding: "utf8" }).trim(),
     baselineSourceHash: sha256(source),
     currentSourceHash: sha256(await readFile(join(root, "bridge/blockers/cv-index.js"))),
-    evidenceHash, summary,
+    passageInputHash, summary,
     coldImprovementPercent: +(100 * (1 - summary.current.medianColdMs / summary.baseline.medianColdMs)).toFixed(1),
     runs,
   };
