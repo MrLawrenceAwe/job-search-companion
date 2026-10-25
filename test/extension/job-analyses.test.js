@@ -38,6 +38,7 @@ test("a completed analysis renders on the card and detail pane and opens through
     button.click();
     assert.equal(JSON.stringify(messages.at(-1)), JSON.stringify({ type: "OPEN_JOB_ANALYSIS", jobUrl }));
     assert.equal(button.disabled, false);
+    assert.ok(button.title.startsWith("Verdict not recorded —"));
   }
 });
 
@@ -57,18 +58,25 @@ test("pending jobs have no analysed mark; storage updates and selection changes 
   await waitUntil(() => !window.document.querySelector(".jsc-analyzed-badge"));
 });
 
-for (const [verdict, color] of [["use as-is", "green"], ["edit the CV", "yellow"], ["no suitable base CV", "red"], ["do not apply yet", "red"], ["not enough information", "blue"]]) {
+for (const [verdict, color, label] of [
+  ["use as-is", "green", "Use as is"],
+  ["edit the CV", "yellow", "Edit CV"],
+  ["no suitable base CV", "red", "No suitable base CV"],
+  ["do not apply yet", "red", "Do not apply yet"],
+  ["not enough information", "blue", "Not enough information"],
+]) {
   test(`analysis verdict ${verdict} colours both controls ${color} and updates an existing badge`, async (t) => {
     const { window, change } = await fixture(t, { [key]: { ...record, verdict } });
     await waitUntil(() => window.document.querySelector(".jsc-analysis-detail"));
     for (const button of window.document.querySelectorAll(".jsc-analysis-button")) {
       assert.equal(button.dataset.verdictColor, color);
-      assert.ok(button.title.startsWith(verdict));
+      assert.ok(button.title.startsWith(`${label} —`));
     }
     const badge = window.document.querySelector(".jsc-analyzed-badge");
     change({ [key]: { newValue: { ...record, verdict: "edit the CV" } } });
     await waitUntil(() => badge.dataset.verdictColor === "yellow");
     assert.equal(window.document.querySelector(".jsc-analyzed-badge"), badge);
     assert.equal(window.document.querySelector(".jsc-analysis-detail").dataset.verdictColor, "yellow");
+    assert.ok(badge.title.startsWith("Edit CV —"));
   });
 }

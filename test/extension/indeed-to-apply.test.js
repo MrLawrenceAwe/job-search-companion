@@ -44,7 +44,7 @@ const fixture = async (t, platform = 'indeed', stored = {}, resolveTitle = null,
     schedule: () => { scheduled++; render(page); },
   } };
   await runScriptsInDom(window, ['job-url.js', 'storage-observer.js', 'job-mark-store.js', ...(includeMarkActions ? ['job-marks.js'] : []),
-    'job-analysis-store.js', ...(includeAnalysisActions ? ['job-analyses.js'] : []), 'indeed-to-apply-renderer.js', 'indeed-to-apply.js']);
+    'job-analysis-store.js', ...(includeAnalysisActions ? ['job-analyses.js'] : []), 'indeed-job-metadata.js', 'indeed-to-apply-renderer.js', 'indeed-to-apply.js']);
   await Promise.all(readiness);
   render(page);
   return { window, saved, page, render, get scheduled() { return scheduled; }, change: async (values) => { for (const listener of changes) listener(values, 'local'); await Promise.resolve(); } };

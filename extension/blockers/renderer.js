@@ -84,7 +84,7 @@
         if (submit.disabled) return;
         drafts.delete(draftKey);
         openDrafts.delete(draftKey);
-        void startCheck(true, { requirementQuote: finding.requirementQuote, reason: input.value.trim() });
+        void startCheck({ challenge: { requirementQuote: finding.requirementQuote, reason: input.value.trim() } });
       });
       const toggle = button(pending ? challengeState.status === "queued" ? "Challenge queued" : "Reviewing challenge…" : "Challenge", () => {
         openDrafts.add(draftKey);
@@ -257,7 +257,7 @@
         }
       }
       const controls = element("div", null, "jsc-blocker-controls");
-      const checkButton = button(result ? "Recheck" : "Check now", () => void startCheck(true));
+      const checkButton = button(result ? "Recheck" : "Check now", () => void startCheck({ bypassCache: true, allowHidden: true }));
       checkButton.disabled = busy || !canCheck(checkerState);
       controls.append(checkButton);
       panel.append(controls);

@@ -36,11 +36,11 @@
     // Challenge entries own their requirement-specific errors.
     ...(!challenge && error ? { error } : {}),
   });
-  const runCheck = async (captured, force, challenge) => {
+  const runCheck = async (captured, { bypassCache, allowHidden, challenge }) => {
     if (
       !captured ||
       !canCheck(checkerState) ||
-      (!force && document.hidden)
+      (!allowHidden && document.hidden)
     )
       return;
     checks.set(captured.signature, { status: "queued" });
@@ -49,7 +49,7 @@
       let { check } = await request("check", {
         jobUrl: captured.jobUrl,
         description: captured.text,
-        force,
+        force: bypassCache,
         ...(challenge ? { challenge } : {}),
       });
       checks.set(captured.signature, checkState(check, challenge));
@@ -85,7 +85,7 @@
         entry.status = "reviewing";
         scheduleRender();
         const captured = { ...entry.job, signature: signatureFor(entry.job) };
-        const check = await runCheck(captured, true, entry.challenge);
+        const check = await runCheck(captured, { bypassCache: true, allowHidden: true, challenge: entry.challenge });
         entry.status = check?.status || "cancelled";
         entry.error = check?.error || (check ? null : checkerState?.pausedReason || "Checking is unavailable. Submit this challenge again when checks resume.");
         scheduleRender();
@@ -96,7 +96,7 @@
       scheduleRender();
     }
   };
-  const startCheck = async (force = false, challenge) => {
+  const startCheck = async ({ bypassCache = false, allowHidden = false, challenge } = {}) => {
     const captured = selection;
     if (!captured) return;
     if (challenge) {
@@ -111,9 +111,9 @@
       scheduleRender();
       return drainChallenges();
     }
-    if (running || (!force && (getCurrentResult() || checks.has(captured.signature)))) return;
+    if (running || (!bypassCache && (getCurrentResult() || checks.has(captured.signature)))) return;
     running = true;
-    try { await runCheck(captured, force); }
+    try { await runCheck(captured, { bypassCache, allowHidden }); }
     finally {
       running = false;
       if (selection && selection.signature !== captured.signature) schedule();

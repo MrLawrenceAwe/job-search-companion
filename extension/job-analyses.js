@@ -7,7 +7,7 @@
   const updateAnalysisButton = (button, jobUrl, record) => {
     button.dataset.jobUrl = jobUrl;
     button.dataset.verdictColor = contract.colorFor(record.verdict);
-    button.title = `${record.verdict || "Verdict not recorded"} — Open completed CV-fit analysis in Codex (${new Date(record.analyzedAt).toLocaleDateString()})`;
+    button.title = `${contract.labelFor(record.verdict)} — Open completed CV-fit analysis in Codex (${new Date(record.analyzedAt).toLocaleDateString()})`;
   };
   const createAnalysisButton = (jobUrl, record) => {
     const button = document.createElement("button");

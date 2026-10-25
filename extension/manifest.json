@@ -81,6 +81,7 @@
         "job-marks.js",
         "job-analysis-store.js",
         "job-analyses.js",
+        "indeed-job-metadata.js",
         "indeed-to-apply-renderer.js",
         "indeed-to-apply.js",
         "shortcuts.js",

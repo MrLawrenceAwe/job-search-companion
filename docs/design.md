@@ -63,7 +63,9 @@ The content-page API in `extension-context.js` connects three boundaries:
   subscribe only to their relevant records.
 - Presentation: `page-decorations.js` shares page observation and a snapshot of
   cards, the selected heading, and stable control containers across renderers.
-  The To apply coordinator selects eligible jobs separately from its renderer.
+  `indeed-job-metadata.js` owns captured titles, availability requests and native
+  dismissal persistence. The To apply coordinator selects eligible jobs separately
+  from its metadata store and renderer.
 
 The MAIN-world description capture feeds the isolated blocker coordinator; see
 [blocker-checking internals](#blocker-checking-internals). The service worker
@@ -360,8 +362,10 @@ every 30 seconds, and visible pages request a sync on load or visibility
 changes. Saved records use `analyzed-job:<platform>:<job-id>` storage keys.
 `job-analysis-store.js` reads and validates these records once for the content page.
 `job-analyses.js` renders the card badge and detail action from this shared store;
-`indeed-to-apply.js` uses it to select jobs for the **To apply** list, displayed
-by `indeed-to-apply-renderer.js`.
+`indeed-to-apply.js` combines analyses and manual marks with
+`indeed-job-metadata.js` to select jobs for the **To apply** list, displayed
+by `indeed-to-apply-renderer.js`. The metadata store owns page title and expiry
+capture, title/availability requests, and native dismissal records.
 An unfinished reanalysis preserves the existing completed result.
 
 `POST /analyses/open` accepts a job URL, looks up its stored chat, and invokes
