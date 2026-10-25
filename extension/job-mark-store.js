@@ -11,7 +11,7 @@
     const { platform, id } = globalThis.jobSearchContracts.jobUrls.identityFromUrl(new URL(normalized));
     return globalThis.jobSearchContracts.jobStorageKeys.forJob(kind, { platform, id });
   };
-  const readRecord = (key, value) => {
+  const applyRecord = (key, value) => {
     const kind = globalThis.jobSearchContracts.jobStorageKeys.parse(key)?.kind;
     if (!Object.hasOwn(timestampFields, kind)) return;
     if (isRecord(kind, value)) records.set(key, value);
@@ -19,7 +19,7 @@
     return true;
   };
   const { ready, subscribe } = globalThis.jobSearchStorage.observe({
-    read: readRecord, errorMessage: "Job record update failed:",
+    applyRecord, errorMessage: "Job record update failed:",
   });
   companion.jobMarkStore = Object.freeze({
     ready,

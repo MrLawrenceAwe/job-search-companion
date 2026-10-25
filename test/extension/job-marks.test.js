@@ -28,7 +28,7 @@ for (const kind of ["applied", "unsuitable"]) {
     assert.ok(Number.isFinite(Date.parse(first.storage[key][timestamp])));
     assert.equal(
       first.markButton.querySelector(".jsc-menu-item-label").textContent,
-      `Unmark as ${kind}`,
+      `Remove ${kind} mark`,
     );
     assert.equal(first.markButton.disabled, false);
 

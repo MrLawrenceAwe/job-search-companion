@@ -14,7 +14,7 @@
   const availability = new Map();
   const availabilityRequests = new Map();
   let currentPage = { cards: new Map(), jobUrl: null };
-  const read = (key, value) => {
+  const applyRecord = (key, value) => {
     const identity = keys.parse(key);
     if (identity?.platform !== "indeed") return;
     const { kind, id } = identity;
@@ -35,7 +35,7 @@
     return true;
   };
   const metadata = globalThis.jobSearchStorage.observe({
-    read, errorMessage: "Job metadata update failed:",
+    applyRecord, errorMessage: "Job metadata update failed:",
   });
   const ready = Promise.all([analyses.ready, metadata.ready]);
   const rememberTitle = (jobUrl, title, updates) => {

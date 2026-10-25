@@ -63,7 +63,10 @@ See [design and testing](docs/design.md) and [evaluation reports](docs/evaluatio
 Marks stay in extension storage. CV tasks use a local service at `127.0.0.1:48973`;
 blocker checks send the description and supplied profile/CV evidence through the connected
 ChatGPT account. CV handling follows the configured workspace's skill and account.
-The bridge stores submission status and rotating logs locally.
+The bridge stores ChatGPT credentials, indexed CV excerpts, blocker results,
+submission statuses, completed analysis records, and rotating logs locally.
+See [saved checks and account data](docs/blocker-checker.md#cache-and-account-data)
+and [removal and retained data](docs/setup.md#remove) for details.
 
 Job-board layout changes can break integrations. Synthetic tests do not establish
 live job-board or Codex compatibility; see [manual verification](docs/setup.md#3-verify).

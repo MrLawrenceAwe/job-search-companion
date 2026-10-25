@@ -12,7 +12,7 @@
       return { jobId, removed };
     };
     const { ready, subscribe, notify } = globalThis.jobSearchStorage.observe({
-      read: applyRecord, errorMessage: "Blocker record update failed:",
+      applyRecord, errorMessage: "Blocker record update failed:",
     });
 
     const removeResults = async (jobIds) => {

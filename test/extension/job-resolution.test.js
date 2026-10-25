@@ -94,7 +94,7 @@ test("Indeed home-page job identity stays stable when mark controls change title
 
   const expectedUrl = "https://uk.indeed.com/viewjob?jk=fixture123";
   assert.equal(companion.jobs.resolveSelectedJobUrl(), expectedUrl);
-  for (const controls of ["Mark as appliedMark as unsuitable", "Unmark as appliedMark as unsuitable", ""]) {
+  for (const controls of ["Mark as appliedMark as unsuitable", "Remove applied markMark as unsuitable", ""]) {
     titleRow.textContent = title + controls;
     assert.equal(companion.jobs.resolveSelectedJobUrl(), expectedUrl);
   }

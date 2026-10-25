@@ -166,6 +166,20 @@ Uninstall restores every managed file to its pre-install contents. If any
 managed file changed after installation, uninstall preserves all files instead
 of overwriting the change.
 
+Uninstall retains runtime data in
+`~/Library/Application Support/Job Search Companion/`, including ChatGPT
+credentials, indexed CV excerpts, saved checks, submission statuses, completed
+analysis records, and logs. Before uninstalling, use **Sign out current account**
+in extension settings for each connected account to clear its local credentials
+and attempt remote revocation. Sign-out keeps account registrations; see
+[account data](blocker-checker.md#cache-and-account-data).
+After uninstalling, you can delete the retained data directory if you no longer
+need those records. Logs at a custom `JSC_LOG_PATH` remain at that location.
+Accepted corrections remain in your source profile files.
+
+Remove the unpacked extension separately through `chrome://extensions` to clear
+its Chrome-local records, including manual marks and cached analyses and checks.
+
 ## Configuration
 
 Required environment variables:

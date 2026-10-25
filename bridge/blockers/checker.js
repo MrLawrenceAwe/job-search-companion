@@ -115,8 +115,8 @@ export const openBlockerChecker = async ({
     checkJob.controller = controller;
     const timer = setTimeout(() => controller.abort(), 90_000);
     let pendingRecord = null;
-    let recordKey = checkJob.key;
-    let previousRecord = cache.get(checkJob.key);
+    let recordKey;
+    let previousRecord;
     const isCurrent = () => isCheckCurrent(checkJob);
     try {
       let requiredModel = checkJob.model;
@@ -134,8 +134,8 @@ export const openBlockerChecker = async ({
           checksByCacheKey.delete(checkJob.key);
           checkJob.key = cacheKeyFor(checkJob);
           checksByCacheKey.set(checkJob.key, checkJob);
-          previousRecord = cache.get(checkJob.key);
-          if (!checkJob.force && previousRecord) return { cachedRecord: previousRecord };
+          const cachedRecord = cache.get(checkJob.key);
+          if (!checkJob.force && cachedRecord) return { cachedRecord };
           requiredModel = checkJob.model;
           return { result: await infer({
             chatgpt, model: checkJob.model, reasoningEffort: checkJob.reasoningEffort,

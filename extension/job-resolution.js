@@ -235,7 +235,7 @@
     return titles.map(companion.text.normalizeForMatch).filter(Boolean);
   };
 
-  const resolveVisibleJobByTitle = (title, isEligible = companion.dom.getViewportRect, selectedOnly = false) => {
+  const resolveCardJobByTitle = (title, isEligible = companion.dom.getViewportRect, selectedOnly = false) => {
     const normalizedTitle = companion.text.normalizeForMatch(title);
     if (!normalizedTitle) {
       return { status: "not-found", jobUrl: null };
@@ -322,16 +322,16 @@
   };
 
   const resolveJobUrlByTitle = (title, isEligible = companion.dom.getViewportRect) => {
-    const visibleMatch = resolveVisibleJobByTitle(title, isEligible);
-    if (visibleMatch.status === "ambiguous") {
+    const cardMatch = resolveCardJobByTitle(title, isEligible);
+    if (cardMatch.status === "ambiguous") {
       return null;
     }
     const scriptMatch = resolveScriptJobByTitle(title);
-    if (visibleMatch.status === "resolved") {
-      if (scriptMatch.status === "resolved" && scriptMatch.jobUrl !== visibleMatch.jobUrl) {
+    if (cardMatch.status === "resolved") {
+      if (scriptMatch.status === "resolved" && scriptMatch.jobUrl !== cardMatch.jobUrl) {
         return null;
       }
-      return visibleMatch.jobUrl;
+      return cardMatch.jobUrl;
     }
     return scriptMatch.status === "resolved" ? scriptMatch.jobUrl : null;
   };
@@ -348,7 +348,7 @@
     if (companion.platform === "indeed" && ["/", "/jobs"].includes(window.location.pathname)) {
       const title = findDetailPaneJobTitle();
       if (title) {
-        const selected = resolveVisibleJobByTitle(title, companion.dom.getRenderedRect, true);
+        const selected = resolveCardJobByTitle(title, companion.dom.getRenderedRect, true);
         const displayedJobUrl = selected.status === "resolved" ? selected.jobUrl
           : selected.status === "ambiguous" ? null : resolveJobUrlByTitle(title, companion.dom.getRenderedRect);
         if (displayedJobUrl) return displayedJobUrl;

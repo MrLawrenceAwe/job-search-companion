@@ -51,7 +51,7 @@
   const updateButton = (button, jobUrl, kind) => {
     button.dataset.jobUrl = jobUrl;
     button.dataset.markKind = kind;
-    const label = `${isMarked(jobUrl, kind) ? "Unmark" : "Mark"} as ${kind}`;
+    const label = isMarked(jobUrl, kind) ? `Remove ${kind} mark` : `Mark as ${kind}`;
     const labelElement = button.querySelector(".jsc-menu-item-label") || button;
     if (labelElement.textContent !== label) labelElement.textContent = label;
     const pressed = String(isMarked(jobUrl, kind));
