@@ -146,11 +146,10 @@
         const jobId = jobIdFromUrl(jobUrl);
         const record = recordStore.get(jobId);
         if (!isRetainableResult(record)) continue;
-        const verified = selection?.jobId === jobId && getCurrentResult() === record;
         const display = presentation(record);
         const badge = element(
           "span",
-          `${display.label}${verified ? "" : " · Previously checked"}`,
+          display.label,
           `jsc-blocker-badge jsc-${display.outcome}`,
         );
         badge.title = `Checked ${new Date(record.checkedAt).toLocaleString()}. Open this job to verify its description against the current profile.`;

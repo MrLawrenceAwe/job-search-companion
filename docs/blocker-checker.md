@@ -75,8 +75,8 @@ you lack the experience or qualification.
 The check does not establish overall fit or guarantee that every requirement was
 recognised. Full CV analysis remains a separate action.
 
-Cards show saved results. **Previously checked** means the description and current
-evidence have not yet been verified together. Manual application marks and job
+Cards show saved results. Opening a job verifies its description against the
+current evidence. Manual application marks and job
 visibility are unchanged. Results from older checker contracts are discarded;
 application marks and completed CV-fit analyses are retained. See `extension/contracts/blockers.js`
 for the current checker version.

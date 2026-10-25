@@ -271,7 +271,7 @@ test("a new selection with an old pane is never checked under the new job ID", a
     await waitUntil(() => fixture.storage["blocker-result:second111"]);
     assert.equal(fixture.calls[1].jobUrl, "https://uk.indeed.com/viewjob?jk=second111");
     assert.equal(fixture.calls[1].description, publicTransportDescription);
-    assert.match(fixture.window.document.querySelector(".jsc-blocker-badge").textContent, /Previously checked/);
+    assert.equal(fixture.window.document.querySelector(".jsc-blocker-badge").textContent, "No blockers found");
   } finally {
     await fixture.close();
   }
@@ -292,7 +292,7 @@ test("cached profile mismatches never display a current clean result", async () 
     },
   });
   try {
-    await waitUntil(() => fixture.window.document.querySelector(".jsc-blocker-badge")?.textContent.includes("Previously checked"));
+    await waitUntil(() => fixture.window.document.querySelector(".jsc-blocker-badge")?.textContent === "Potential blocker");
     assert.ok(!fixture.window.document.querySelector(".jsc-blocker-panel")?.textContent.includes("Blocker"));
     await waitUntil(() => fixture.window.document.querySelector(".jsc-blocker-panel")?.textContent.includes("No blockers found"));
     assert.equal(fixture.calls.length, 1);
