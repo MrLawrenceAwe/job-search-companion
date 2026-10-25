@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { openBlockerChecker } from "../../../bridge/blockers/checker.js";
 import { openChatGPTAccountManager } from "../../../bridge/blockers/chatgpt-accounts.js";
+import { runWithAccountFallback } from "../../../bridge/blockers/account-fallback.js";
 import { drainEventLoopUntil, waitUntil } from "../../../test-support/async.js";
 
 const profile = { hash: "verified", facts: [{ id: "F1", text: "Provisional licence" }], sources: [] };
@@ -16,7 +17,11 @@ const fixture = async (t, infer, models = async () => [{ slug: "test" }]) => {
   let activeId = "a";
   const selected = [];
   const chatgpt = {
-    connectionStatus: () => ({ activeId, planUsageEnabled: true }),
+    connectionStatus: () => ({ activeId, planUsageEnabled: true, accounts: [
+      { id: "a", label: "primary@example.test" },
+      { id: "b", label: "fallback@example.test · Registration 1" },
+      { id: "c", label: "third@example.test" },
+    ] }),
     fallbackAccountIds: () => ["b", "c"],
     select: async (id) => { selected.push(id); activeId = id; },
     models: () => models(activeId), close() {},
@@ -102,7 +107,91 @@ test("all exhausted accounts are tried once then checks pause without caching an
   assert.deepEqual(calls, ["a", "b", "c"]);
   assert.equal(task.result, undefined);
   assert.match((await checker.status()).pausedReason, /No connected fallback/);
+  assert.equal(task.error, (await checker.status()).pausedReason);
+  for (const label of ["primary@example.test", "fallback@example.test · Registration 1", "third@example.test"]) {
+    assert.ok(task.error.includes(`${label} (request, test): plan usage limit reached`));
+    assert.equal(task.error.split(label).length, 2);
+  }
   await assert.rejects(checker.start(job()), /No connected fallback/);
+});
+
+for (const scenario of [
+  { reason: "required model unavailable", models: async () => [] },
+  { reason: "authentication failed; reconnect this account", status: 401 },
+  { reason: "access denied", status: 403 },
+  { reason: "plan usage limit reached", status: 429, code: "subscription_sharing_usage_limit_exceeded" },
+  { reason: "temporarily rate limited", status: 429, code: "rate_limit_exceeded" },
+  { reason: "request failed (HTTP 503)", status: 503 },
+  { reason: "connection or request failed" },
+]) {
+  test(`fallback diagnostics report model lookup: ${scenario.reason}`, async (t) => {
+    const { checker } = await fixture(t, async () => { throw quota(); }, async (id) => {
+      if (id !== "b") return [{ slug: "test" }];
+      if (scenario.models) return scenario.models();
+      throw Object.assign(new Error("Private provider payload: secret-token"), { status: scenario.status, code: scenario.code });
+    });
+    const task = await settle(checker, await checker.start(job()));
+    assert.equal(task.status, "failed");
+    assert.ok(task.error.includes("primary@example.test (request, test): plan usage limit reached"));
+    assert.ok(task.error.includes(`fallback@example.test · Registration 1 (model lookup, test): ${scenario.reason}`));
+    assert.doesNotMatch(task.error, /secret-token|Private provider/);
+    assert.equal((await checker.status()).pausedReason, task.error);
+  });
+}
+
+test("fallback diagnostics include a failed account selection", async (t) => {
+  const { checker, chatgpt } = await fixture(t, async () => { throw quota(); });
+  chatgpt.select = async () => { throw Object.assign(new Error("Busy"), { status: 409 }); };
+  const task = await settle(checker, await checker.start(job()));
+  assert.match(task.error, /fallback@example.test · Registration 1 \(account selection, test\): request failed \(HTTP 409\)/);
+  assert.equal((await checker.status()).pausedReason, task.error);
+});
+
+test("fallback diagnostics retain prior attempts when inference fails without a usage limit", async (t) => {
+  const { checker, selected } = await fixture(t, async ({ chatgpt }) => {
+    if (chatgpt.connectionStatus().activeId === "a") throw quota();
+    throw Object.assign(new Error("Private provider payload"), { status: 403 });
+  });
+  const task = await settle(checker, await checker.start(job()));
+  assert.deepEqual(selected, ["b"]);
+  assert.match(task.error, /primary@example.test \(request, test\): plan usage limit reached/);
+  assert.match(task.error, /fallback@example.test · Registration 1 \(request, test\): access denied/);
+  assert.doesNotMatch(task.error, /Private provider/);
+});
+
+test("diagnostics preserve the model needed by each stage and account labels without IDs", async () => {
+  let activeId = "private-account-a";
+  let requiredModel = "index-model";
+  const checkJob = { accountId: activeId };
+  const chatgpt = {
+    connectionStatus: () => ({ activeId, accounts: [] }),
+    fallbackAccountIds: () => ["private-account-b", "private-account-c"],
+    select: async (id) => { activeId = id; },
+    models: async () => activeId === "private-account-c" ? [] : [{ slug: "index-model" }],
+  };
+  await assert.rejects(runWithAccountFallback({
+    chatgpt, checkJob, isCurrent: () => true, isFallbackEnabled: () => true,
+    getRequiredModel: () => requiredModel,
+    run: async () => {
+      if (activeId === "private-account-b") requiredModel = "checker-model";
+      throw quota();
+    },
+  }), (error) => {
+    assert.match(error.message, /Account 1 \(request, index-model\): plan usage limit reached/);
+    assert.match(error.message, /Account 2 \(request, checker-model\): plan usage limit reached/);
+    assert.match(error.message, /Account 3 \(model lookup, checker-model\): required model unavailable/);
+    assert.doesNotMatch(error.message, /private-account/);
+    return true;
+  });
+});
+
+test("usage failure still identifies the original account when no fallback is connected", async (t) => {
+  const { checker, chatgpt, selected } = await fixture(t, async () => { throw quota(); });
+  chatgpt.fallbackAccountIds = () => [];
+  const task = await settle(checker, await checker.start(job()));
+  assert.match(task.error, /primary@example.test \(request, test\): plan usage limit reached/);
+  assert.doesNotMatch(task.error, /fallback@example.test|third@example.test/);
+  assert.deepEqual(selected, []);
 });
 
 for (const failure of [Object.assign(new Error("Rate limited"), { status: 429, code: "rate_limit_exceeded" }), Object.assign(new Error("Reconnect"), { status: 401 }), new Error("Network failure")]) {

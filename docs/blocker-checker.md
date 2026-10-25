@@ -154,6 +154,8 @@ Fallback retries only when ChatGPT confirms a plan usage limit (`subscription_sh
 
 When no fallback can continue, the check fails and queued checks pause. Use **Manage usage**, reconnect an account, or select another model and resume. Limits may be app-specific; the error does not establish that an entire plan is empty or when it resets. No API-key billing is used. Turning checks off, changing accounts or fallback settings, clearing findings, and shutdown cancel pending fallback work.
 
+Failure messages list each attempted account by its settings label, the required model, and whether account selection, model lookup, or the request failed. Reasons distinguish plan usage limits, authentication failures, denied access, unavailable models, temporary rate limits, and other request failures. Attempts are retained across CV indexing and job checking for that check. Credentials and raw provider error messages are excluded; accounts filtered out before fallback are not listed as attempts. Diagnostics appear in the failed check and pause message and are not saved as a finding or a separate log.
+
 ## Cache and account data
 
 Each store retains at most 300 saved check results. A result may contain several
