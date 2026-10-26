@@ -31,7 +31,8 @@ Marks are manual and reversible; they are not proof of successful submission.
    on Indeed or LinkedIn. Hidden jobs reappear on page reload, and navigation and
    the bounded undo history reset, with the first **J** selecting the top job.
    While jobs are hidden, a DOM observer applies the hidden class to replacement
-   cards after results rerender.
+   cards after results rerender. It batches changes for 40 ms, scans affected
+   cards or inserted subtrees, and ignores unrelated content and extension decorations.
 2. The extension service worker sends an authenticated request to the local
    bridge and uses short status checks while Codex automation runs.
 3. The bridge opens a prepared Codex task through `codex://threads/new`.
@@ -74,7 +75,9 @@ The MAIN-world description capture feeds the isolated blocker coordinator; see
 registers feature handlers from `worker/`; `worker/bridge-client.js` owns bridge
 headers and timeouts, and `worker/senders.js` validates job-site senders.
 Listing title and availability requests share in-flight fetches and one JSON-LD
-parse while retaining separate caches. Installer-generated `local-config.js`
+parse while retaining separate caches. At most three listing reads run at once
+across tabs; queued reads start their ten-second timeout when a slot opens.
+Installer-generated `local-config.js`
 provides private bridge settings. `options.html`, `options.js`, and `options.css`
 implement blocker settings. Saved or draft model choices survive catalogue refresh;
 unavailable choices remain visible and disabled while absent from the catalogue.

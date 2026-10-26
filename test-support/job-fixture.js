@@ -56,6 +56,8 @@ export const createJobFixture = async ({ href, scripts = [], canonicalUrl = null
       notify() { if (this.observing) this.callback(); }
     },
     window: {
+      setTimeout,
+      clearTimeout,
       addEventListener(type, listener) {
         (windowListeners[type] ||= []).push(listener);
       },

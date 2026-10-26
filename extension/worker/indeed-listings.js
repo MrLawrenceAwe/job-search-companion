@@ -6,9 +6,22 @@
     const keys = globalThis.jobSearchContracts.jobStorageKeys;
     const availabilityContract = globalThis.jobSearchContracts.indeedAvailability;
     const requests = new Map();
+    const waitingReads = [];
+    let activeReads = 0;
+    const acquireRead = async () => {
+      if (activeReads >= 3) await new Promise((resolve) => waitingReads.push(resolve));
+      else activeReads++;
+    };
+    const releaseRead = () => {
+      const next = waitingReads.shift();
+      if (next) next();
+      else activeReads--;
+    };
     const readListing = async (id) => {
       if (requests.has(id)) return requests.get(id);
       const request = (async () => {
+        await acquireRead();
+        // Queued jobs receive their full timeout once a network slot opens.
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 10_000);
         try {
@@ -20,7 +33,10 @@
               globalThis.jobSearchContracts.jobUrls.identityFromUrl(url)?.id !== id)
             throw new Error("Job listing unavailable");
           return globalThis.jobSearchWorkerModules.parseIndeedListing(await response.text());
-        } finally { clearTimeout(timer); }
+        } finally {
+          clearTimeout(timer);
+          releaseRead();
+        }
       })().finally(() => requests.delete(id));
       requests.set(id, request);
       return request;

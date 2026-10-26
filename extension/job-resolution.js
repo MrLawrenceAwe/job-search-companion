@@ -208,9 +208,11 @@
     return null;
   };
 
-  const collectJobCarriers = (isEligible = () => true) => {
+  const collectJobCarriers = (isEligible = () => true, root = document) => {
     const jobEntries = [];
-    for (const element of document.querySelectorAll(companion.selectors.jobUrlCarrier)) {
+    const carriers = [...root.querySelectorAll(companion.selectors.jobUrlCarrier)];
+    if (root.matches?.(companion.selectors.jobUrlCarrier)) carriers.unshift(root);
+    for (const element of carriers) {
       if (element.closest(".jsc-to-apply")) continue;
       if (!isEligible(element)) {
         continue;

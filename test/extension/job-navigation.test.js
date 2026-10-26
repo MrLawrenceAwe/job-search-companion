@@ -428,43 +428,61 @@ test("undo resolves a replacement card after the results list rerenders", async 
   assert.deepEqual(clicked, ["original", "replacement"]);
 });
 
-test("a hidden job stays hidden when its card is replaced", async () => {
-  const { companion, mutationObservers } = await createJobFixture({
-    href: "https://uk.indeed.com/jobs?q=support",
+test('hidden-job reconciliation ignores unrelated updates and batches scans within affected cards', async (t) => {
+  const dom = new JSDOM(`<body><ul>
+    <li id="first"><a href="/viewjob?jk=visiblejob1">First</a></li>
+    <li id="second"><a href="/viewjob?jk=visiblejob2">Second</a></li>
+    </ul><aside></aside></body>`, {
+    url: 'https://uk.indeed.com/viewjob?jk=visiblejob1', runScripts: 'outside-only',
   });
-  const makeJob = (jobKey) => {
-    const classes = new Set();
-    const container = {
-      classList: {
-        add: (className) => classes.add(className),
-        remove: (className) => classes.delete(className),
-        contains: (className) => classes.has(className),
-      },
-    };
-    const element = {
-      closest: () => container,
-      click() {},
-      focus() {},
-      matches: () => true,
-      scrollIntoView() {},
-    };
-    return { jobUrl: `https://uk.indeed.com/viewjob?jk=${jobKey}`, element, container };
+  t.after(() => dom.window.close());
+  const { window } = dom;
+  await runScriptsInDom(window, [
+    'contracts/job-urls.js', 'contracts/job-storage-keys.js', 'contracts/blockers.js',
+    'extension-context.js', 'dom-visibility.js', 'job-url.js', 'job-resolution.js', 'job-navigation.js',
+  ]);
+  const companion = window.jobSearchCompanion;
+  const first = window.document.querySelector('#first');
+  const second = window.document.querySelector('#second');
+  for (const link of window.document.querySelectorAll('a')) link.addEventListener('click', (event) => event.preventDefault());
+  companion.dom.getRenderedRect = (element) => element.closest('.jsc-hidden-job') ? null : { width: 100, height: 30 };
+  companion.jobs.navigateJob(1);
+  companion.jobs.hideCurrentJob();
+  const scans = [];
+  const collect = companion.jobs.collectJobCarriers;
+  companion.jobs.collectJobCarriers = (eligible, root) => {
+    scans.push(root);
+    return collect(eligible, root);
   };
-  let jobs = [makeJob("visiblejob1")];
-  companion.jobs.collectJobCarriers = (isEligible) => jobs.filter(({ container }) => (
-    !container.classList.contains("jsc-hidden-job")
-      || isEligible !== companion.dom.getRenderedRect
-  ));
-
-  assert.equal(companion.jobs.navigateJob(1), true);
-  assert.equal(companion.jobs.hideCurrentJob(), true);
-  assert.equal(mutationObservers[0].observing, true);
-
-  jobs = [makeJob("visiblejob1")];
-  mutationObservers[0].notify();
-  assert.equal(jobs[0].container.classList.contains("jsc-hidden-job"), true);
-
-  assert.equal(companion.jobs.undoLastJobAction(), true);
-  assert.equal(jobs[0].container.classList.contains("jsc-hidden-job"), false);
-  assert.equal(mutationObservers[0].observing, false);
+  for (let index = 0; index < 20; index++) {
+    window.document.querySelector('aside').append(window.document.createElement('span'));
+    await Promise.resolve();
+  }
+  first.insertAdjacentHTML('beforeend', '<span class="jsc-blocker-badge">Checked</span>');
+  await new Promise((resolve) => window.setTimeout(resolve, 150));
+  assert.equal(scans.length, 0, 'unrelated content and owned decorations must not scan jobs');
+  const link = first.querySelector('a');
+  link.href = '/viewjob?jk=visiblejob3';
+  await Promise.resolve();
+  link.href = '/viewjob?jk=visiblejob4';
+  await waitUntil(() => !first.classList.contains('jsc-hidden-job'));
+  assert.deepEqual(scans, [first], 'successive changes should share one card-scoped scan');
+  scans.length = 0;
+  second.innerHTML = '<a href="/viewjob?jk=visiblejob1">Hidden job</a>';
+  await waitUntil(() => second.classList.contains('jsc-hidden-job'));
+  assert.deepEqual(scans, [second]);
+  scans.length = 0;
+  const replacement = second.cloneNode(true);
+  replacement.classList.remove('jsc-hidden-job');
+  second.replaceWith(replacement);
+  await waitUntil(() => replacement.classList.contains('jsc-hidden-job'));
+  assert.deepEqual(scans, [replacement], 'replacement cards must still inherit hidden state');
+  link.href = '/viewjob?jk=visiblejob1';
+  await Promise.resolve();
+  companion.jobs.undoLastJobAction();
+  scans.length = 0;
+  await new Promise((resolve) => window.setTimeout(resolve, 150));
+  assert.equal(scans.length, 0, 'undoing the last hide cancels pending work');
+  assert.equal(first.classList.contains('jsc-hidden-job'), false);
+  assert.equal(replacement.classList.contains('jsc-hidden-job'), false);
 });

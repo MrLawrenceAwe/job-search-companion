@@ -7,6 +7,9 @@
   let pageJobUrlAtSelection = null;
   let selectionNeedsHistoryResolution = false;
   let hiddenJobObserver = null;
+  let hiddenJobTimer = null;
+  const pendingHiddenRoots = new Set();
+  const ownedDecorations = '.jsc-detail-controls, .jsc-job-mark-badge, .jsc-blocker-badge, .jsc-menu-item, .jsc-to-apply';
 
   const uniqueJobs = (jobEntries) => {
     const jobsByUrl = new Map();
@@ -26,11 +29,18 @@
     );
 
   const reconcileHiddenJobCards = () => {
+    hiddenJobTimer = null;
+    const roots = [...pendingHiddenRoots].filter((root) => root.isConnected);
+    pendingHiddenRoots.clear();
     const cards = new Map();
-    // Include hidden carriers so a card reused for another job becomes visible.
-    for (const { element, jobUrl } of companion.jobs.collectJobCarriers()) {
-      const card = element.closest?.(companion.selectors.jobCard) || element;
-      cards.set(card, cards.get(card) || hiddenJobUrls.has(jobUrl));
+    for (const root of roots) {
+      if (roots.some((other) => other !== root && other.contains(root))) continue;
+      // Reset reused cards even when their last job carrier was removed.
+      if (root.matches(`${companion.selectors.jobCard}, .jsc-hidden-job`)) cards.set(root, false);
+      for (const { element, jobUrl } of companion.jobs.collectJobCarriers(undefined, root)) {
+        const card = element.closest?.(companion.selectors.jobCard) || element;
+        cards.set(card, cards.get(card) || hiddenJobUrls.has(jobUrl));
+      }
     }
     for (const [card, hidden] of cards) {
       if (hidden) card.classList?.add("jsc-hidden-job");
@@ -38,9 +48,36 @@
     }
   };
 
+  const queueHiddenRoot = (element, includeSubtree = false) => {
+    if (element?.nodeType !== 1 || element.closest(ownedDecorations)) return;
+    const card = element.closest(companion.selectors.jobCard) || element.closest('.jsc-hidden-job');
+    if (card) pendingHiddenRoots.add(card);
+    else if (element.matches(companion.selectors.jobUrlCarrier) ||
+      (includeSubtree && element.querySelector(companion.selectors.jobUrlCarrier))) {
+      pendingHiddenRoots.add(element);
+    }
+  };
+
+  const scheduleHiddenJobCards = (mutations) => {
+    const isOwned = (node) => (node.nodeType === 1 ? node : node.parentElement)?.closest(ownedDecorations);
+    for (const mutation of mutations) {
+      if (isOwned(mutation.target)) continue;
+      if (mutation.type === 'attributes') queueHiddenRoot(mutation.target, true);
+      else {
+        const changed = [...mutation.addedNodes, ...mutation.removedNodes];
+        if (changed.every(isOwned)) continue;
+        queueHiddenRoot(mutation.target);
+        for (const node of mutation.addedNodes) queueHiddenRoot(node, true);
+      }
+    }
+    if (pendingHiddenRoots.size && hiddenJobTimer === null) {
+      hiddenJobTimer = window.setTimeout(reconcileHiddenJobCards, 40);
+    }
+  };
+
   const observeHiddenJobs = () => {
     if (!hiddenJobObserver) {
-      hiddenJobObserver = new MutationObserver(reconcileHiddenJobCards);
+      hiddenJobObserver = new MutationObserver(scheduleHiddenJobCards);
     }
     hiddenJobObserver.observe(document.documentElement || document, {
       childList: true,
@@ -213,6 +250,9 @@
       hiddenJobUrls.delete(lastAction.jobUrl);
       if (hiddenJobUrls.size === 0) {
         hiddenJobObserver?.disconnect();
+        window.clearTimeout(hiddenJobTimer);
+        hiddenJobTimer = null;
+        pendingHiddenRoots.clear();
       }
       lastAction.container.classList.remove("jsc-hidden-job");
       for (const { element, jobUrl } of companion.jobs.collectJobCarriers()) {

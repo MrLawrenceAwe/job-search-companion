@@ -143,3 +143,37 @@ test("concurrent title and availability requests share a listing read", async ()
   assert.equal((await title).title, "Support Advisor");
   assert.equal((await availability).availability.status, "active");
 });
+
+test('listing refreshes bound concurrency across jobs and release slots after failures', async () => {
+  let active = 0;
+  let peak = 0;
+  const started = [];
+  const releases = [];
+  const worker = await loadWorker(async (url) => {
+    active++;
+    peak = Math.max(peak, active);
+    const id = new URL(url).searchParams.get('jk');
+    started.push(id);
+    await new Promise((resolve) => releases.push(resolve));
+    active--;
+    return { ...titleResponse('<script type="application/ld+json">{"@type":"JobPosting","title":"Advisor","validThrough":"2999-01-01T00:00:00Z"}</script>', id), ok: id !== 'fixture000' };
+  });
+  const requests = Array.from({ length: 8 }, (_, index) => {
+    const id = `fixture00${index}`;
+    worker.storage[`analyzed-job:indeed:${id}`] = analysedJob;
+    return requestAvailability(worker, id);
+  });
+  const duplicate = requestJobTitle(worker, 'fixture007');
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(started.length, 3, 'only three jobs should start before a slot is released');
+  for (let index = 0; index < requests.length; index++) {
+    releases[index]();
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  const results = await Promise.all(requests);
+  assert.equal(results[0].ok, false);
+  assert.ok(results.slice(1).every((result) => result.ok));
+  assert.equal((await duplicate).title, 'Advisor');
+  assert.equal(started.length, 8, 'queued title and availability requests share one listing');
+  assert.equal(peak, 3);
+});
