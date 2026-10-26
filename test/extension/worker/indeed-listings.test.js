@@ -15,6 +15,20 @@ const requestAvailability = (worker, jobId = 'fixture111', sender = { url: 'http
   worker.messageHandler({ type: 'GET_INDEED_JOB_AVAILABILITY', jobId }, sender, resolve);
 });
 
+test('listing metadata reads only its analysis and requested metadata, even with unrelated stored evidence', async () => {
+  const worker = await loadWorker(() => { throw new Error('Cached metadata must not fetch'); });
+  worker.storage['analyzed-job:indeed:fixture111'] = analysedJob;
+  worker.storage['job-title:indeed:fixture111'] = 'Support Advisor';
+  worker.storage['indeed-job-availability:fixture111'] = { status: 'active', checkedAt: new Date().toISOString() };
+  worker.storage['blocker-result:unrelated'] = { evidence: 'x'.repeat(100_000) };
+  const results = await Promise.all([requestJobTitle(worker), requestAvailability(worker)]);
+  assert.ok(results.every((result) => result.ok));
+  assert.deepEqual(worker.storageReads.map((keys) => keys === null ? null : Array.from(keys)), [
+    ['analyzed-job:indeed:fixture111', 'job-title:indeed:fixture111'],
+    ['analyzed-job:indeed:fixture111', 'indeed-job-availability:fixture111'],
+  ]);
+});
+
 test('availability checks detect the expired notice even when a job title is cached, and deduplicate across tabs', async () => {
   let fetches = 0;
   const worker = await loadWorker(async () => {

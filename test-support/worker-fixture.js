@@ -5,6 +5,7 @@ import { readExtensionScript } from "./extension-scripts.js";
 
 export const loadWorker = async (fetch) => {
   const storage = {};
+  const storageReads = [];
   let messageHandler;
   let timeoutCallback;
   let clearedTimer;
@@ -19,7 +20,15 @@ export const loadWorker = async (fetch) => {
     URL,
     clearTimeout: (timer) => { clearedTimer = timer; },
     chrome: {
-      storage: { local: { get: async () => ({ ...storage }), set: async (values) => Object.assign(storage, values) } },
+      storage: { local: {
+        get: async (keys = null) => {
+          storageReads.push(keys);
+          if (keys === null) return { ...storage };
+          const names = typeof keys === "string" ? [keys] : keys;
+          return Object.fromEntries(names.filter((key) => key in storage).map((key) => [key, storage[key]]));
+        },
+        set: async (values) => Object.assign(storage, values),
+      } },
       runtime: {
         getURL: (path) => `chrome-extension://test/${path}`,
         onMessage: {
@@ -57,5 +66,6 @@ export const loadWorker = async (fetch) => {
     request,
     messageHandler,
     storage,
+    storageReads,
   };
 };

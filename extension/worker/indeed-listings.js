@@ -41,15 +41,16 @@
       requests.set(id, request);
       return request;
     };
-    const readStorageWithAnalysis = async (id) => {
-      const stored = await chrome.storage.local.get(null);
-      if (!contract.isRecord(stored[keys.forJob("analysis", { platform: "indeed", id })]))
+    const readStorageWithAnalysis = async (id, metadataKey) => {
+      const analysisKey = keys.forJob("analysis", { platform: "indeed", id });
+      const stored = await chrome.storage.local.get([analysisKey, metadataKey]);
+      if (!contract.isRecord(stored[analysisKey]))
         throw new Error("No saved analysis for this job");
       return stored;
     };
     const getTitle = async (id) => {
       const key = keys.forJob("title", { platform: "indeed", id });
-      const stored = await readStorageWithAnalysis(id);
+      const stored = await readStorageWithAnalysis(id, key);
       if (typeof stored[key] === "string" && stored[key].trim()) return { ok: true, title: stored[key] };
       const { title } = await readListing(id);
       if (!title) throw new Error("Job title unavailable");
@@ -58,7 +59,7 @@
     };
     const getAvailability = async (id) => {
       const key = keys.forJob("indeedAvailability", { platform: "indeed", id });
-      const stored = await readStorageWithAnalysis(id);
+      const stored = await readStorageWithAnalysis(id, key);
       const cached = stored[key];
       if (availabilityContract.isFresh(cached))
         return { ok: true, availability: cached };

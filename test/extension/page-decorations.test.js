@@ -171,6 +171,49 @@ test('page-change subscribers share DOM and navigation events and ignore extensi
   assert.equal(changes, 3);
 });
 
+test('unrelated text and subtree updates do not rescan jobs or notify checker subscribers', async (t) => {
+  const { window, companion, scans } = await fixture(t);
+  const unrelated = window.document.createElement('aside');
+  unrelated.innerHTML = '<ul><li><span>Notification</span></li></ul>';
+  window.document.body.append(unrelated);
+  let changes = 0;
+  companion.pageDecorations.subscribe(() => changes++);
+  const initialScans = scans();
+  for (let index = 0; index < 3; index++) {
+    unrelated.querySelector('span').firstChild.nodeValue = `Notification ${index}`;
+    unrelated.append(window.document.createElement('div'));
+    await new Promise((resolve) => window.setTimeout(resolve, 150));
+  }
+  assert.equal(changes, 0);
+  assert.equal(scans(), initialScans);
+});
+
+test('job subtree insertion/removal, description edits and reused card identity changes still rescan', async (t) => {
+  const { window, companion, scans } = await fixture(t);
+  const wrapper = window.document.createElement('section');
+  wrapper.innerHTML = '<li><a href="/viewjob?jk=fixture222">Second job</a></li>';
+  const description = window.document.createElement('div');
+  description.id = 'jobDescriptionText';
+  description.textContent = 'Initial description';
+  let changes = 0;
+  companion.pageDecorations.subscribe(() => changes++);
+  const updates = [
+    () => window.document.body.append(wrapper),
+    () => wrapper.remove(),
+    () => window.document.body.append(description),
+    () => { description.firstChild.nodeValue = 'Updated description'; },
+    // Removing the last identifying attribute must invalidate the existing card.
+    () => window.document.querySelector('a').removeAttribute('href'),
+  ];
+  for (const update of updates) {
+    const previousScans = scans();
+    const previousChanges = changes;
+    update();
+    await waitUntil(() => scans() === previousScans + 1);
+    assert.equal(changes, previousChanges + 1);
+  }
+});
+
 const openJobMenu = async (window, companion, jobUrl = firstJob) => {
   await runScriptsInDom(window, ['contracts/shortcuts.js', 'job-menu.js']);
   companion.jobs.consumeMenuJobUrl = () => jobUrl;

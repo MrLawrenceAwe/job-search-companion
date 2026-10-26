@@ -15,7 +15,9 @@ platform API or submit an application.
 
 An initial storage read restores marks, and storage notifications update other
 tabs. A debounced DOM observer restores badges after result cards are replaced
-and updates the detail action as the selected job changes. The job menu captures
+and updates the detail action as the selected job changes. It filters unrelated
+text and subtree updates before scheduling scans, while retaining changes to job
+cards, detail content and identity sources. The job menu captures
 one resolved URL for all actions, avoiding a different selected pane being
 marked while a card's menu is open. Uncertain job resolution omits the actions.
 Marks are manual and reversible; they are not proof of successful submission.
@@ -74,7 +76,8 @@ The MAIN-world description capture feeds the isolated blocker coordinator; see
 [blocker-checking internals](#blocker-checking-internals). The service worker
 registers feature handlers from `worker/`; `worker/bridge-client.js` owns bridge
 headers and timeouts, and `worker/senders.js` validates job-site senders.
-Listing title and availability requests share in-flight fetches and one JSON-LD
+Listing title and availability requests read only their job's analysis and requested
+metadata keys from extension storage. They share in-flight fetches and one JSON-LD
 parse while retaining separate caches. At most three listing reads run at once
 across tabs; queued reads start their ten-second timeout when a slot opens.
 Installer-generated `local-config.js`
