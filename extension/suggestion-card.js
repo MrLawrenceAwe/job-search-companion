@@ -120,17 +120,44 @@
         for (const control of article.querySelectorAll("button")) control.disabled = true;
         try {
           const response = await chrome.runtime.sendMessage({ type: messages.actOnSuggestion, action, hours, jobUrl: job.jobUrl });
-          if (!response?.ok) throw new Error(response?.error || "Couldn’t complete that action. Please try again.");
+          if (!response?.ok) throw Object.assign(new Error(response?.error || "Couldn’t complete that action. Please try again."), { definiteFailure: Boolean(response) });
           if (!host || !enabled) return;
-          if (action === "snooze") close();
-          else {
+          const advance = () => {
             jobs.splice(index, 1);
             if (!jobs.length) close();
             else { index = Math.min(index, jobs.length - 1); render(); }
-          }
+          };
+          if (action === "analyse") {
+            const client = globalThis.jobSearchCvFitClient;
+            feedback.textContent = "Submitting to Codex…";
+            try {
+              if (response.uncertain) throw Object.assign(new Error(response.error), { uncertain: true });
+              const sendRequest = async (message) => {
+                const result = await chrome.runtime.sendMessage(message);
+                if (!result?.ok) throw new Error(result?.error || "Submission status unavailable");
+                return result;
+              };
+              const { waitForSubmissionResult } = client.createClient(sendRequest);
+              const status = await waitForSubmissionResult(response.submission.id);
+              feedback.textContent = client.resultMessage(status);
+            } catch (error) {
+              feedback.textContent = client.failureMessage(error, true).message;
+            }
+            if (!host || !enabled) return;
+            const done = element("button", "Continue");
+            done.type = "button";
+            done.addEventListener("click", (event) => { if (event.isTrusted) advance(); });
+            actions.replaceChildren(done);
+            snooze.remove();
+          } else if (action === "snooze") close();
+          else advance();
         } catch (error) {
-          feedback.textContent = error.message;
+          const uncertainStart = action === "analyse" && !error.definiteFailure;
+          feedback.textContent = uncertainStart
+            ? globalThis.jobSearchCvFitClient.failureMessage(Object.assign(error, { uncertain: true })).message
+            : error.message;
           for (const control of article.querySelectorAll("button")) control.disabled = false;
+          if (uncertainStart) button.disabled = true;
           const previous = article.querySelector('[aria-label="Previous suggested job"]');
           const next = article.querySelector('[aria-label="Next suggested job"]');
           if (previous) previous.disabled = index === 0;

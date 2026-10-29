@@ -26,7 +26,7 @@ const setup = async ({ jobs = [job("fixture111")], status = "ready", age = 0, ch
     bridgeConfig: { bridgeToken: "test-token", bridgeOrigin: "http://127.0.0.1:48973" },
     requestBridgeJson: async (url, options) => {
       await beforeRequest(url);
-      if (url.endsWith("/cv-fit-submissions")) { submissions.push(options.body); return { response: { ok: true }, body: { ok: true } }; }
+      if (url.endsWith("/cv-fit-submissions")) { submissions.push(options.body); return { response: { ok: true }, body: { ok: true, submission: { id: "submission-1", status: "submitting" } } }; }
       if (url.endsWith("/analyses/open")) { reviews.push(options.body); return { response: { ok: true }, body: { ok: true } }; }
       const match = url.match(/\/suggestions\/(.+)\/check$/);
       const body = match ? { ...batch, jobs: [{ ...jobs.find((j) => j.jobUrl.endsWith(match[1])), blockerCheck: {
@@ -240,7 +240,7 @@ test("disabling while the bridge is pending suppresses delivery and history writ
   assert.equal(fixture.saved["indeed-suggestion-state"], undefined);
 });
 
-test("polls cannot replace state while a failed action rolls back", async () => {
+test("an uncertain analysis start is consumed and warns against retrying", async () => {
   let release;
   const fixture = await setup({ beforeRequest: async (url) => {
     if (url.endsWith("/cv-fit-submissions")) {
@@ -249,12 +249,23 @@ test("polls cannot replace state while a failed action rolls back", async () => 
     }
   } });
   await fixture.poll();
-  const prior = fixture.saved["indeed-suggestion-state"];
   const action = fixture.act("analyse");
   while (!release) await new Promise((resolve) => setImmediate(resolve));
   fixture.advance(30 * 60_000);
   assert.equal((await fixture.poll()).jobs, undefined);
   release();
-  assert.equal((await action).ok, false);
-  assert.equal(fixture.saved["indeed-suggestion-state"], prior);
+  const result = await action;
+  assert.equal(result.ok, true);
+  assert.equal(result.uncertain, true);
+  assert.equal(fixture.saved["indeed-suggestion-state"].pending, null);
+  assert.equal(fixture.submissions.length, 0);
+});
+
+test("analysis actions return the accepted submission for status tracking", async () => {
+  const fixture = await setup();
+  await fixture.poll();
+  const response = await fixture.act("analyse");
+  assert.equal(response.submission.id, "submission-1");
+  assert.equal(response.submission.status, "submitting");
+  assert.equal(fixture.saved["indeed-suggestion-state"].pending, null);
 });

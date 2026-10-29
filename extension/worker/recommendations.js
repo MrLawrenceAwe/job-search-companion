@@ -101,6 +101,7 @@
         pending: message.action === "snooze" || !remaining.length ? null : { ...pending, jobs: remaining },
         ...(message.action === "snooze" ? { snoozedUntil: Date.now() + message.hours * 60 * 60_000 } : {}),
       } });
+      let startingAnalysis = false;
       try {
         if (message.action === "open") await chrome.tabs.create({ url: job.jobUrl });
         if (message.action === "unsuitable") {
@@ -108,13 +109,22 @@
           await chrome.storage.local.set({ [key]: { jobUrl: job.jobUrl, unsuitableAt: new Date().toISOString() } });
         }
         if (["analyse", "review"].includes(message.action)) {
+          startingAnalysis = message.action === "analyse";
           const { response, body } = await requestBridgeJson(`${bridgeConfig.bridgeOrigin}${message.action === "review" ? "/analyses/open" : "/cv-fit-submissions"}`, {
             method: "POST", body: { jobUrl: job.jobUrl },
           });
-          if (!response.ok || !body?.ok) throw new Error("Could not start CV Fit Advisor. Try again.");
+          if (!response.ok || body?.ok === false) {
+            startingAnalysis = false;
+            throw new Error(body?.error || "Could not start CV Fit Advisor. Try again.");
+          }
+          if (startingAnalysis) {
+            if (!body?.ok || !body.submission?.id) throw new Error("The local bridge did not return a submission ID");
+            return { ok: true, submission: body.submission };
+          }
         }
         return { ok: true };
-      } catch {
+      } catch (error) {
+        if (startingAnalysis) return { ok: true, uncertain: true, error: error.message };
         await chrome.storage.local.set({ [stateKey]: state });
         return { ok: false, error: "Couldn’t complete that action. Please try again." };
       }

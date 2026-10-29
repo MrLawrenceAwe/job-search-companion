@@ -57,14 +57,16 @@ export const createSuggestionReader = ({ checker, readBatch = readRecommendation
       const prior = checks.get(jobId);
       let check;
       if (prior) {
-        check = checker.get(prior.id);
-        if (["queued", "checking"].includes(check.status) && now() - prior.startedAt > 120_000)
+        try { check = checker.get(prior.id); }
+        catch { checks.delete(jobId); }
+        if (["queued", "checking"].includes(check?.status) && now() - prior.startedAt > 120_000)
           check = { status: "failed" };
       }
       // Completed results must pass current evidence/settings validation again.
-      if (!prior || check.status === "completed") {
+      if (!check || check.status === "completed") {
         check = await checker.start({ jobUrl: job.jobUrl, description: job.description });
         if (check.id) checks.set(jobId, { id: check.id, startedAt: now() });
+        else checks.delete(jobId);
       }
       if (["queued", "checking"].includes(check.status)) {
         jobs.push({ ...card, blockerCheck: { status: "checking" } });

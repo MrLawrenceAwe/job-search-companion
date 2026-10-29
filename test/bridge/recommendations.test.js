@@ -96,3 +96,24 @@ test("completed check IDs are revalidated through current checker inputs", async
   await reader({ jobId: "fixture111" });
   assert.equal(starts, 2);
 });
+
+test("pruned checker IDs recover through start and cached results drop stale references", async () => {
+  let starts = 0;
+  let gets = 0;
+  const result = { checkerVersion: blockerContract.version, jobId: "fixture111", descriptionHash: "hash",
+    evidenceHash: "evidence", model: "test-model", checkedAt: new Date().toISOString(),
+    outcome: "no_blockers_found", findings: [] };
+  const reader = createSuggestionReader({
+    readBatch: async () => ({ status: "ready", collectedAt: "2026-10-29T19:00:00Z", jobs: [job] }),
+    checker: {
+      start: async () => ++starts === 1 ? { id: "pruned", status: "queued" }
+        : { status: "completed", cached: true, result },
+      get: () => { gets++; throw new Error("Check no longer available"); },
+    },
+  });
+  assert.equal((await reader({ jobId: "fixture111" })).jobs[0].blockerCheck.status, "checking");
+  for (let i = 0; i < 2; i++)
+    assert.equal((await reader({ jobId: "fixture111" })).jobs[0].blockerCheck.status, "completed");
+  assert.equal(starts, 3);
+  assert.equal(gets, 1);
+});

@@ -2,7 +2,7 @@
   const companion = globalThis.jobSearchCompanion;
   const { showToast } = companion;
   const messages = globalThis.jobSearchContracts.messages;
-  const { statuses, helperResults } = globalThis.jobSearchContracts.cvFitSubmissions;
+  const { statuses } = globalThis.jobSearchContracts.cvFitSubmissions;
 
   const setActionLabel = (button, label) => {
     const labelElement = button?.querySelector?.(".jsc-menu-item-label");
@@ -33,30 +33,9 @@
       });
     });
 
-  const delay = (milliseconds) =>
-    new Promise((resolve) => window.setTimeout(resolve, milliseconds));
   let submissionInProgress = false;
 
-  const waitForSubmissionResult = async (submissionId) => {
-    const deadline = Date.now() + 220_000;
-    while (Date.now() < deadline) {
-      await delay(1000);
-      const { submission } = await sendBridgeRequest({
-        type: messages.getCvFitSubmissionStatus,
-        submissionId,
-      });
-      if (helperResults.includes(submission?.status)) {
-        return submission.status;
-      }
-      if (submission?.status === statuses.failed) {
-        throw Object.assign(new Error(submission.error || "Task submission failed"), { definiteFailure: true });
-      }
-      if (submission?.status === statuses.interrupted) {
-        throw Object.assign(new Error(submission.error || "The bridge restarted. Check Codex before retrying."), { uncertain: true });
-      }
-    }
-    throw Object.assign(new Error("Codex submission did not finish within 220 seconds"), { uncertain: true });
-  };
+  const { waitForSubmissionResult } = globalThis.jobSearchCvFitClient.createClient(sendBridgeRequest);
 
   const submit = async (jobUrl, button) => {
     if (submissionInProgress) {
@@ -88,23 +67,10 @@
       }
       accepted = true;
       const status = await waitForSubmissionResult(submission.id);
-      if (status === statuses.unconfirmed) {
-        showToast("Send was attempted, but Codex confirmation timed out. The task may already be running—check Codex before retrying.", "warning");
-        return;
-      }
-      showToast(
-        status === statuses.submitted
-          ? "CV Fit Advisor task submitted."
-          : `CV Fit Advisor draft is ready—check ${globalThis.jobSearchContracts.cvFitSettings.map(({ category, label }) => `${category}: ${label}`).join(", ")} in Codex, then send it.`,
-      );
+      showToast(globalThis.jobSearchCvFitClient.resultMessage(status), status === statuses.unconfirmed ? "warning" : undefined);
     } catch (error) {
-      const uncertain = error.uncertain || (accepted && !error.definiteFailure);
-      showToast(
-        uncertain
-          ? `Couldn’t confirm the CV Fit Advisor submission. Check Codex before retrying: ${error.message}`
-          : `CV Fit Advisor submission failed: ${error.message}`,
-        uncertain ? "warning" : "error",
-      );
+      const { message, kind } = globalThis.jobSearchCvFitClient.failureMessage(error, accepted);
+      showToast(message, kind);
     } finally {
       submissionInProgress = false;
       if (button) {

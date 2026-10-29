@@ -46,6 +46,8 @@ await import("../extension/job-resolution.js");
 await import("../extension/job-navigation.js");
 await import("../extension/feedback.js");
 await import("../extension/contracts/cv-fit-submissions.js");
+await import("../extension/contracts/cv-fit-settings.js");
+await import("../extension/cv-fit-client.js");
 await import("../extension/cv-fit-submission.js");
 await import("../extension/storage-observer.js");
 await import("../extension/job-mark-store.js");

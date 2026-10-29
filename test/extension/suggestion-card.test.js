@@ -27,7 +27,7 @@ const render = async (t, blockerCheck, multiple = false, suggestionKind = "new")
     };
   }
   dom.window.document.getElementById("typing").focus();
-  await runScriptsInDom(dom.window, ["contracts/messages.js", "contracts/recommendations.js", "suggestion-card.js"]);
+  await runScriptsInDom(dom.window, ["contracts/messages.js", "contracts/recommendations.js", "contracts/cv-fit-submissions.js", "contracts/cv-fit-settings.js", "cv-fit-client.js", "suggestion-card.js"]);
   await drainEventLoopUntil(() => Boolean(root?.querySelector("article")), { message: "Card did not render" });
   return { root, document: dom.window.document, window: dom.window, onStorageChange };
 };

@@ -45,7 +45,7 @@ const loadMenuScripts = (context) =>
   runScriptsInVm(context, [
     "contracts/cv-fit-submissions.js",
     "contracts/cv-fit-settings.js",
-    "cv-fit-submission.js",
+    "cv-fit-client.js", "cv-fit-submission.js",
     "job-url.js",
     "job-resolution.js",
     "storage-observer.js", "job-mark-store.js",

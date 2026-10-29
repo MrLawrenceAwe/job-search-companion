@@ -30,12 +30,9 @@ The card identifies **To apply**, shows the saved verdict, and offers **View CV 
 Advisor** to reopen that assessment instead of starting another one. Snooze pauses
 both sources. A job in To apply is excluded from new recommendations.
 
-When a new completed CV Fit Advisor assessment syncs with the exact verdict
-**Do not apply yet**, the extension automatically saves an **Unsuitable** mark
-for that job, on Indeed or LinkedIn. Existing marks are preserved. Repeated syncs
-of the same assessment do not restore a mark the user subsequently clears; a new
-assessment can mark it again. Other verdicts do not automatically mark jobs or
-remove saved unsuitable marks. This takes effect on the next normal analysis sync.
+New **Do not apply yet** assessments can automatically mark a job unsuitable.
+See [application-mark rules](usage.md#track-applications) for preservation and
+clearing behaviour.
 
 The card automatically follows the browser/system light or dark preference and
 updates when that preference changes. It does not copy custom Chrome theme colours
@@ -63,7 +60,9 @@ The card provides:
 
 - **Open job**: open the canonical Indeed job in a new tab.
 - **Analyse with CV Fit Advisor**: submit that job through the existing bridge
-  workflow. This explicit action may open Codex, as existing CV analysis does.
+  workflow. The card waits for submission status and displays confirmation,
+  an unsent draft notice, or an error before **Continue** advances the stack.
+  Uncertain sends warn you to check Codex before retrying. This action may open Codex.
 - **Mark as unsuitable**: save the existing local unsuitable mark and close the card.
 - **Dismiss**: remove the current suggestion without marking the job unsuitable,
   then show the next job, or close the card when none remain.

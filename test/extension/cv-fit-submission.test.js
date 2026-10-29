@@ -206,7 +206,8 @@ test("menu status text describes submission rather than opening", async () => {
   const source = await readFile(new URL("../../extension/cv-fit-submission.js", import.meta.url), "utf8");
 
   assert.match(source, /Submitting to Codex/);
-  assert.match(source, /CV Fit Advisor task submitted/);
+  const client = await readFile(new URL("../../extension/cv-fit-client.js", import.meta.url), "utf8");
+  assert.match(client, /CV Fit Advisor task submitted/);
   assert.doesNotMatch(source, /Opening CV Fit Advisor|task started in Codex/);
 });
 

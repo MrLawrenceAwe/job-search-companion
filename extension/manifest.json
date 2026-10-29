@@ -70,6 +70,7 @@
         "job-resolution.js",
         "job-navigation.js",
         "feedback.js",
+        "cv-fit-client.js",
         "cv-fit-submission.js",
         "storage-observer.js",
         "job-mark-store.js",
