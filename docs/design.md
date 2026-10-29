@@ -221,6 +221,8 @@ limits drive the prompt, schema, and validation; the schema restricts selection
 to supplied passage IDs. Empty selections still fail local validation.
 See [CV extraction and reuse](#cv-extraction-and-reuse) for its lifecycle.
 `chatgpt-response.js` parses completed JSON streams for checking and indexing.
+It shares `ChatGPTError` from `chatgpt-error.js` with account management, so parsing
+does not depend on OAuth implementation.
 `inference.js` constructs requests and coordinates one corrective attempt.
 `inference-prompts.js` owns instructions, `requirement-policy.js` defines disjoint
 classification groups shared by the generated finding-policy instructions,

@@ -1,4 +1,4 @@
-import { ChatGPTError } from "./chatgpt-accounts.js";
+import { ChatGPTError } from "./chatgpt-error.js";
 
 // Read through terminal SSE events; output deltas alone are never a successful response.
 export const readCompletedJsonResponse = async (response) => {

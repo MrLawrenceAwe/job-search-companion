@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import { randomBytes, randomUUID, createHash } from "node:crypto";
 import { createRemoteJWKSet, jwtVerify, customFetch } from "jose";
 import { openPrivateStore } from "./private-store.js";
+import { ChatGPTError } from "./chatgpt-error.js";
 
 const AUTH_ORIGIN = "https://auth.openai.com";
 const API_BASE_URL = "https://api.openai.com/v1";
@@ -28,14 +29,6 @@ const terminalRefreshErrors = new Set([
   "refresh_token_invalidated",
   "refresh_token_reused",
 ]);
-
-export class ChatGPTError extends Error {
-  constructor(message, code = "connection_error", status = 503) {
-    super(message);
-    this.code = code;
-    this.status = status;
-  }
-}
 
 export const openChatGPTAccountManager = async ({ path, fetchImpl = fetch, verifyIdentity }) => {
   const store = await openPrivateStore(path, {

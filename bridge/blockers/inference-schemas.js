@@ -46,8 +46,6 @@ export const createRequirementInventorySchema = (factIds) => ({
   required: ["requirements"],
 });
 
-export const requirementInventorySchema = createRequirementInventorySchema();
-
 export const createChallengeReviewSchema = (factIds) => {
   const inventory = createRequirementInventorySchema(factIds);
   const editableFactIds = factIds.filter((id) => id.startsWith("F"));

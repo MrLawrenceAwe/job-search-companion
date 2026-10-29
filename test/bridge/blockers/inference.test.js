@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { runBlockerInference } from "../../../bridge/blockers/inference.js";
 import { deriveValidatedFindings, validateInferenceOutput, validateProfileCorrections } from "../../../bridge/blockers/inference-validation.js";
-import { requirementInventorySchema, createChallengeReviewSchema } from "../../../bridge/blockers/inference-schemas.js";
+import { createRequirementInventorySchema, createChallengeReviewSchema } from "../../../bridge/blockers/inference-schemas.js";
 import { blockerContract } from "../../../shared/contracts.js";
 
 const profile = { hash: "profile-v1", facts: [{ id: "F1", text: "Provisional UK driving licence only.", source: "Profile evidence" }], sources: [] };
@@ -292,7 +292,7 @@ test("a standalone residency question is unclear; an explicit residency prerequi
 });
 
 test("inventory schema and local validation agree on every classification's explanation shape", () => {
-  const branches = requirementInventorySchema.properties.requirements.items.anyOf;
+  const branches = createRequirementInventorySchema(profile.facts.map((fact) => fact.id)).properties.requirements.items.anyOf;
   for (const category of ["eligibility", "work_arrangement"]) {
     for (const necessity of ["mandatory", "unclear", "preferred", "excluded"]) {
       for (const evidence of ["supported", "incompatible", "missing", "conflicting"]) {
@@ -555,7 +555,8 @@ test("persistent invalid fields fail after one correction with a specific checke
 });
 
 test("blocking schema fields cannot be empty strings", () => {
-  for (const { properties } of requirementInventorySchema.properties.requirements.items.anyOf) {
+  const schema = createRequirementInventorySchema(profile.facts.map((fact) => fact.id));
+  for (const { properties } of schema.properties.requirements.items.anyOf) {
     assert.equal(properties.requirementQuote.minLength, 1);
     if (properties.explanation.type !== "string") continue;
     assert.equal(properties.explanation.minLength, 1);

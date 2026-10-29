@@ -14,7 +14,9 @@ const execFileAsync = promisify(execFile);
 test("Accessibility helper never uses mouse events", async () => {
   const helperDirectory = new URL("../../../bridge/codex/accessibility-helper/", import.meta.url);
   const source = (await Promise.all(
-    (await readdir(helperDirectory)).map((filename) => readFile(new URL(filename, helperDirectory), "utf8")),
+    (await readdir(helperDirectory))
+      .filter((filename) => filename.endsWith(".swift"))
+      .map((filename) => readFile(new URL(filename, helperDirectory), "utf8")),
   )).join("\n");
 
   assert.doesNotMatch(source, /mouseCursorPosition|mouseEventSource|leftMouse|rightMouse/);
