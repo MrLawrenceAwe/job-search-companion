@@ -7,6 +7,7 @@ import "../extension/contracts/cv-fit-submissions.js";
 import "../extension/contracts/cv-fit-settings.js";
 import "../extension/contracts/identifiers.js";
 import "../extension/contracts/job-analyses.js";
+import "../extension/contracts/recommendations.js";
 
 export const {
   identifiers: identifierContract,
@@ -17,4 +18,5 @@ export const {
   cvFitSubmissions: cvFitSubmissionContract,
   cvFitSettings,
   jobAnalyses: jobAnalysisContract,
+  recommendations: recommendationContract,
 } = globalThis.jobSearchContracts;

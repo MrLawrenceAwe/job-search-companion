@@ -15,6 +15,14 @@
     </header>
 
     <div class="settings-grid">
+      <section class="card" aria-labelledby="recommendationsHeading">
+        <h2 id="recommendationsHeading">Indeed suggestions</h2>
+        <label class="toggle-row" for="recommendationsEnabled">
+          <span><span class="setting-title">Suggest jobs occasionally</span><span class="description">Browse up to five suggestions in one small card every 30 minutes. Welwyn Garden City, Hatfield and remote jobs come first. Each job waits for its blocker check to complete or fail.</span></span>
+          <input id="recommendationsEnabled" class="switch" type="checkbox" role="switch">
+        </label>
+        <p class="note">The card offers Open job, Analyse with CV Fit Advisor, Mark as unsuitable, and Dismiss. Collection stays hidden and skips sign-in or verification. This switch saves immediately.</p>
+      </section>
       <section class="card" aria-labelledby="accountHeading">
         <div class="section-heading"><div><span class="eyebrow">Account</span><h2 id="accountHeading">ChatGPT connection</h2></div><span id="connectionBadge" class="badge">Loading</span></div>
         <p id="connection" class="description" role="status">Loading connection…</p>
@@ -75,5 +83,6 @@
   <script src="storage-observer.js"></script>
   <script src="blockers/result-store.js"></script>
   <script src="options.js"></script>
+  <script src="recommendation-settings.js"></script>
 </body>
 </html>

@@ -6,3 +6,5 @@ node_modules/
 !.env.example
 bridge/codex/accessibility-helper/accessibility-helper
 extension/indeed-description-capture.bundle.js
+
+extension/suggestion-card.bundle.js

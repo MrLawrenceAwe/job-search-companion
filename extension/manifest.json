@@ -107,6 +107,16 @@
         "blockers/checker.js"
       ],
       "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "suggestion-card.bundle.js"
+      ],
+      "run_at": "document_idle"
     }
   ],
   "action": {

@@ -10,7 +10,7 @@ export const loadWorker = async (fetch) => {
   let timeoutCallback;
   let clearedTimer;
   const sources = new Map(await Promise.all([
-    ...["job-urls", "job-storage-keys", "indeed-availability", "identifiers", "job-analyses", "messages"].map((name) => `contracts/${name}.js`),
+    ...["recommendations", "job-urls", "job-storage-keys", "indeed-availability", "identifiers", "job-analyses", "messages"].map((name) => `contracts/${name}.js`),
     "bridge-config.js",
     ...(await readdir(new URL("../extension/worker/", import.meta.url))).map((name) => `worker/${name}`),
   ].map(async (filename) => [filename, await readExtensionScript(filename)])));

@@ -12,6 +12,7 @@ import { openChatGPTAccountManager } from "./blockers/chatgpt-accounts.js";
 import { openBlockerChecker } from "./blockers/checker.js";
 import { createBlockerRoutes } from "./blockers/routes.js";
 import { join } from "node:path";
+import { createSuggestionReader } from "./recommendations.js";
 
 let checker = null;
 const logger = createFileLogger(config.storage.logPath);
@@ -40,6 +41,7 @@ server.listen(config.bridge.port, config.bridge.host, async () => {
       submitTask: submitCvFitTask,
       submissionStore,
       analysisStore,
+      readRecommendations: createSuggestionReader({ checker }),
     });
     logger.info(`Job Search Companion service listening on http://${config.bridge.host}:${config.bridge.port}`);
     logger.info(`Workspace: ${config.cvFit.workspacePath}`);

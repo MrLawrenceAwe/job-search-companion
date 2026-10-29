@@ -14,6 +14,9 @@ results, and checking job requirements and CV fit through a local bridge.
 ## Features
 
 - Mark jobs as applied or unsuitable, with persistent badges across open tabs.
+- Receive an Indeed suggestion card up to every 30 minutes from a scheduled
+  Codex read of your personalised feed. Collection keeps the built-in browser hidden
+  and skips sign-in or verification screens. See [suggestions](docs/recommendations.md).
 - Browse rendered results with **J/K**, hide with **H**, and undo with **U**.
 - Check complete loaded Indeed descriptions for blockers using ChatGPT plan usage.
 - Challenge individual blockers, receive a direct reply, and integrate accepted factual corrections into your profile for future checks.

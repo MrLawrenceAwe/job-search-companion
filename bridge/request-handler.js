@@ -20,11 +20,13 @@ export const createRequestHandler = ({
   openAnalysis,
   createSubmissionId,
   blockerRoutes = null,
+  readRecommendations = async () => ({ status: "unavailable", jobs: [] }),
 }) => {
   const submissionService = createCvFitSubmissionService({
     submissionStore, analysisStore, submitTask, logger, createSubmissionId,
   });
   const analysisRoutes = createAnalysisRoutes({ analysisStore, openAnalysis });
+  let deliveredRecommendationBatch = null;
 
   return async (req, res) => {
     const respond = (statusCode, payload) => sendJson(req, res, statusCode, payload, {
@@ -47,6 +49,19 @@ export const createRequestHandler = ({
     }
     if (await analysisRoutes.handleAuthenticated(req, respond)) return;
 
+    const suggestionMatch = req.method === "GET" && req.url?.match(/^\/suggestions(?:\/([A-Za-z0-9_-]{8,64})\/check)?$/);
+    if (suggestionMatch) {
+      try {
+        const batch = await readRecommendations({ jobId: suggestionMatch[1] });
+        if (batch.status === "ready" && batch.collectedAt !== deliveredRecommendationBatch) {
+          deliveredRecommendationBatch = batch.collectedAt;
+          logger.info(`Recommendations delivered to extension: ${batch.jobs.length} jobs`);
+        }
+        respond(200, { ok: true, ...batch });
+      }
+      catch { respond(200, { ok: true, status: "unavailable", jobs: [] }); }
+      return;
+    }
     if (blockerRoutes && await blockerRoutes(req, respond, res)) return;
 
     if (req.method === "GET" && req.url === "/health") {

@@ -1,6 +1,8 @@
 (() => {
   globalThis.jobSearchContracts ??= {};
   globalThis.jobSearchContracts.messages = Object.freeze({
+    pollSuggestion: "POLL_JOB_SUGGESTION",
+    actOnSuggestion: "ACT_ON_JOB_SUGGESTION",
     submitCvFitTask: "SUBMIT_CV_FIT_TASK",
     getCvFitSubmissionStatus: "GET_CV_FIT_SUBMISSION_STATUS",
     syncJobAnalyses: "SYNC_JOB_ANALYSES",
