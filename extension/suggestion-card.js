@@ -18,23 +18,25 @@
     host = document.createElement("div");
     host.id = "jsc-suggestion-host";
     // The host page cannot read job checks, call card actions, or restyle this closed shadow tree.
-    host.style.cssText = "all:initial!important;position:fixed!important;right:16px!important;top:16px!important;width:min(320px,calc(100vw - 32px))!important;z-index:2147483647!important;display:block!important;";
+    host.style.cssText = "all:initial!important;color-scheme:light dark!important;position:fixed!important;right:16px!important;top:16px!important;width:min(320px,calc(100vw - 32px))!important;z-index:2147483647!important;display:block!important;";
     const root = host.attachShadow({ mode: "closed" });
     const style = document.createElement("style");
     style.textContent = `
-      :host{color-scheme:light} *{box-sizing:border-box}
-      article{font:13px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172535;background:#fff;border:1px solid #dce3eb;border-radius:14px;box-shadow:0 8px 30px #1026382b;padding:15px;max-height:70vh;overflow:auto}
-      small{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#52677e;font-weight:700}
+      :host{--surface:#fff;--ink:#172535;--muted:#52677e;--border:#dce3eb;--shadow:#1026382b;--soft:#f3f6fa;--danger-surface:#fff1f2;--danger-border:#fecdd3;--danger:#b42318;--button-ink:#233c56;--hover:#edf3f9;--focus:#87b7f0;--primary:#205da8;--primary-ink:#fff}
+      @media (prefers-color-scheme:dark){:host{--surface:#18212d;--ink:#e8edf5;--muted:#aab8cb;--border:#354458;--shadow:#0008;--soft:#222e3e;--danger-surface:#3b2028;--danger-border:#884452;--danger:#fda4af;--button-ink:#d6e5f7;--hover:#2b3a4e;--focus:#a1c9ff;--primary:#8bbcff;--primary-ink:#10243f}}
+      *{box-sizing:border-box}
+      article{font:13px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:0 8px 30px var(--shadow);padding:15px;max-height:70vh;overflow:auto}
+      small{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
       h2{font-size:16px;line-height:1.3;margin:8px 0 5px;overflow-wrap:anywhere}
-      p{margin:7px 0;color:#52677e} .pay{font-weight:600;color:#172535}
-      details,.check-error{margin:10px 0;padding:8px 10px;border-radius:8px;background:#f3f6fa}
-      details.has-blockers{background:#fff1f2;border:1px solid #fecdd3}
-      details.has-blockers summary,details.has-blockers blockquote,details.has-blockers li p{color:#b42318}
+      p{margin:7px 0;color:var(--muted)} .pay{font-weight:600;color:var(--ink)}
+      details,.check-error{margin:10px 0;padding:8px 10px;border-radius:8px;background:var(--soft)}
+      details.has-blockers{background:var(--danger-surface);border:1px solid var(--danger-border)}
+      details.has-blockers summary,details.has-blockers blockquote,details.has-blockers li p{color:var(--danger)}
       summary{cursor:pointer;font-weight:600} li{margin:12px 0} blockquote{margin:0 0 6px;font-weight:600} ul{padding-left:17px;margin:0}
       .navigation{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;font-weight:600}.navigation button{padding:3px 12px;font-size:18px}
       .actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}
-      button{font:inherit;font-size:12px;font-weight:600;padding:8px 6px;border:1px solid #dce3eb;border-radius:8px;background:#fff;color:#233c56;cursor:pointer}button:hover{background:#edf3f9}button:focus-visible,summary:focus-visible{outline:3px solid #87b7f0;outline-offset:2px}
-      button.primary{background:#205da8;color:#fff;border-color:#205da8}button:disabled{opacity:.55;cursor:wait}.feedback{font-size:12px;color:#a32c24}
+      button{font:inherit;font-size:12px;font-weight:600;padding:8px 6px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--button-ink);cursor:pointer}button:hover{background:var(--hover)}button:focus-visible,summary:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+      button.primary{background:var(--primary);color:var(--primary-ink);border-color:var(--primary)}button:disabled{opacity:.55;cursor:wait}.feedback{font-size:12px;color:var(--danger)}
     `;
     const render = () => {
     const job = jobs[index];

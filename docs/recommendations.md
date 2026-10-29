@@ -19,6 +19,10 @@ extension reload to load a new content script.
 
 ## The card
 
+The card automatically follows the browser/system light or dark preference and
+updates when that preference changes. It does not copy custom Chrome theme colours
+or the host website's theme. Blocker counts and findings stay red in either mode.
+
 Welwyn Garden City, Hatfield and remote jobs take priority over other locations.
 Indeed's order is retained within each group. Priority uses the location field;
 mentioning a town in a job title does not make it local. Hybrid work elsewhere
@@ -55,6 +59,9 @@ immediately; pause the Codex schedule to stop collection entirely.
 The built-in browser is a Codex tool, not an API the Chrome extension can call.
 Collection requires the scheduled Codex chat and local app to be available. No
 Chrome debugger or API Anything operation is used for scheduled collection.
+The Mac must be on and awake with Codex running; collection cannot run while it
+is shut down or asleep. Closing the lid normally sleeps the Mac, unless an awake
+configuration such as external-display mode keeps it running.
 
 The collector passes a bounded JSON batch as stdin to:
 
