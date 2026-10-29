@@ -7,6 +7,7 @@
     const enabledKey = "indeed-recommendations-enabled";
     const storageKeys = globalThis.jobSearchContracts.jobStorageKeys;
     const analyses = globalThis.jobSearchContracts.jobAnalyses;
+    const eligibility = globalThis.jobSearchContracts.indeedToApply;
     let active = null;
     const trusted = (sender) => sender.id === chrome.runtime.id && sender.frameId === 0
       && Number.isInteger(sender.tab?.id) && /^https?:\/\//.test(sender.url || "");
@@ -30,13 +31,12 @@
         if (Number.isFinite(state.snoozedUntil) && now < state.snoozedUntil) return { ok: true };
         if (now - (state.lastSuggestedAt || 0) < contract.intervalMs) return { ok: true };
         const stored = await chrome.storage.local.get(null);
-        const excluded = (identity) => ["applied", "unsuitable", "indeedApplied", "indeedDismissed"]
-          .some((kind) => stored[storageKeys.forJob(kind, identity)])
-          || stored[storageKeys.forJob("indeedAvailability", identity)]?.status === "expired";
+        const excluded = (identity) => eligibility.isExcluded(identity, (key) => stored[key]);
         const toApply = Object.entries(stored).flatMap(([key, record]) => {
           const identity = storageKeys.parse(key);
-          if (identity?.kind !== "analysis" || identity.platform !== "indeed"
-            || !analyses.isRecord(record) || !analyses.isToApplyVerdict(record.verdict) || excluded(identity)) return [];
+          if (identity?.kind !== "analysis" || identity.platform !== "indeed" || !eligibility.isEligible({
+            platform: identity.platform, analysis: record, excluded: excluded(identity),
+          })) return [];
           const title = stored[storageKeys.forJob("title", identity)];
           return [{ jobUrl: `https://uk.indeed.com/viewjob?jk=${identity.id}`,
             title: typeof title === "string" && title.trim() ? title.trim().slice(0, 300) : "Saved job — open listing",

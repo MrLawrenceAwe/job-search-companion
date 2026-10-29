@@ -1,7 +1,7 @@
 (() => {
   const companion = globalThis.jobSearchCompanion;
   if (companion.platform !== "indeed") return;
-  const contract = globalThis.jobSearchContracts.jobAnalyses;
+  const eligibility = globalThis.jobSearchContracts.indeedToApply;
   const keys = globalThis.jobSearchContracts.jobStorageKeys;
   const marks = companion.jobMarkStore;
   const analyses = companion.jobAnalysisStore;
@@ -15,9 +15,10 @@
       const { platform, id } = keys.parse(key);
       if (platform !== "indeed") continue;
       const jobUrl = `https://uk.indeed.com/viewjob?jk=${id}`;
-      if (marks.isMarked(jobUrl, "applied") || marks.isMarked(jobUrl, "unsuitable")
-        || metadata.isExcluded(jobUrl)
-        || !contract.isToApplyVerdict(record.verdict)) continue;
+      if (!eligibility.isEligible({ platform, analysis: record,
+        excluded: marks.isMarked(jobUrl, "applied") || marks.isMarked(jobUrl, "unsuitable")
+          || metadata.isExcluded(jobUrl),
+      })) continue;
       candidates.push({ id, record });
     }
     return candidates;

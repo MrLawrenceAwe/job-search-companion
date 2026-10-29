@@ -111,6 +111,11 @@ JSC_BRIDGE_TOKEN="your-local-token" npm run check:health
 
 Open the extension toolbar action to connect ChatGPT, choose a model, and enable automatic checking. See [checker setup and behaviour](blocker-checker.md). The checker needs the Node bridge, but does not use the Accessibility helper or open Codex chats.
 
+## Indeed suggestions collector
+
+Fresh suggestions require a separate scheduled Codex collector; bridge installation
+and the delivery switch do not create it. Follow [collector setup](recommendations.md#installation-and-verification).
+
 ## Installation identity migration
 
 Current installations accept only `JSC_*` environment variables, `com.lawrenceawe.job-search-companion`, and `~/Library/Application Support/Job Search Companion/`. The installer stops the former `com.lawrenceawe.indeed-cv-fit-bridge` service and moves its data directory before reinstalling. Managed artifact paths are rewritten, while credentials, findings, logs, submission history, file modes, and pre-install snapshots are retained. A failed replacement startup restores managed files and the original data directory, then attempts to restart the previously loaded service. Rollback restores installation artifacts, not repository source; if that service uses the retired environment contract, restore the previous checkout revision before running it. If both data directories exist, migration stops without merging or overwriting either.

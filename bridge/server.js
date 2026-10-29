@@ -41,7 +41,7 @@ server.listen(config.bridge.port, config.bridge.host, async () => {
       submitTask: submitCvFitTask,
       submissionStore,
       analysisStore,
-      readRecommendations: createSuggestionReader({ checker }),
+      getSuggestionsAndCheck: createSuggestionReader({ checker }),
     });
     logger.info(`Job Search Companion service listening on http://${config.bridge.host}:${config.bridge.port}`);
     logger.info(`Workspace: ${config.cvFit.workspacePath}`);

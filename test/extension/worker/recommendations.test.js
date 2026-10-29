@@ -20,7 +20,7 @@ const setup = async ({ jobs = [job("fixture111")], status = "ready", age = 0, ch
     tabs: { create: async (options) => opened.push(options) },
     runtime: { id: "test-extension" },
   } });
-  await runScriptsInVm(context, ["contracts/job-urls.js", "contracts/job-storage-keys.js", "contracts/identifiers.js", "contracts/job-analyses.js", "contracts/recommendations.js", "contracts/messages.js", "worker/recommendations.js"]);
+  await runScriptsInVm(context, ["contracts/job-urls.js", "contracts/job-storage-keys.js", "contracts/identifiers.js", "contracts/job-analyses.js", "contracts/recommendations.js", "contracts/messages.js", "contracts/job-marks.js", "contracts/indeed-availability.js", "contracts/indeed-to-apply.js", "worker/recommendations.js"]);
   let currentCheck = checkStatus;
   const service = context.jobSearchWorkerModules.createRecommendationService({
     bridgeConfig: { bridgeToken: "test-token", bridgeOrigin: "http://127.0.0.1:48973" },
@@ -118,7 +118,7 @@ test("signed-out, stale, disabled and marked jobs are omitted; foreign frames ca
   }
   for (const key of ["applied-job:indeed:fixture111", "unsuitable-job:indeed:fixture111", "indeed-applied-job:fixture111", "indeed-dismissed-job:fixture111"]) {
     const fixture = await setup({ jobs: [job("fixture111")] });
-    fixture.saved[key] = { recordedAt: new Date().toISOString() };
+    fixture.saved[key] = { appliedAt: new Date().toISOString(), unsuitableAt: new Date().toISOString(), detectedAt: new Date().toISOString(), dismissedAt: new Date().toISOString() };
     assert.equal((await fixture.poll()).jobs, undefined);
   }
   const fixture = await setup();
@@ -174,7 +174,7 @@ test("To apply reminders work without a live feed and exclude ineligible verdict
   const fixture = await setup({ status: "signed_out" });
   for (const [id, verdict] of [["saved1111", "use as-is"], ["saved2222", "edit the CV"], ["saved3333", "do not apply yet"], ["saved4444", "create a new CV"], ["saved5555", "use as-is"], ["saved6666", "use as-is"]]) saveToApply(fixture, id, verdict);
   fixture.saved["applied-job:indeed:saved5555"] = { appliedAt: new Date().toISOString() };
-  fixture.saved["indeed-job-availability:saved6666"] = { status: "expired" };
+  fixture.saved["indeed-job-availability:saved6666"] = { status: "expired", checkedAt: new Date().toISOString() };
   const result = await fixture.poll();
   assert.deepEqual(Array.from(result.jobs, (j) => j.title).sort(), ["Saved saved1111", "Saved saved2222"]);
   fixture.advance(30 * 60_000);
@@ -192,4 +192,17 @@ test("saved reminders rotate beyond the first stack and snooze covers both sourc
   assert.equal((await fixture.send({ type: "ACT_ON_JOB_SUGGESTION", action: "snooze", hours: 1, jobUrl: second.jobs[0].jobUrl })).ok, true);
   fixture.advance(30 * 60_000);
   assert.equal((await fixture.poll()).jobs, undefined);
+});
+
+
+test("malformed exclusion records do not suppress eligible reminders", async () => {
+  const fixture = await setup({ status: "unavailable" });
+  saveToApply(fixture, "saved1111");
+  for (const key of ["applied-job:indeed:saved1111", "unsuitable-job:indeed:saved1111",
+    "indeed-applied-job:saved1111", "indeed-dismissed-job:saved1111"])
+    fixture.saved[key] = {};
+  fixture.saved["indeed-job-availability:saved1111"] = { status: "expired" };
+  const result = await fixture.poll();
+  assert.equal(result.jobs.length, 1);
+  assert.equal(result.jobs[0].jobUrl, job("saved1111").jobUrl);
 });

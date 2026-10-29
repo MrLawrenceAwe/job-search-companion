@@ -95,6 +95,7 @@
       ],
       "js": [
         "contracts/indeed-availability.js",
+        "contracts/indeed-to-apply.js",
         "contracts/blockers.js",
         "contracts/inference-settings.js",
         "blockers/client.js",

@@ -81,11 +81,11 @@ test("request handler exposes health", async () => {
 
 test("recommendations use the authenticated bridge and unavailable collections stay quiet", async () => {
   const batch = { status: "ready", collectedAt: new Date().toISOString(), jobs: [] };
-  const result = await invokeHandler(createHandler({ readRecommendations: async () => batch }), {
+  const result = await invokeHandler(createHandler({ getSuggestionsAndCheck: async () => batch }), {
     method: "GET", url: "/suggestions",
   });
   assert.deepEqual(result.body, { ok: true, ...batch });
-  const failed = await invokeHandler(createHandler({ readRecommendations: async () => { throw new Error("private details"); } }), {
+  const failed = await invokeHandler(createHandler({ getSuggestionsAndCheck: async () => { throw new Error("private details"); } }), {
     method: "GET", url: "/suggestions",
   });
   assert.deepEqual(failed.body, { ok: true, status: "unavailable", jobs: [] });

@@ -69,7 +69,9 @@ The content-page API in `extension-context.js` connects three boundaries:
 - Presentation: `page-decorations.js` shares page observation and a snapshot of
   cards, the selected heading, and stable control containers across renderers.
   `indeed-job-metadata.js` owns captured titles, availability requests and native
-  dismissal persistence. The To apply coordinator selects eligible jobs separately
+  dismissal persistence. `contracts/indeed-to-apply.js` shares eligibility and
+  exclusion validation between the list and reminder worker. The To apply
+  coordinator selects eligible jobs separately
   from its metadata store and renderer.
 
 The MAIN-world description capture feeds the isolated blocker coordinator; see
@@ -86,7 +88,11 @@ implement blocker settings. Saved or draft model choices survive catalogue refre
 unavailable choices remain visible and disabled while absent from the catalogue.
 
 `cvFitSubmissions` is the content-page API for sending Codex tasks. The bridge's
-`cv-fit-submission-store.js` persists their statuses; `cv-fit-submission-service.js` owns locking, execution and terminal-submission history pruning. `analysis-routes.js` owns completion, listing and chat opening, with scoped completion dispatched before general-token authentication. The native helper publishes
+`cv-fit-submission-store.js` persists their statuses; `cv-fit-submission-service.js`
+owns locking, execution and terminal-submission history pruning.
+The request handler calls `getSuggestionsAndCheck` for suggestion metadata and
+optional blocker-check startup/polling; `readRecommendations` only reads the saved batch.
+`analysis-routes.js` owns completion, listing and chat opening, with scoped completion dispatched before general-token authentication. The native helper publishes
 its result enum in metadata; automated tests compare it with the shared status
 contract.
 

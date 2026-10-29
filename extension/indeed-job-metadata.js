@@ -20,10 +20,10 @@
     const { kind, id } = identity;
     const analysisKey = indeedKey("analysis", id);
     if (["indeedDismissed", "indeedApplied"].includes(kind)) {
-      const [entries, timestamp] = {
-        indeedDismissed: [dismissed, "dismissedAt"], indeedApplied: [indeedApplied, "detectedAt"],
+      const entries = {
+        indeedDismissed: dismissed, indeedApplied,
       }[kind];
-      if (typeof value?.[timestamp] === "string") entries.add(analysisKey);
+      if (globalThis.jobSearchContracts.indeedToApply.isExclusionRecord(kind, value)) entries.add(analysisKey);
       else entries.delete(analysisKey);
     } else if (kind === "indeedAvailability") {
       if (availabilityContract.isRecord(value)) availability.set(id, value);

@@ -110,6 +110,34 @@ most once a minute; its cooldown, snooze and history survive restarts.
 
 ## Installation and verification
 
+The bridge installer does not create the collector schedule. The **Indeed
+suggestions** switch controls card delivery only; it does not collect jobs.
+Without a collector, saved To apply reminders can still appear.
+
+To configure collection:
+
+1. Use a local Codex task with this repository as its workspace, with access to
+   the built-in browser and local commands. Sign in to Indeed separately before
+   running collection; the collector must stop at sign-in or verification screens.
+2. Ask Codex to schedule that task every 30 minutes with the following collection
+   instructions (use the repository's absolute path if its workspace differs):
+
+   > Read the signed-in UK Indeed Jobs for you feed in a hidden built-in browser
+   > tab. Inspect up to 30 rendered cards. Prioritise Welwyn Garden City, Hatfield
+   > and fully remote locations, preserving feed order within each group. Collect
+   > up to five jobs, opening their detail panes in that hidden tab. Verify each
+   > description belongs to its rendered job key. Follow the JSON contract in
+   > docs/recommendations.md and pass the batch on stdin to
+   > node scripts/import-recommendations.js from this repository. Use a private
+   > temporary JSON file if needed and remove it afterwards. Do not open sign-in
+   > or verification windows. On sign-out, verification or uncertain access,
+   > import signed_out, blocked or unavailable status respectively to invalidate
+   > the previous batch, then end the run. Do not submit applications or CV tasks.
+
+3. Review the saved schedule to confirm its interval, workspace and instructions.
+   Run it once and check that the import reports success. Keep the Mac awake and
+   Codex running for subsequent collection. Pause this schedule to stop collection.
+
 Build, restart the bridge, reload the same unpacked extension and refresh the
 webpage used for the card. Chrome may require approval for displaying the card
 across websites. No OS notification permission is needed.

@@ -38,7 +38,7 @@ const fixture = async (t, platform = 'indeed', stored = {}, resolveTitle = null,
     local: { get: async () => saved, set: async (values) => Object.assign(saved, values), remove: async (key) => { delete saved[key]; } },
     onChanged: { addListener: (fn) => { changes.push(fn); } },
   } };
-  await runScriptsInDom(window, ['contracts/job-urls.js', 'contracts/job-storage-keys.js', 'contracts/job-marks.js', 'contracts/indeed-availability.js', 'contracts/identifiers.js', 'contracts/job-analyses.js', 'contracts/messages.js', 'extension-context.js']);
+  await runScriptsInDom(window, ['contracts/job-urls.js', 'contracts/job-storage-keys.js', 'contracts/job-marks.js', 'contracts/indeed-availability.js', 'contracts/identifiers.js', 'contracts/job-analyses.js', 'contracts/messages.js', 'contracts/indeed-to-apply.js', 'extension-context.js']);
   window.jobSearchCompanion = { ...window.jobSearchCompanion, platform, pageDecorations: {
     register: (fn, promise) => { renderers.push(fn); readiness.push(promise); },
     schedule: () => { scheduled++; render(page); },
@@ -261,4 +261,16 @@ test('To apply ignores blocker results and LinkedIn metadata notifications', asy
   await state.change({ 'applied-job:indeed:fixture111': { newValue: { appliedAt: '2026-10-19' } } });
   assert.equal(state.scheduled, before + 1);
   assert.equal(state.window.document.querySelector('summary').textContent, 'To apply · 1');
+});
+
+
+test('malformed exclusions leave the same jobs eligible as reminder cards', async (t) => {
+  const { window } = await fixture(t, 'indeed', {
+    'applied-job:indeed:fixture111': {},
+    'unsuitable-job:indeed:fixture111': {},
+    'indeed-applied-job:fixture111': {},
+    'indeed-dismissed-job:fixture111': {},
+    'indeed-job-availability:fixture111': { status: 'expired' },
+  });
+  assert.equal(window.document.querySelector('summary').textContent, 'To apply · 2');
 });

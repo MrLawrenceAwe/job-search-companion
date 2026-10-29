@@ -25,7 +25,9 @@ results, and checking job requirements and CV fit through a local bridge.
 - Open **To apply** on Indeed to revisit eligible analysed jobs you haven't applied
   to. See [the usage guide](docs/usage.md) for exclusions and refresh behaviour.
 
-Marks are manual local records. After applying on an employer's website, mark its
+Applied marks are manual local records. Unsuitable marks can be set manually or
+automatically when a new CV Fit Advisor assessment returns **Do not apply yet**.
+After applying on an employer's website, mark its
 listing yourself; this does not submit an application or update the job board.
 On Indeed, the manual applied option is hidden for jobs identified as Easily
 apply or Indeed Apply, in both the detail controls and job menu. It remains

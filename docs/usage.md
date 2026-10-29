@@ -2,9 +2,15 @@
 
 ## Track applications
 
-Applied and unsuitable marks are manual records in this Chrome profile. Mark a
+Applied and unsuitable marks are local records in this Chrome profile. Mark a
 listing after applying on the employer's website; marks do not update Indeed or
 LinkedIn's application history. Removing the extension clears these local records.
+
+You can mark jobs as unsuitable yourself. The extension also saves an Unsuitable
+mark when a new completed CV Fit Advisor assessment syncs with **Do not apply yet**.
+Existing marks are preserved. Clearing that mark is respected on repeated syncs
+of the same assessment; a new assessment can mark the job again. Other verdicts
+do not automatically add or remove Unsuitable marks.
 
 On Indeed, **Mark as applied** is hidden in the detail pane and menu when the
 job has an Easily apply badge or Indeed Apply control. Use it for jobs that

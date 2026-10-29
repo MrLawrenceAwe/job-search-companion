@@ -20,7 +20,7 @@ export const createRequestHandler = ({
   openAnalysis,
   createSubmissionId,
   blockerRoutes = null,
-  readRecommendations = async () => ({ status: "unavailable", jobs: [] }),
+  getSuggestionsAndCheck = async () => ({ status: "unavailable", jobs: [] }),
 }) => {
   const submissionService = createCvFitSubmissionService({
     submissionStore, analysisStore, submitTask, logger, createSubmissionId,
@@ -52,7 +52,7 @@ export const createRequestHandler = ({
     const suggestionMatch = req.method === "GET" && req.url?.match(/^\/suggestions(?:\/([A-Za-z0-9_-]{8,64})\/check)?$/);
     if (suggestionMatch) {
       try {
-        const batch = await readRecommendations({ jobId: suggestionMatch[1] });
+        const batch = await getSuggestionsAndCheck({ jobId: suggestionMatch[1] });
         if (batch.status === "ready" && batch.collectedAt !== deliveredRecommendationBatch) {
           deliveredRecommendationBatch = batch.collectedAt;
           logger.info(`Recommendations delivered to extension: ${batch.jobs.length} jobs`);
