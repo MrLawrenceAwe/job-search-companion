@@ -15,9 +15,23 @@
           if (!contract.isRecord(record)) throw new Error("Invalid analysis record");
           values[contract.keyFor(record.jobUrl)] = record;
         }
-        const prior = await chrome.storage.local.get(Object.keys(values));
+        const keys = globalThis.jobSearchContracts.jobStorageKeys;
+        const unsuitableKeys = Object.values(values).filter((record) => record.verdict === "do not apply yet")
+          .map((record) => keys.forUrl("unsuitable", record.jobUrl));
+        const prior = await chrome.storage.local.get([...Object.keys(values), ...unsuitableKeys]);
         const changed = Object.fromEntries(Object.entries(values).filter(([key, record]) =>
           JSON.stringify(prior[key]) !== JSON.stringify(record)));
+        for (const [key, record] of Object.entries(changed)) {
+          if (record.verdict !== "do not apply yet") continue;
+          // A repeated sync must not undo a user's later decision to clear the mark.
+          const previous = prior[key];
+          if (previous?.verdict === record.verdict && previous.threadId === record.threadId
+            && previous.analyzedAt === record.analyzedAt) continue;
+          const unsuitableKey = keys.forUrl("unsuitable", record.jobUrl);
+          if (!prior[unsuitableKey]) changed[unsuitableKey] = {
+            jobUrl: record.jobUrl, unsuitableAt: new Date().toISOString(),
+          };
+        }
         if (Object.keys(changed).length) await chrome.storage.local.set(changed);
         return { ok: true };
       })().finally(() => { analysisSync = null; });

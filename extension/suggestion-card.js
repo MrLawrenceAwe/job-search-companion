@@ -60,9 +60,10 @@
       navigation.append(previous, element("span", `${index + 1} of ${jobs.length}`), next);
       article.append(navigation);
     }
-    article.append(element("small", "Job Search Companion · Indeed"), element("h2", job.title),
+    article.append(element("small", job.suggestionKind === "toApply" ? "Job Search Companion · To apply" : "Job Search Companion · Indeed"), element("h2", job.title),
       element("p", [job.company, job.location].filter(Boolean).join(" · ")),
       element("p", job.pay, "pay"));
+    if (job.suggestionKind === "toApply") article.append(element("p", `CV Fit Advisor: ${job.analysisLabel}`));
     const check = job.blockerCheck;
     if (check.status === "completed") {
       const details = document.createElement("details");
@@ -90,7 +91,8 @@
     snooze.append(snoozeChoices);
     const feedback = element("p", "", "feedback");
     feedback.setAttribute("role", "status");
-    const labels = [["open", "Open job"], ["analyse", "Analyse with CV Fit Advisor"], ["unsuitable", "Mark as unsuitable"], ["dismiss", "Dismiss"]];
+    const labels = [["open", "Open job"], job.suggestionKind === "toApply"
+      ? ["review", "View CV Fit Advisor"] : ["analyse", "Analyse with CV Fit Advisor"], ["unsuitable", "Mark as unsuitable"], ["dismiss", "Dismiss"]];
     labels.push(...[1, 2, 3, 4, 5].map((hours) => ["snooze", `${hours} hour${hours === 1 ? "" : "s"}`, hours]));
     let busy = false;
     for (const [action, label, hours] of labels) {

@@ -36,3 +36,30 @@ test("analysis actions reject foreign senders and open through the authenticated
   assert.equal(captured.url, "http://127.0.0.1:48973/analyses/open");
   assert.equal(captured.options.headers["X-JSC-Token"], "test-token");
 });
+
+test("Do not apply yet automatically marks unsuitable once per assessment without replacing manual marks", async () => {
+  const base = { threadId: "01a11fef-d2cd-7410-953a-37e6497346d8", analyzedAt: "2026-10-29T09:00:00.000Z" };
+  let records = [
+    { ...base, jobUrl: "https://uk.indeed.com/viewjob?jk=fixture111", verdict: "do not apply yet" },
+    { ...base, jobUrl: "https://uk.indeed.com/viewjob?jk=fixture222", verdict: "use as-is" },
+    { ...base, jobUrl: "https://www.linkedin.com/jobs/view/12345678/", verdict: "do not apply yet" },
+  ];
+  const worker = await loadWorker(async () => ({ ok: true, json: async () => ({ ok: true, analyses: records }) }));
+  const manual = { jobUrl: records[2].jobUrl, unsuitableAt: "2026-10-28T09:00:00.000Z" };
+  worker.storage["unsuitable-job:linkedin:12345678"] = manual;
+  const sync = () => new Promise((r) => worker.messageHandler({ type: "SYNC_JOB_ANALYSES" }, { url: "https://uk.indeed.com/jobs" }, r));
+  assert.equal((await sync()).ok, true);
+  assert.equal(worker.storage["unsuitable-job:indeed:fixture111"].jobUrl, records[0].jobUrl);
+  assert.ok(Number.isFinite(Date.parse(worker.storage["unsuitable-job:indeed:fixture111"].unsuitableAt)));
+  assert.equal(worker.storage["unsuitable-job:indeed:fixture222"], undefined);
+  assert.equal(worker.storage["unsuitable-job:linkedin:12345678"], manual);
+  delete worker.storage["unsuitable-job:indeed:fixture111"];
+  await sync();
+  assert.equal(worker.storage["unsuitable-job:indeed:fixture111"], undefined, "Repeated sync respects manual clearing");
+  records = [{ ...records[0], analyzedAt: "2026-10-29T10:00:00.000Z" }];
+  await sync();
+  assert.ok(worker.storage["unsuitable-job:indeed:fixture111"], "A new assessment can mark it again");
+  records = [{ ...records[0], verdict: "use as-is", analyzedAt: "2026-10-29T11:00:00.000Z" }];
+  await sync();
+  assert.ok(worker.storage["unsuitable-job:indeed:fixture111"], "A later assessment does not silently erase a saved mark");
+});

@@ -9,22 +9,24 @@ const setup = async ({ jobs = [job("fixture111")], status = "ready", age = 0, ch
   const saved = {};
   const opened = [];
   const submissions = [];
+  const reviews = [];
   let now = Date.now();
   const batch = { status, collectedAt: new Date(now - age).toISOString(), jobs };
   const context = vm.createContext({ URL, Date: class extends Date { static now() { return now; } }, chrome: {
     storage: { local: {
-      get: async (keys) => Object.fromEntries((Array.isArray(keys) ? keys : [keys]).filter((key) => key in saved).map((key) => [key, saved[key]])),
+      get: async (keys) => Object.fromEntries((keys === null ? Object.keys(saved) : Array.isArray(keys) ? keys : [keys]).filter((key) => key in saved).map((key) => [key, saved[key]])),
       set: async (values) => Object.assign(saved, values),
     } },
     tabs: { create: async (options) => opened.push(options) },
     runtime: { id: "test-extension" },
   } });
-  await runScriptsInVm(context, ["contracts/job-urls.js", "contracts/job-storage-keys.js", "contracts/recommendations.js", "contracts/messages.js", "worker/recommendations.js"]);
+  await runScriptsInVm(context, ["contracts/job-urls.js", "contracts/job-storage-keys.js", "contracts/identifiers.js", "contracts/job-analyses.js", "contracts/recommendations.js", "contracts/messages.js", "worker/recommendations.js"]);
   let currentCheck = checkStatus;
   const service = context.jobSearchWorkerModules.createRecommendationService({
     bridgeConfig: { bridgeToken: "test-token", bridgeOrigin: "http://127.0.0.1:48973" },
     requestBridgeJson: async (url, options) => {
       if (url.endsWith("/cv-fit-submissions")) { submissions.push(options.body); return { response: { ok: true }, body: { ok: true } }; }
+      if (url.endsWith("/analyses/open")) { reviews.push(options.body); return { response: { ok: true }, body: { ok: true } }; }
       const match = url.match(/\/suggestions\/(.+)\/check$/);
       const body = match ? { ...batch, jobs: [{ ...jobs.find((j) => j.jobUrl.endsWith(match[1])), blockerCheck: {
         status: currentCheck, outcome: findings.length ? "blocker" : "no_blockers_found", checkedAt: new Date(now).toISOString(), findings,
@@ -33,7 +35,7 @@ const setup = async ({ jobs = [job("fixture111")], status = "ready", age = 0, ch
     },
   });
   const send = (message, origin = sender) => new Promise((resolve) => service.handleMessage(message, origin, resolve));
-  return { saved, opened, submissions, send, poll: () => send({ type: "POLL_JOB_SUGGESTION" }),
+  return { saved, opened, submissions, reviews, send, poll: () => send({ type: "POLL_JOB_SUGGESTION" }),
     act: (action, origin = sender) => send({ type: "ACT_ON_JOB_SUGGESTION", action, jobUrl: jobs[0].jobUrl }, origin),
     check: (value) => { currentCheck = value; },
     advance: (ms) => { now += ms; batch.collectedAt = new Date(now).toISOString(); } };
@@ -142,4 +144,52 @@ test("snooze accepts 1–5 hours, persists the deadline and prevents cards until
     const fixture = await setup(); await fixture.poll();
     assert.equal((await fixture.send({ type: "ACT_ON_JOB_SUGGESTION", action: "snooze", hours, jobUrl: job("fixture111").jobUrl })).ok, false);
   }
+});
+
+const saveToApply = (fixture, id, verdict = "use as-is") => {
+  fixture.saved[`analyzed-job:indeed:${id}`] = {
+    threadId: "11111111-1111-4111-8111-111111111111", analyzedAt: new Date().toISOString(), verdict,
+  };
+  fixture.saved[`job-title:indeed:${id}`] = `Saved ${id}`;
+};
+
+test("deliveries alternate between fresh jobs and saved To apply reminders, reopening existing analyses", async () => {
+  const fixture = await setup({ jobs: [job("fixture111"), job("fixture112")] });
+  saveToApply(fixture, "saved1111");
+  const first = await fixture.poll();
+  assert.equal(first.jobs[0].suggestionKind, "new");
+  fixture.advance(30 * 60_000);
+  const reminder = await fixture.poll();
+  assert.equal(reminder.jobs[0].title, "Saved saved1111");
+  assert.equal(reminder.jobs[0].suggestionKind, "toApply");
+  assert.equal(reminder.jobs[0].analysisLabel, "Use as is");
+  assert.equal(reminder.jobs[0].blockerCheck.status, "unavailable");
+  assert.equal((await fixture.send({ type: "ACT_ON_JOB_SUGGESTION", action: "review", jobUrl: reminder.jobs[0].jobUrl })).ok, true);
+  assert.equal(fixture.reviews.length, 1);
+  assert.equal(fixture.submissions.length, 0);
+  assert.equal(fixture.saved["indeed-suggestion-state"].nextSource, "new");
+});
+
+test("To apply reminders work without a live feed and exclude ineligible verdicts, expired and marked jobs", async () => {
+  const fixture = await setup({ status: "signed_out" });
+  for (const [id, verdict] of [["saved1111", "use as-is"], ["saved2222", "edit the CV"], ["saved3333", "do not apply yet"], ["saved4444", "create a new CV"], ["saved5555", "use as-is"], ["saved6666", "use as-is"]]) saveToApply(fixture, id, verdict);
+  fixture.saved["applied-job:indeed:saved5555"] = { appliedAt: new Date().toISOString() };
+  fixture.saved["indeed-job-availability:saved6666"] = { status: "expired" };
+  const result = await fixture.poll();
+  assert.deepEqual(Array.from(result.jobs, (j) => j.title).sort(), ["Saved saved1111", "Saved saved2222"]);
+  fixture.advance(30 * 60_000);
+  assert.equal((await fixture.poll()).jobs.length, 2, "Reminders can recur; fresh-job history must not suppress them");
+});
+
+test("saved reminders rotate beyond the first stack and snooze covers both sources", async () => {
+  const fixture = await setup({ status: "unavailable" });
+  for (let i = 0; i < 6; i++) saveToApply(fixture, `saved111${i}`);
+  const first = await fixture.poll();
+  assert.equal(first.jobs.length, 5);
+  fixture.advance(30 * 60_000);
+  const second = await fixture.poll();
+  assert.ok(!first.jobs.some((job) => job.jobUrl === second.jobs[0].jobUrl), "An unseen reminder leads the next stack");
+  assert.equal((await fixture.send({ type: "ACT_ON_JOB_SUGGESTION", action: "snooze", hours: 1, jobUrl: second.jobs[0].jobUrl })).ok, true);
+  fixture.advance(30 * 60_000);
+  assert.equal((await fixture.poll()).jobs, undefined);
 });

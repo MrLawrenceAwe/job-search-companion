@@ -4,7 +4,7 @@ import { JSDOM } from "jsdom";
 import { runScriptsInDom } from "../../test-support/extension-scripts.js";
 import { drainEventLoopUntil } from "../../test-support/async.js";
 
-const render = async (t, blockerCheck, multiple = false) => {
+const render = async (t, blockerCheck, multiple = false, suggestionKind = "new") => {
   const dom = new JSDOM('<input id="typing">', { url: "https://example.org/", runScripts: "outside-only", pretendToBeVisual: true });
   t.after(() => dom.window.close());
   let root;
@@ -12,7 +12,7 @@ const render = async (t, blockerCheck, multiple = false) => {
   dom.window.Element.prototype.attachShadow = function (options) { root = attachShadow.call(this, options); return root; };
   dom.window.chrome = { runtime: { sendMessage: async () => ({ ok: true, jobs: [{
     jobUrl: "https://uk.indeed.com/viewjob?jk=fixture111", title: '<img src=x onerror="alert(1)"> Support',
-    company: "Example", location: "London", pay: "£30,000", blockerCheck,
+    company: "Example", location: "London", pay: "£30,000", blockerCheck, suggestionKind, analysisLabel: "Edit CV",
   }] }) } };
   if (multiple) {
     const send = dom.window.chrome.runtime.sendMessage;
@@ -48,6 +48,16 @@ test("failed and incomplete checks never display a zero-blocker count", async (t
     assert.ok(!root.textContent.includes("0 potential blockers"));
     assert.match(root.querySelector(".check-error").textContent, status === "incomplete" ? /incomplete/ : /failed or unavailable/);
   }
+});
+
+test("To apply reminders show the existing verdict and offer to view the saved assessment", async (t) => {
+  const { root, document } = await render(t, { status: "unavailable" }, false, "toApply");
+  assert.match(root.querySelector("small").textContent, /To apply/);
+  assert.match(root.textContent, /CV Fit Advisor: Edit CV/);
+  assert.ok([...root.querySelectorAll("button")].some((button) => button.textContent === "View CV Fit Advisor"));
+  assert.ok(!root.textContent.includes("Analyse with CV Fit Advisor"));
+  assert.match(root.querySelector(".check-error").textContent, /failed or unavailable/);
+  assert.equal(document.activeElement.id, "typing");
 });
 
 test("multiple suggestions use one compact top-right card with browsing controls", async (t) => {

@@ -5,6 +5,8 @@
     const messages = globalThis.jobSearchContracts.messages;
     const stateKey = "indeed-suggestion-state";
     const enabledKey = "indeed-recommendations-enabled";
+    const storageKeys = globalThis.jobSearchContracts.jobStorageKeys;
+    const analyses = globalThis.jobSearchContracts.jobAnalyses;
     let active = null;
     const trusted = (sender) => sender.id === chrome.runtime.id && sender.frameId === 0
       && Number.isInteger(sender.tab?.id) && /^https?:\/\//.test(sender.url || "");
@@ -27,30 +29,59 @@
         const state = saved[stateKey] || {};
         if (Number.isFinite(state.snoozedUntil) && now < state.snoozedUntil) return { ok: true };
         if (now - (state.lastSuggestedAt || 0) < contract.intervalMs) return { ok: true };
-        const { response, body } = await requestBridgeJson(`${bridgeConfig.bridgeOrigin}/suggestions`, { method: "GET" });
-        if (!response.ok || body?.ok !== true || !contract.isFresh(body, now)) return { ok: true };
+        const stored = await chrome.storage.local.get(null);
+        const excluded = (identity) => ["applied", "unsuitable", "indeedApplied", "indeedDismissed"]
+          .some((kind) => stored[storageKeys.forJob(kind, identity)])
+          || stored[storageKeys.forJob("indeedAvailability", identity)]?.status === "expired";
+        const toApply = Object.entries(stored).flatMap(([key, record]) => {
+          const identity = storageKeys.parse(key);
+          if (identity?.kind !== "analysis" || identity.platform !== "indeed"
+            || !analyses.isRecord(record) || !analyses.isToApplyVerdict(record.verdict) || excluded(identity)) return [];
+          const title = stored[storageKeys.forJob("title", identity)];
+          return [{ jobUrl: `https://uk.indeed.com/viewjob?jk=${identity.id}`,
+            title: typeof title === "string" && title.trim() ? title.trim().slice(0, 300) : "Saved job — open listing",
+            company: "", location: "", pay: "", suggestionKind: "toApply",
+            analysisLabel: analyses.labelFor(record.verdict), analyzedAt: record.analyzedAt }];
+        }).sort((a, b) => (state.reminderHistory?.[a.jobUrl] || 0) - (state.reminderHistory?.[b.jobUrl] || 0)
+          || Date.parse(b.analyzedAt) - Date.parse(a.analyzedAt) || a.jobUrl.localeCompare(b.jobUrl));
+        let feed = [];
+        try {
+          const { response, body } = await requestBridgeJson(`${bridgeConfig.bridgeOrigin}/suggestions`, { method: "GET" });
+          if (response.ok && body?.ok === true && contract.isFresh(body, now)) feed = body.jobs;
+        } catch { /* Saved reminders still work when collection is unavailable. */ }
         const history = Object.fromEntries(Object.entries(state.history || {})
           .filter(([, at]) => Number.isFinite(at) && now - at < 30 * 86400_000));
         const eligible = [];
-        const ordered = [...body.jobs].sort((left, right) => Number(contract.isPriority(right)) - Number(contract.isPriority(left)));
+        const toApplyUrls = new Set(toApply.map((job) => job.jobUrl));
+        const ordered = [...feed].sort((left, right) => Number(contract.isPriority(right)) - Number(contract.isPriority(left)));
         for (const job of ordered) {
           const identity = globalThis.jobSearchContracts.jobUrls.identityFromUrl(new URL(job.jobUrl));
-          const keys = ["applied", "unsuitable", "indeedApplied", "indeedDismissed"]
-            .map((kind) => globalThis.jobSearchContracts.jobStorageKeys.forJob(kind, identity));
-          if (history[identity.id] || Object.values(await chrome.storage.local.get(keys)).some(Boolean)) continue;
+          if (history[identity.id] || excluded(identity) || toApplyUrls.has(job.jobUrl)) continue;
           eligible.push(job);
           if (eligible.length >= contract.maximumSuggestions) break;
         }
-        const jobs = (await Promise.all(eligible.map(readCheck)))
-          .filter((job) => job.blockerCheck.status !== "checking");
+        const select = async (source) => (await Promise.all((source === "toApply"
+          ? toApply.slice(0, contract.maximumSuggestions) : eligible).map(async (job) => ({
+            ...await readCheck(job),
+            suggestionKind: source,
+            ...(source === "toApply" ? { analysisLabel: job.analysisLabel } : {}),
+          })))).filter((job) => job.blockerCheck.status !== "checking");
+        let source = state.nextSource === "toApply" ? "toApply" : "new";
+        let jobs = await select(source);
+        if (!jobs.length) { source = source === "new" ? "toApply" : "new"; jobs = await select(source); }
         if (!jobs.length) return { ok: true };
+        const reminderHistory = { ...state.reminderHistory };
         for (const job of jobs) {
           const identity = globalThis.jobSearchContracts.jobUrls.identityFromUrl(new URL(job.jobUrl));
-          history[identity.id] = now;
+          if (source === "toApply") reminderHistory[job.jobUrl] = now;
+          else history[identity.id] = now;
         }
         const bounded = Object.fromEntries(Object.entries(history).sort((a, b) => b[1] - a[1]).slice(0, 1000));
         await chrome.storage.local.set({ [stateKey]: {
           lastSuggestedAt: now, history: bounded,
+          nextSource: source === "new" ? "toApply" : "new",
+          reminderHistory: Object.fromEntries(toApply.filter((job) => reminderHistory[job.jobUrl])
+            .slice(0, 1000).map((job) => [job.jobUrl, reminderHistory[job.jobUrl]])),
           pending: { tabId: sender.tab.id, jobs, shownAt: now },
         } });
         return { ok: true, jobs };
@@ -58,7 +89,7 @@
       return active;
     };
     const act = async (message, sender) => {
-      if (!["open", "analyse", "unsuitable", "dismiss", "snooze"].includes(message.action)) return { ok: false };
+      if (!["open", "analyse", "review", "unsuitable", "dismiss", "snooze"].includes(message.action)) return { ok: false };
       if (message.action === "snooze" && (!Number.isInteger(message.hours) || message.hours < 1 || message.hours > 5))
         return { ok: false };
       const saved = await chrome.storage.local.get(stateKey);
@@ -67,6 +98,7 @@
       const job = pending?.jobs?.find((item) => item.jobUrl === message.jobUrl);
       if (pending?.tabId !== sender.tab.id || !job
         || Date.now() - pending.shownAt > 24 * 60 * 60_000) return { ok: message.action === "dismiss" };
+      if (message.action === "review" && job.suggestionKind !== "toApply") return { ok: false };
       // Consume before effects so double-clicks cannot duplicate analysis submissions.
       const remaining = pending.jobs.filter((item) => item.jobUrl !== job.jobUrl);
       await chrome.storage.local.set({ [stateKey]: { ...state,
@@ -79,8 +111,8 @@
           const key = globalThis.jobSearchContracts.jobStorageKeys.forUrl("unsuitable", job.jobUrl);
           await chrome.storage.local.set({ [key]: { jobUrl: job.jobUrl, unsuitableAt: new Date().toISOString() } });
         }
-        if (message.action === "analyse") {
-          const { response, body } = await requestBridgeJson(`${bridgeConfig.bridgeOrigin}/cv-fit-submissions`, {
+        if (["analyse", "review"].includes(message.action)) {
+          const { response, body } = await requestBridgeJson(`${bridgeConfig.bridgeOrigin}${message.action === "review" ? "/analyses/open" : "/cv-fit-submissions"}`, {
             method: "POST", body: { jobUrl: job.jobUrl },
           });
           if (!response.ok || !body?.ok) throw new Error("Could not start CV Fit Advisor. Try again.");

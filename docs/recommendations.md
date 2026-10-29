@@ -19,6 +19,24 @@ extension reload to load a new content script.
 
 ## The card
 
+Every 30-minute delivery alternates between new Indeed recommendations and saved
+**To apply** reminders. If one source has no ready jobs, the other fills the slot.
+The next source and reminder rotation persist across restarts. Reminders use the
+same eligible Indeed analyses as the To apply list: **Use as is** and **Edit CV**,
+excluding applied, unsuitable, Indeed-dismissed and known expired jobs. Previously
+reminded jobs rotate behind jobs not yet reminded; the 30-day new-job history does
+not suppress reminders. Saved reminders can appear even when the feed is unavailable.
+The card identifies **To apply**, shows the saved verdict, and offers **View CV Fit
+Advisor** to reopen that assessment instead of starting another one. Snooze pauses
+both sources. A job in To apply is excluded from new recommendations.
+
+When a new completed CV Fit Advisor assessment syncs with the exact verdict
+**Do not apply yet**, the extension automatically saves an **Unsuitable** mark
+for that job, on Indeed or LinkedIn. Existing marks are preserved. Repeated syncs
+of the same assessment do not restore a mark the user subsequently clears; a new
+assessment can mark it again. Other verdicts do not automatically mark jobs or
+remove saved unsuitable marks. This takes effect on the next normal analysis sync.
+
 The card automatically follows the browser/system light or dark preference and
 updates when that preference changes. It does not copy custom Chrome theme colours
 or the host website's theme. Blocker counts and findings stay red in either mode.
@@ -37,6 +55,9 @@ an expandable **N potential blockers** count with requirement quotes and
 explanations. Review overrides are respected. A failed/unavailable check or
 incomplete description is explicitly labelled; it never becomes a zero-blocker
 count, and the job is still offered. These checks do not claim a full CV fit verdict.
+Reminders also request a check before display. If the current collected feed lacks
+that saved job's full description, its blocker check is labelled unavailable rather
+than treating its saved CV Fit Advisor verdict as a zero-blocker result.
 
 The card provides:
 
