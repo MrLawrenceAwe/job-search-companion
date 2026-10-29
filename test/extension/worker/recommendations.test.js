@@ -5,7 +5,7 @@ import { runScriptsInVm } from "../../../test-support/extension-scripts.js";
 
 const job = (id) => ({ jobUrl: `https://uk.indeed.com/viewjob?jk=${id}`, title: "Support advisor", company: "Example", location: "London", pay: "£30,000" });
 const sender = { id: "test-extension", frameId: 0, tab: { id: 7 }, url: "https://example.org/" };
-const setup = async ({ jobs = [job("fixture111")], status = "ready", age = 0, checkStatus = "completed", findings = [] } = {}) => {
+const setup = async ({ jobs = [job("fixture111")], status = "ready", age = 0, checkStatus = "completed", findings = [], beforeRequest = async () => {} } = {}) => {
   const saved = {};
   const opened = [];
   const submissions = [];
@@ -25,6 +25,7 @@ const setup = async ({ jobs = [job("fixture111")], status = "ready", age = 0, ch
   const service = context.jobSearchWorkerModules.createRecommendationService({
     bridgeConfig: { bridgeToken: "test-token", bridgeOrigin: "http://127.0.0.1:48973" },
     requestBridgeJson: async (url, options) => {
+      await beforeRequest(url);
       if (url.endsWith("/cv-fit-submissions")) { submissions.push(options.body); return { response: { ok: true }, body: { ok: true } }; }
       if (url.endsWith("/analyses/open")) { reviews.push(options.body); return { response: { ok: true }, body: { ok: true } }; }
       const match = url.match(/\/suggestions\/(.+)\/check$/);
@@ -205,4 +206,55 @@ test("malformed exclusion records do not suppress eligible reminders", async () 
   const result = await fixture.poll();
   assert.equal(result.jobs.length, 1);
   assert.equal(result.jobs[0].jobUrl, job("saved1111").jobUrl);
+});
+
+test("a pending poll excludes actions until its state transition completes", async () => {
+  let release;
+  let blocked = false;
+  const fixture = await setup({ beforeRequest: async () => {
+    if (blocked) await new Promise((resolve) => { release = resolve; });
+  } });
+  await fixture.poll();
+  const prior = fixture.saved["indeed-suggestion-state"];
+  fixture.advance(30 * 60_000);
+  blocked = true;
+  const polling = fixture.poll();
+  while (!release) await new Promise((resolve) => setImmediate(resolve));
+  assert.equal((await fixture.act("unsuitable")).ok, false);
+  assert.equal(fixture.saved["indeed-suggestion-state"], prior);
+  blocked = false;
+  release();
+  await polling;
+});
+
+test("disabling while the bridge is pending suppresses delivery and history writes", async () => {
+  let release;
+  const fixture = await setup({ beforeRequest: async (url) => {
+    if (url.endsWith("/suggestions")) await new Promise((resolve) => { release = resolve; });
+  } });
+  const polling = fixture.poll();
+  while (!release) await new Promise((resolve) => setImmediate(resolve));
+  fixture.saved["indeed-recommendations-enabled"] = false;
+  release();
+  assert.equal((await polling).jobs, undefined);
+  assert.equal(fixture.saved["indeed-suggestion-state"], undefined);
+});
+
+test("polls cannot replace state while a failed action rolls back", async () => {
+  let release;
+  const fixture = await setup({ beforeRequest: async (url) => {
+    if (url.endsWith("/cv-fit-submissions")) {
+      await new Promise((resolve) => { release = resolve; });
+      throw new Error("Bridge unavailable");
+    }
+  } });
+  await fixture.poll();
+  const prior = fixture.saved["indeed-suggestion-state"];
+  const action = fixture.act("analyse");
+  while (!release) await new Promise((resolve) => setImmediate(resolve));
+  fixture.advance(30 * 60_000);
+  assert.equal((await fixture.poll()).jobs, undefined);
+  release();
+  assert.equal((await action).ok, false);
+  assert.equal(fixture.saved["indeed-suggestion-state"], prior);
 });

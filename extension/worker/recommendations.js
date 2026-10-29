@@ -4,11 +4,10 @@
     const contract = globalThis.jobSearchContracts.recommendations;
     const messages = globalThis.jobSearchContracts.messages;
     const stateKey = "indeed-suggestion-state";
-    const enabledKey = "indeed-recommendations-enabled";
+    const { enabledKey } = contract;
     const storageKeys = globalThis.jobSearchContracts.jobStorageKeys;
     const analyses = globalThis.jobSearchContracts.jobAnalyses;
     const eligibility = globalThis.jobSearchContracts.indeedToApply;
-    let active = null;
     const trusted = (sender) => sender.id === chrome.runtime.id && sender.frameId === 0
       && Number.isInteger(sender.tab?.id) && /^https?:\/\//.test(sender.url || "");
     const readCheck = async (job) => {
@@ -20,73 +19,70 @@
       } catch { /* Surface an unavailable check on the card, not a background error. */ }
       return { ...job, blockerCheck: { status: "unavailable" } };
     };
-    const poll = (sender) => {
-      if (active || actionInFlight) return Promise.resolve({ ok: true });
-      active = (async () => {
-        if (!bridgeConfig.bridgeToken) return { ok: true };
-        const saved = await chrome.storage.local.get([stateKey, enabledKey]);
-        if (saved[enabledKey] === false) return { ok: true };
-        const now = Date.now();
-        const state = saved[stateKey] || {};
-        if (Number.isFinite(state.snoozedUntil) && now < state.snoozedUntil) return { ok: true };
-        if (now - (state.lastSuggestedAt || 0) < contract.intervalMs) return { ok: true };
-        const stored = await chrome.storage.local.get(null);
-        const excluded = (identity) => eligibility.isExcluded(identity, (key) => stored[key]);
-        const toApply = Object.entries(stored).flatMap(([key, record]) => {
-          const identity = storageKeys.parse(key);
-          if (identity?.kind !== "analysis" || identity.platform !== "indeed" || !eligibility.isEligible({
-            platform: identity.platform, analysis: record, excluded: excluded(identity),
-          })) return [];
-          const title = stored[storageKeys.forJob("title", identity)];
-          return [{ jobUrl: `https://uk.indeed.com/viewjob?jk=${identity.id}`,
-            title: typeof title === "string" && title.trim() ? title.trim().slice(0, 300) : "Saved job — open listing",
-            company: "", location: "", pay: "", suggestionKind: "toApply",
-            analysisLabel: analyses.labelFor(record.verdict), analyzedAt: record.analyzedAt }];
-        }).sort((a, b) => (state.reminderHistory?.[a.jobUrl] || 0) - (state.reminderHistory?.[b.jobUrl] || 0)
-          || Date.parse(b.analyzedAt) - Date.parse(a.analyzedAt) || a.jobUrl.localeCompare(b.jobUrl));
-        let feed = [];
-        try {
-          const { response, body } = await requestBridgeJson(`${bridgeConfig.bridgeOrigin}/suggestions`, { method: "GET" });
-          if (response.ok && body?.ok === true && contract.isFresh(body, now)) feed = body.jobs;
-        } catch { /* Saved reminders still work when collection is unavailable. */ }
-        const history = Object.fromEntries(Object.entries(state.history || {})
-          .filter(([, at]) => Number.isFinite(at) && now - at < 30 * 86400_000));
-        const eligible = [];
-        const toApplyUrls = new Set(toApply.map((job) => job.jobUrl));
-        const ordered = [...feed].sort((left, right) => Number(contract.isPriority(right)) - Number(contract.isPriority(left)));
-        for (const job of ordered) {
-          const identity = globalThis.jobSearchContracts.jobUrls.identityFromUrl(new URL(job.jobUrl));
-          if (history[identity.id] || excluded(identity) || toApplyUrls.has(job.jobUrl)) continue;
-          eligible.push(job);
-          if (eligible.length >= contract.maximumSuggestions) break;
-        }
-        const select = async (source) => (await Promise.all((source === "toApply"
-          ? toApply.slice(0, contract.maximumSuggestions) : eligible).map(async (job) => ({
-            ...await readCheck(job),
-            suggestionKind: source,
-            ...(source === "toApply" ? { analysisLabel: job.analysisLabel } : {}),
-          })))).filter((job) => job.blockerCheck.status !== "checking");
-        let source = state.nextSource === "toApply" ? "toApply" : "new";
-        let jobs = await select(source);
-        if (!jobs.length) { source = source === "new" ? "toApply" : "new"; jobs = await select(source); }
-        if (!jobs.length) return { ok: true };
-        const reminderHistory = { ...state.reminderHistory };
-        for (const job of jobs) {
-          const identity = globalThis.jobSearchContracts.jobUrls.identityFromUrl(new URL(job.jobUrl));
-          if (source === "toApply") reminderHistory[job.jobUrl] = now;
-          else history[identity.id] = now;
-        }
-        const bounded = Object.fromEntries(Object.entries(history).sort((a, b) => b[1] - a[1]).slice(0, 1000));
-        await chrome.storage.local.set({ [stateKey]: {
-          lastSuggestedAt: now, history: bounded,
-          nextSource: source === "new" ? "toApply" : "new",
-          reminderHistory: Object.fromEntries(toApply.filter((job) => reminderHistory[job.jobUrl])
-            .slice(0, 1000).map((job) => [job.jobUrl, reminderHistory[job.jobUrl]])),
-          pending: { tabId: sender.tab.id, jobs, shownAt: now },
-        } });
-        return { ok: true, jobs };
-      })().finally(() => { active = null; });
-      return active;
+    const poll = async (sender) => {
+      if (!bridgeConfig.bridgeToken) return { ok: true };
+      const saved = await chrome.storage.local.get([stateKey, enabledKey]);
+      if (saved[enabledKey] === false) return { ok: true };
+      const now = Date.now();
+      const state = saved[stateKey] || {};
+      if (Number.isFinite(state.snoozedUntil) && now < state.snoozedUntil) return { ok: true };
+      if (now - (state.lastSuggestedAt || 0) < contract.intervalMs) return { ok: true };
+      const stored = await chrome.storage.local.get(null);
+      const excluded = (identity) => eligibility.isExcluded(identity, (key) => stored[key]);
+      const toApply = Object.entries(stored).flatMap(([key, record]) => {
+        const identity = storageKeys.parse(key);
+        if (identity?.kind !== "analysis" || identity.platform !== "indeed" || !eligibility.isEligible({
+          platform: identity.platform, analysis: record, excluded: excluded(identity),
+        })) return [];
+        const title = stored[storageKeys.forJob("title", identity)];
+        return [{ jobUrl: `https://uk.indeed.com/viewjob?jk=${identity.id}`,
+          title: typeof title === "string" && title.trim() ? title.trim().slice(0, 300) : "Saved job — open listing",
+          company: "", location: "", pay: "", suggestionKind: "toApply",
+          analysisLabel: analyses.labelFor(record.verdict), analyzedAt: record.analyzedAt }];
+      }).sort((a, b) => (state.reminderHistory?.[a.jobUrl] || 0) - (state.reminderHistory?.[b.jobUrl] || 0)
+        || Date.parse(b.analyzedAt) - Date.parse(a.analyzedAt) || a.jobUrl.localeCompare(b.jobUrl));
+      let feed = [];
+      try {
+        const { response, body } = await requestBridgeJson(`${bridgeConfig.bridgeOrigin}/suggestions`, { method: "GET" });
+        if (response.ok && body?.ok === true && contract.isFresh(body, now)) feed = body.jobs;
+      } catch { /* Saved reminders still work when collection is unavailable. */ }
+      const history = Object.fromEntries(Object.entries(state.history || {})
+        .filter(([, at]) => Number.isFinite(at) && now - at < 30 * 86400_000));
+      const eligible = [];
+      const toApplyUrls = new Set(toApply.map((job) => job.jobUrl));
+      const ordered = [...feed].sort((left, right) => Number(contract.isPriority(right)) - Number(contract.isPriority(left)));
+      for (const job of ordered) {
+        const identity = globalThis.jobSearchContracts.jobUrls.identityFromUrl(new URL(job.jobUrl));
+        if (history[identity.id] || excluded(identity) || toApplyUrls.has(job.jobUrl)) continue;
+        eligible.push(job);
+        if (eligible.length >= contract.maximumSuggestions) break;
+      }
+      const select = async (source) => (await Promise.all((source === "toApply"
+        ? toApply.slice(0, contract.maximumSuggestions) : eligible).map(async (job) => ({
+          ...await readCheck(job),
+          suggestionKind: source,
+          ...(source === "toApply" ? { analysisLabel: job.analysisLabel } : {}),
+        })))).filter((job) => job.blockerCheck.status !== "checking");
+      let source = state.nextSource === "toApply" ? "toApply" : "new";
+      let jobs = await select(source);
+      if (!jobs.length) { source = source === "new" ? "toApply" : "new"; jobs = await select(source); }
+      if (!jobs.length) return { ok: true };
+      if ((await chrome.storage.local.get(enabledKey))[enabledKey] === false) return { ok: true };
+      const reminderHistory = { ...state.reminderHistory };
+      for (const job of jobs) {
+        const identity = globalThis.jobSearchContracts.jobUrls.identityFromUrl(new URL(job.jobUrl));
+        if (source === "toApply") reminderHistory[job.jobUrl] = now;
+        else history[identity.id] = now;
+      }
+      const bounded = Object.fromEntries(Object.entries(history).sort((a, b) => b[1] - a[1]).slice(0, 1000));
+      await chrome.storage.local.set({ [stateKey]: {
+        lastSuggestedAt: now, history: bounded,
+        nextSource: source === "new" ? "toApply" : "new",
+        reminderHistory: Object.fromEntries(toApply.filter((job) => reminderHistory[job.jobUrl])
+          .slice(0, 1000).map((job) => [job.jobUrl, reminderHistory[job.jobUrl]])),
+        pending: { tabId: sender.tab.id, jobs, shownAt: now },
+      } });
+      return { ok: true, jobs };
     };
     const act = async (message, sender) => {
       if (!["open", "analyse", "review", "unsuitable", "dismiss", "snooze"].includes(message.action)) return { ok: false };
@@ -123,18 +119,19 @@
         return { ok: false, error: "Couldn’t complete that action. Please try again." };
       }
     };
-    // Serialise card actions across rapid clicks without keeping a worker alive.
-    let actionInFlight = null;
+    // Polling and actions share one guard, including action rollback.
+    let inFlight = null;
     const handleMessage = (message, sender, sendResponse) => {
       if (![messages.pollSuggestion, messages.actOnSuggestion].includes(message?.type)) return false;
       if (!trusted(sender)) { sendResponse({ ok: false }); return false; }
-      let request;
-      if (message.type === messages.pollSuggestion) request = poll(sender);
-      else if (actionInFlight) request = Promise.resolve({ ok: false });
-      else {
-        actionInFlight = act(message, sender).finally(() => { actionInFlight = null; });
-        request = actionInFlight;
+      const isPoll = message.type === messages.pollSuggestion;
+      if (inFlight) {
+        sendResponse({ ok: isPoll });
+        return false;
       }
+      const request = (isPoll ? poll(sender) : act(message, sender))
+        .finally(() => { inFlight = null; });
+      inFlight = request;
       request.then(sendResponse, () => sendResponse(message.type === messages.actOnSuggestion
         ? { ok: false, error: "Couldn’t complete that action. Please try again." } : { ok: true }));
       return true;

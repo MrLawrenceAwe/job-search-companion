@@ -81,3 +81,18 @@ test("a failed background check is surfaced instead of restarted on every poll",
   assert.equal((await reader({ jobId: "fixture111" })).jobs[0].blockerCheck.status, "unavailable");
   assert.equal(starts, 1);
 });
+
+test("completed check IDs are revalidated through current checker inputs", async () => {
+  let current = 0;
+  let starts = 0;
+  const batch = { status: "ready", collectedAt: new Date().toISOString(), jobs: [job] };
+  const reader = createSuggestionReader({ readBatch: async () => batch, checker: {
+    start: async () => { starts++; return { id: `check-${current}`, status: "queued" }; },
+    get: () => ({ status: "completed" }),
+  } });
+  await reader({ jobId: "fixture111" });
+  // A profile correction or model change must reach start(), which owns freshness.
+  current++;
+  await reader({ jobId: "fixture111" });
+  assert.equal(starts, 2);
+});

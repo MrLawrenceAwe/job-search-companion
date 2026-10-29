@@ -1,4 +1,5 @@
 (() => {
+  const enabledKey = "indeed-recommendations-enabled";
   const intervalMs = 30 * 60_000;
   const maxAgeMs = 60 * 60_000;
   const maxJobs = 30;
@@ -31,5 +32,5 @@
     && now - Date.parse(batch.collectedAt) < maxAgeMs
     && Array.isArray(batch.jobs) && batch.jobs.length <= maxJobs && batch.jobs.every(isJob);
   globalThis.jobSearchContracts ??= {};
-  globalThis.jobSearchContracts.recommendations = Object.freeze({ intervalMs, maxAgeMs, maxJobs, maximumSuggestions, isPriority, isJob, isFeedJob, isCheckedJob, isFresh });
+  globalThis.jobSearchContracts.recommendations = Object.freeze({ enabledKey, intervalMs, maxAgeMs, maxJobs, maximumSuggestions, isPriority, isJob, isFeedJob, isCheckedJob, isFresh });
 })();

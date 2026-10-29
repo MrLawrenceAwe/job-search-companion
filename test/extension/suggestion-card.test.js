@@ -10,7 +10,11 @@ const render = async (t, blockerCheck, multiple = false, suggestionKind = "new")
   let root;
   const attachShadow = dom.window.Element.prototype.attachShadow;
   dom.window.Element.prototype.attachShadow = function (options) { root = attachShadow.call(this, options); return root; };
-  dom.window.chrome = { runtime: { sendMessage: async () => ({ ok: true, jobs: [{
+  let onStorageChange;
+  dom.window.chrome = { storage: {
+    local: { get: async () => ({}) },
+    onChanged: { addListener: (listener) => { onStorageChange = listener; } },
+  }, runtime: { sendMessage: async () => ({ ok: true, jobs: [{
     jobUrl: "https://uk.indeed.com/viewjob?jk=fixture111", title: '<img src=x onerror="alert(1)"> Support',
     company: "Example", location: "London", pay: "£30,000", blockerCheck, suggestionKind, analysisLabel: "Edit CV",
   }] }) } };
@@ -23,9 +27,9 @@ const render = async (t, blockerCheck, multiple = false, suggestionKind = "new")
     };
   }
   dom.window.document.getElementById("typing").focus();
-  await runScriptsInDom(dom.window, ["contracts/messages.js", "suggestion-card.js"]);
+  await runScriptsInDom(dom.window, ["contracts/messages.js", "contracts/recommendations.js", "suggestion-card.js"]);
   await drainEventLoopUntil(() => Boolean(root?.querySelector("article")), { message: "Card did not render" });
-  return { root, document: dom.window.document };
+  return { root, document: dom.window.document, window: dom.window, onStorageChange };
 };
 
 test("the extension card preserves typing focus, escapes website text and offers all requested actions", async (t) => {
@@ -66,4 +70,38 @@ test("multiple suggestions use one compact top-right card with browsing controls
   assert.equal(root.querySelector("nav span").textContent, "1 of 2");
   assert.equal(root.querySelector('[aria-label="Previous suggested job"]').disabled, true);
   assert.equal(root.querySelector('[aria-label="Next suggested job"]').disabled, false);
+});
+
+test("disabling suggestions removes an already displayed card", async (t) => {
+  const { document, onStorageChange } = await render(t, { status: "unavailable" });
+  onStorageChange({ "indeed-recommendations-enabled": { newValue: false } }, "local");
+  assert.equal(document.getElementById("jsc-suggestion-host"), null);
+});
+
+test("restoring a cached page restarts one polling interval on each visit", async (t) => {
+  const { window } = await render(t, { status: "unavailable" });
+  const timers = new Set();
+  let nextTimer = 0;
+  window.setInterval = () => { const id = ++nextTimer; timers.add(id); return id; };
+  const clear = window.clearInterval.bind(window);
+  window.clearInterval = (id) => { timers.delete(id); clear(id); };
+  for (let visit = 0; visit < 2; visit++) {
+    window.dispatchEvent(new window.PageTransitionEvent("pagehide", { persisted: true }));
+    assert.equal(timers.size, 0);
+    window.dispatchEvent(new window.PageTransitionEvent("pageshow", { persisted: true }));
+    window.dispatchEvent(new window.PageTransitionEvent("pageshow", { persisted: true }));
+    assert.equal(timers.size, 1);
+  }
+});
+
+test("disabling during a pending poll prevents its response rendering", async (t) => {
+  const { window, document, onStorageChange } = await render(t, { status: "unavailable" });
+  onStorageChange({ "indeed-recommendations-enabled": { newValue: false } }, "local");
+  let finish;
+  window.chrome.runtime.sendMessage = () => new Promise((resolve) => { finish = resolve; });
+  onStorageChange({ "indeed-recommendations-enabled": { newValue: true } }, "local");
+  onStorageChange({ "indeed-recommendations-enabled": { newValue: false } }, "local");
+  finish({ jobs: [{ title: "Must not render" }] });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(document.getElementById("jsc-suggestion-host"), null);
 });

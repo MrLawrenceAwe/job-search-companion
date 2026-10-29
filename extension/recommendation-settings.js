@@ -1,5 +1,5 @@
 (() => {
-  const key = "indeed-recommendations-enabled";
+  const { enabledKey: key } = globalThis.jobSearchContracts.recommendations;
   const toggle = document.getElementById("recommendationsEnabled");
   toggle.disabled = true;
   chrome.storage.local.get(key).then((saved) => {

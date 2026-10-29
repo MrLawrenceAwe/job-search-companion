@@ -414,3 +414,17 @@ Tests cover resolution, mark persistence, navigation, HTTP authentication,
 submission recovery and installation transactions. CI runs on macOS with Node 22
 and 24. Real Accessibility permission and task submission require the
 [manual setup check](setup.md#3-verify).
+
+## Suggestion delivery state
+
+Suggestion polls and card actions share one in-flight guard, so a poll cannot
+replace pending jobs during an action or its rollback. Overlapping polls return
+quietly; overlapping actions can be retried. Before saving a delivery, the worker
+checks the shared enable setting again. Content scripts observe that setting,
+remove disabled cards, and discard responses from an earlier setting generation.
+Polling intervals stop on pagehide and restart on pageshow, including cached
+back/forward navigation; restoration also refreshes the enable setting.
+
+The suggestion reader tracks pending checks and suppresses repeated failed checks
+within a collected batch. Completed checks pass through checker.start again so
+its evidence, model, settings and saved-result validation determine reuse.

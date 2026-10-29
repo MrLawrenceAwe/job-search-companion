@@ -1,15 +1,31 @@
 (() => {
   if (window.top !== window || document.getElementById("jsc-suggestion-host")) return;
   const messages = globalThis.jobSearchContracts.messages;
+  const { enabledKey } = globalThis.jobSearchContracts.recommendations;
+  let enabled = false;
+  let settingGeneration = 0;
+  let suspended = false;
   let host = null;
+  const close = () => { host?.remove(); host = null; };
+  const applyEnabled = (value) => {
+    settingGeneration++;
+    enabled = value !== false;
+    if (!enabled) close();
+  };
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local" || !Object.hasOwn(changes, enabledKey)) return;
+    applyEnabled(changes[enabledKey].newValue);
+    if (enabled) void poll();
+  });
   let polling = false;
   let stopped = false;
   const poll = async () => {
-    if (stopped || polling || host || document.visibilityState !== "visible") return;
+    if (stopped || suspended || !enabled || polling || host || document.visibilityState !== "visible") return;
     polling = true;
+    const generation = settingGeneration;
     try {
       const response = await chrome.runtime.sendMessage({ type: messages.pollSuggestion });
-      if (response?.jobs?.length && document.visibilityState === "visible") show(response.jobs);
+      if (response?.jobs?.length && enabled && !suspended && generation === settingGeneration && document.visibilityState === "visible") show(response.jobs);
     } catch { stopped = true; }
     finally { polling = false; }
   };
@@ -105,10 +121,11 @@
         try {
           const response = await chrome.runtime.sendMessage({ type: messages.actOnSuggestion, action, hours, jobUrl: job.jobUrl });
           if (!response?.ok) throw new Error(response?.error || "Couldn’t complete that action. Please try again.");
-          if (action === "snooze") { host.remove(); host = null; }
+          if (!host || !enabled) return;
+          if (action === "snooze") close();
           else {
             jobs.splice(index, 1);
-            if (!jobs.length) { host.remove(); host = null; }
+            if (!jobs.length) close();
             else { index = Math.min(index, jobs.length - 1); render(); }
           }
         } catch (error) {
@@ -130,7 +147,23 @@
     // Deliberately no focus(), dialog, alert, sound, scroll, or foreground navigation.
   };
   document.addEventListener("visibilitychange", poll);
-  const timer = setInterval(poll, 60_000);
-  window.addEventListener("pagehide", () => clearInterval(timer), { once: true });
-  void poll();
+  let timer = null;
+  const startPolling = () => {
+    suspended = false;
+    if (timer === null) timer = setInterval(poll, 60_000);
+    // Refresh settings after a cached document was suspended.
+    const generation = settingGeneration;
+    void chrome.storage.local.get(enabledKey).then((saved) => {
+      if (generation === settingGeneration) applyEnabled(saved[enabledKey]);
+      void poll();
+    }).catch(() => {});
+  };
+  window.addEventListener("pagehide", () => {
+    suspended = true;
+    settingGeneration++;
+    clearInterval(timer);
+    timer = null;
+  });
+  window.addEventListener("pageshow", startPolling);
+  startPolling();
 })();
