@@ -20,7 +20,7 @@ const setup = async ({ jobs = [job("fixture111")], status = "ready", age = 0, ch
     tabs: { create: async (options) => opened.push(options) },
     runtime: { id: "test-extension" },
   } });
-  await runScriptsInVm(context, ["contracts/job-urls.js", "contracts/job-storage-keys.js", "contracts/identifiers.js", "contracts/job-analyses.js", "contracts/blockers.js", "contracts/recommendations.js", "contracts/suggestion-delivery-preferences.js", "contracts/messages.js", "contracts/job-marks.js", "contracts/indeed-availability.js", "contracts/indeed-to-apply.js", "worker/cv-fit.js", "worker/suggestion-delivery.js"]);
+  await runScriptsInVm(context, ["contracts/job-urls.js", "contracts/job-storage-keys.js", "contracts/identifiers.js", "contracts/job-analyses.js", "contracts/blockers.js", "contracts/recommendations.js", "contracts/suggestion-delivery-preferences.js", "contracts/messages.js", "contracts/job-marks.js", "contracts/indeed-availability.js", "contracts/indeed-to-apply.js", "worker/cv-fit.js", "worker/analyses.js", "worker/suggestion-delivery.js"]);
   let currentCheck = checkStatus;
   const bridgeConfig = { bridgeToken: "test-token", bridgeOrigin: "http://127.0.0.1:48973" };
   const checkIdentity = (id) => ({ jobId: id, descriptionHash: "description", evidenceHash: "evidence",
@@ -36,8 +36,9 @@ const setup = async ({ jobs = [job("fixture111")], status = "ready", age = 0, ch
     return { response: { ok: true }, body: { ok: true, ...body } };
   };
   const cvFit = context.jobSearchWorkerModules.createCvFitService({ bridgeConfig, requestBridgeJson });
+  const analyses = context.jobSearchWorkerModules.createAnalysisService({ bridgeConfig, requestBridgeJson });
   const service = context.jobSearchWorkerModules.createSuggestionDeliveryService({
-    bridgeConfig, requestBridgeJson, startCvFitSubmission: cvFit.start,
+    bridgeConfig, requestBridgeJson, startCvFitSubmission: cvFit.start, openAnalysis: analyses.open,
   });
   const send = (message, origin = sender) => new Promise((resolve) => service.handleMessage(message, origin, resolve));
   return { saved, opened, submissions, reviews, send,
@@ -266,7 +267,7 @@ test("an uncertain analysis start is consumed and warns against retrying", async
   assert.equal((await fixture.poll()).jobs, undefined);
   release();
   const result = await action;
-  assert.equal(result.ok, true);
+  assert.equal(result.ok, false);
   assert.equal(result.uncertain, true);
   assert.equal(fixture.saved["indeed-suggestion-state"].pending, null);
   assert.equal(fixture.submissions.length, 0);

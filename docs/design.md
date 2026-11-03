@@ -84,7 +84,8 @@ The content-page API in `extension-context.js` connects three boundaries:
 The MAIN-world description capture feeds the isolated blocker coordinator; see
 [blocker-checking internals](#blocker-checking-internals). The service worker
 registers feature handlers from `worker/`; `worker/suggestion-delivery.js` owns
-feed-suggestion and saved-job reminder delivery; `worker/bridge-client.js` owns bridge
+feed-suggestion and saved-job reminder delivery. `worker/analyses.js` opens saved analyses for
+both job pages and reminder cards. `worker/bridge-client.js` owns bridge
 headers and timeouts, and `worker/senders.js` validates job-site senders.
 Listing title and availability requests read only their job's analysis and requested
 metadata keys from extension storage. They share in-flight fetches and one JSON-LD
@@ -98,7 +99,8 @@ unavailable choices remain visible and disabled while absent from the catalogue.
 `worker/cv-fit.js` creates one CV-fit service shared by menu/shortcut messages
 and suggestion-card actions. It owns submission requests and response validation.
 A lost start response or successful response without a submission ID is uncertain;
-explicit bridge rejections remain failures. Both entry points preserve that distinction.
+explicit bridge rejections remain failures. The shared CV-fit client interprets
+submission responses and monitors accepted submissions for both entry points.
 
 `cvFitSubmissions` is the content-page API for sending Codex tasks. The bridge's
 `cv-fit-submission-store.js` persists their statuses; `cv-fit-submission-service.js`

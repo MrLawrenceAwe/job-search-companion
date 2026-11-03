@@ -17,7 +17,9 @@ const requestBridgeJson = modules.createBridgeClient({ bridgeConfig });
 const dependencies = { bridgeConfig, requestBridgeJson, isJobSiteSender: modules.isJobSiteSender };
 const analyses = modules.createAnalysisService(dependencies);
 const cvFit = modules.createCvFitService(dependencies);
-const suggestionDelivery = modules.createSuggestionDeliveryService({ ...dependencies, startCvFitSubmission: cvFit.start });
+const suggestionDelivery = modules.createSuggestionDeliveryService({
+  ...dependencies, startCvFitSubmission: cvFit.start, openAnalysis: analyses.open,
+});
 const handlers = [
   suggestionDelivery.handleMessage,
   modules.createIndeedListingHandler(dependencies),

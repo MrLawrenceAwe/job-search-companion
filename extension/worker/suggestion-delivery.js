@@ -1,10 +1,11 @@
 (() => {
   globalThis.jobSearchWorkerModules ??= {};
-  globalThis.jobSearchWorkerModules.createSuggestionDeliveryService = ({ bridgeConfig, requestBridgeJson, startCvFitSubmission }) => {
+  globalThis.jobSearchWorkerModules.createSuggestionDeliveryService = ({ bridgeConfig, requestBridgeJson, startCvFitSubmission, openAnalysis }) => {
     const contract = globalThis.jobSearchContracts.recommendations;
     const messages = globalThis.jobSearchContracts.messages;
     const stateKey = "indeed-suggestion-state";
     const { enabledKey } = globalThis.jobSearchContracts.suggestionDeliveryPreferences;
+    const { indeedJobUrl, identityFromUrl } = globalThis.jobSearchContracts.jobUrls;
     const storageKeys = globalThis.jobSearchContracts.jobStorageKeys;
     const analyses = globalThis.jobSearchContracts.jobAnalyses;
     const eligibility = globalThis.jobSearchContracts.indeedToApply;
@@ -48,7 +49,7 @@
           platform: identity.platform, analysis: record, excluded: excluded(identity),
         })) return [];
         const title = stored[storageKeys.forJob("title", identity)];
-        return [{ jobUrl: `https://uk.indeed.com/viewjob?jk=${identity.id}`,
+        return [{ jobUrl: indeedJobUrl("https://uk.indeed.com", identity.id),
           title: typeof title === "string" && title.trim() ? title.trim().slice(0, 300) : "Saved job — open listing",
           company: "", location: "", pay: "", suggestionKind: "toApply",
           analysisLabel: analyses.labelFor(record.verdict), analyzedAt: record.analyzedAt }];
@@ -65,7 +66,7 @@
       const toApplyUrls = new Set(toApply.map((job) => job.jobUrl));
       const ordered = [...feed].sort((left, right) => Number(contract.isPriority(right)) - Number(contract.isPriority(left)));
       for (const job of ordered) {
-        const identity = globalThis.jobSearchContracts.jobUrls.identityFromUrl(new URL(job.jobUrl));
+        const identity = identityFromUrl(new URL(job.jobUrl));
         if (history[identity.id] || excluded(identity) || toApplyUrls.has(job.jobUrl)) continue;
         eligible.push(job);
         if (eligible.length >= contract.maximumSuggestions) break;
@@ -83,7 +84,7 @@
       if ((await chrome.storage.local.get(enabledKey))[enabledKey] === false) return { ok: true };
       const reminderHistory = { ...state.reminderHistory };
       for (const job of jobs) {
-        const identity = globalThis.jobSearchContracts.jobUrls.identityFromUrl(new URL(job.jobUrl));
+        const identity = identityFromUrl(new URL(job.jobUrl));
         if (source === "toApply") reminderHistory[job.jobUrl] = now;
         else history[identity.id] = now;
       }
@@ -122,16 +123,10 @@
         }
         if (message.action === "analyse") {
           const result = await startCvFitSubmission(job.jobUrl);
-          if (result.uncertain) return { ...result, ok: true };
-          if (!result.ok) throw new Error(result.error);
+          if (!result.ok && !result.uncertain) throw new Error(result.error);
           return result;
         }
-        if (message.action === "review") {
-          const { response, body } = await requestBridgeJson(`${bridgeConfig.bridgeOrigin}/analyses/open`, {
-            method: "POST", body: { jobUrl: job.jobUrl },
-          });
-          if (!response.ok || !body?.ok) throw new Error("Could not open the saved analysis");
-        }
+        if (message.action === "review") await openAnalysis(job.jobUrl);
         return { ok: true };
       } catch (error) {
         await chrome.storage.local.set({ [stateKey]: state });

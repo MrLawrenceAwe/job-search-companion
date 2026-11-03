@@ -2,6 +2,7 @@
   const companion = globalThis.jobSearchCompanion;
   if (companion.platform !== "indeed") return;
   const eligibility = globalThis.jobSearchContracts.indeedToApply;
+  const { indeedJobUrl } = globalThis.jobSearchContracts.jobUrls;
   const keys = globalThis.jobSearchContracts.jobStorageKeys;
   const marks = companion.jobMarkStore;
   const analyses = companion.jobAnalysisStore;
@@ -14,12 +15,12 @@
     for (const [key, record] of analyses.entries()) {
       const { platform, id } = keys.parse(key);
       if (platform !== "indeed") continue;
-      const jobUrl = `https://uk.indeed.com/viewjob?jk=${id}`;
+      const jobUrl = indeedJobUrl("https://uk.indeed.com", id);
       if (!eligibility.isEligible({ platform, analysis: record,
         excluded: marks.isMarked(jobUrl, "applied") || marks.isMarked(jobUrl, "unsuitable")
           || metadata.isAppliedOrDismissedOnIndeed(id),
       })) continue;
-      candidates.push({ id, record });
+      candidates.push({ id, jobUrl, record });
     }
     return candidates;
   };
@@ -30,9 +31,8 @@
   };
   const selectJobs = (candidates) => candidates
     .filter(({ id }) => !metadata.isExpired(id))
-    .map(({ id, record }) => ({
-      // Derive links from the validated identity, never from stored arbitrary URLs.
-      url: `https://uk.indeed.com/viewjob?jk=${id}`,
+    .map(({ id, jobUrl, record }) => ({
+      url: jobUrl,
       title: metadata.titleFor(id),
       verdict: record.verdict,
       date: record.analyzedAt,

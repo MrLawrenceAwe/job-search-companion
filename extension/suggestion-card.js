@@ -29,21 +29,19 @@
     } catch { stopped = true; }
     finally { polling = false; }
   };
+  const client = globalThis.jobSearchCvFitClient;
+  const { waitForSubmissionResult } = client.createClient((message) => chrome.runtime.sendMessage(message));
   const showSubmissionResult = async (response, feedback) => {
-    const client = globalThis.jobSearchCvFitClient;
     feedback.textContent = "Submitting to Codex…";
+    let accepted = false;
     try {
-      if (response.uncertain) throw Object.assign(new Error(response.error), { uncertain: true });
-      const sendRequest = async (message) => {
-        const result = await chrome.runtime.sendMessage(message);
-        if (!result?.ok) throw new Error(result?.error || "Submission status unavailable");
-        return result;
-      };
-      const { waitForSubmissionResult } = client.createClient(sendRequest);
-      const status = await waitForSubmissionResult(response.submission.id);
+      const submission = client.readSubmission(response, { starting: true });
+      accepted = true;
+      const status = await waitForSubmissionResult(submission.id);
       feedback.textContent = client.resultMessage(status);
     } catch (error) {
-      feedback.textContent = client.failureMessage(error, true).message;
+      if (!accepted && error.definiteFailure) throw error;
+      feedback.textContent = client.failureMessage(error, accepted).message;
     }
   };
   const show = (jobs) => {
@@ -67,7 +65,7 @@
           for (const control of article.querySelectorAll("button")) control.disabled = true;
           try {
             const response = await chrome.runtime.sendMessage({ type: messages.actOnSuggestion, action, hours, jobUrl: job.jobUrl });
-            if (!response?.ok) throw Object.assign(new Error(response?.error || "Couldn’t complete that action. Please try again."), { definiteFailure: Boolean(response) });
+            if (!response || (action !== "analyse" && !response.ok)) throw Object.assign(new Error(response?.error || "Couldn’t complete that action. Please try again."), { definiteFailure: Boolean(response) });
             if (!host || !enabled) return;
             const advance = () => {
               jobs.splice(index, 1);
@@ -83,7 +81,7 @@
           } catch (error) {
             const uncertainStart = action === "analyse" && !error.definiteFailure;
             feedback.textContent = uncertainStart
-              ? globalThis.jobSearchCvFitClient.failureMessage(Object.assign(error, { uncertain: true })).message
+              ? client.failureMessage(Object.assign(error, { uncertain: true })).message
               : error.message;
             for (const control of article.querySelectorAll("button")) control.disabled = false;
             if (uncertainStart) button.disabled = true;

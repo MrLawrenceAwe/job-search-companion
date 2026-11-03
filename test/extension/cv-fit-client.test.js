@@ -11,7 +11,7 @@ test("shared submission client follows terminal states and preserves uncertainty
   for (const status of ["submitted", "ready_for_review", "unconfirmed", "failed", "interrupted"]) {
     const monitor = client.createClient(async (message) => {
       assert.equal(message.submissionId, "submission-1");
-      return { submission: { status, error: "terminal detail" } };
+      return { ok: true, submission: { status, error: "terminal detail" } };
     });
     if (["failed", "interrupted"].includes(status)) {
       await assert.rejects(monitor.waitForSubmissionResult("submission-1"), (error) => {

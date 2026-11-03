@@ -3,6 +3,7 @@
   globalThis.jobSearchWorkerModules.createIndeedListingHandler = ({ isJobSiteSender }) => {
     const messages = globalThis.jobSearchContracts.messages;
     const contract = globalThis.jobSearchContracts.jobAnalyses;
+    const { indeedJobUrl, identityFromUrl } = globalThis.jobSearchContracts.jobUrls;
     const keys = globalThis.jobSearchContracts.jobStorageKeys;
     const availabilityContract = globalThis.jobSearchContracts.indeedAvailability;
     const requests = new Map();
@@ -25,12 +26,12 @@
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 10_000);
         try {
-          const response = await fetch(`https://uk.indeed.com/viewjob?jk=${id}`, {
+          const response = await fetch(indeedJobUrl("https://uk.indeed.com", id), {
             credentials: "include", cache: "no-store", signal: controller.signal,
           });
           const url = new URL(response.url);
           if (!response.ok || !isJobSiteSender({ url: url.href }, ["indeed"]) ||
-              globalThis.jobSearchContracts.jobUrls.identityFromUrl(url)?.id !== id)
+              identityFromUrl(url)?.id !== id)
             throw new Error("Job listing unavailable");
           return globalThis.jobSearchWorkerModules.parseIndeedListing(await response.text());
         } finally {

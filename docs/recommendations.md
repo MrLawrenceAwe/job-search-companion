@@ -19,8 +19,9 @@ extension reload to load a new content script.
 
 ## The card
 
-Every 30-minute delivery alternates between new Indeed recommendations and saved
-**To apply** reminders. If one source has no ready jobs, the other fills the slot.
+Deliveries are at least 30 minutes apart and alternate between new Indeed
+recommendations and saved **To apply** reminders when both sources are ready.
+If one source has no ready jobs, the other fills the slot.
 The next source and reminder rotation persist across restarts. Reminders use the
 same eligible Indeed analyses as the To apply list: **Use as is** and **Edit CV**,
 excluding applied, unsuitable, Indeed-dismissed and known expired jobs. Previously
@@ -72,10 +73,11 @@ The card provides:
 - **Snooze**: close the card and pause suggestions for 1, 2, 3, 4, or 5 hours.
   The deadline is persisted across browser/worker restarts. Collection continues.
 
-Applied, unsuitable and known Indeed applied/dismissed jobs are omitted. Jobs
-already offered are skipped for 30 days, with a bounded 1000-job history.
-The **Indeed suggestions** switch in extension settings disables card delivery
-immediately; pause the Codex schedule to stop collection entirely.
+Applied, unsuitable and known Indeed applied/dismissed jobs are omitted.
+New suggestions already offered are skipped for 30 days, with a history of up to
+1,000 jobs. Saved To apply reminders use the separate rotation described above.
+Turn off **Show job suggestions and reminders** in extension settings to disable
+card delivery immediately. Pause the Codex schedule to stop collection.
 
 ## Local connection
 
@@ -112,9 +114,9 @@ most once a minute; its cooldown, snooze and history survive restarts.
 
 ## Installation and verification
 
-The bridge installer does not create the collector schedule. The **Indeed
-suggestions** switch controls card delivery only; it does not collect jobs.
-Without a collector, saved To apply reminders can still appear.
+Create the collector schedule separately from the bridge installation. The
+**Show job suggestions and reminders** switch controls card delivery. Saved
+To apply reminders can appear without a collector.
 
 To configure collection:
 

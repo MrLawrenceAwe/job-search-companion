@@ -38,6 +38,14 @@
       return analysisSync;
     };
 
+    const open = async (jobUrl) => {
+      const { response, body } = await requestBridgeJson(`${bridgeConfig.bridgeOrigin}/analyses/open`, {
+        method: "POST", body: { jobUrl },
+      });
+      if (!response.ok || !body?.ok) throw new Error(body?.error || "Couldn’t open the analysis");
+      return { ok: true };
+    };
+
     const handleAnalysisMessage = (message, sender, sendResponse) => {
       if (![messages.syncJobAnalyses, messages.openJobAnalysis].includes(message?.type)) return false;
       if (!isJobSiteSender(sender, ["indeed", "linkedin"])) {
@@ -45,16 +53,11 @@
         return false;
       }
       const action = message.type === messages.syncJobAnalyses ? syncJobAnalyses()
-        : requestBridgeJson(`${bridgeConfig.bridgeOrigin}/analyses/open`, {
-          method: "POST", body: { jobUrl: message.jobUrl },
-        }).then(({ response, body }) => {
-          if (!response.ok || !body?.ok) throw new Error(body?.error || "Couldn’t open the analysis");
-          return { ok: true };
-        });
+        : open(message.jobUrl);
       action.then(sendResponse, (error) => sendResponse({ ok: false, error: error.message }));
       return true;
     };
 
-    return { handleMessage: handleAnalysisMessage, sync: syncJobAnalyses };
+    return { handleMessage: handleAnalysisMessage, sync: syncJobAnalyses, open };
   };
 })();

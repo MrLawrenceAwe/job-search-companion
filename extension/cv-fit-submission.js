@@ -2,6 +2,7 @@
   const companion = globalThis.jobSearchCompanion;
   const { showToast } = companion;
   const messages = globalThis.jobSearchContracts.messages;
+  const client = globalThis.jobSearchCvFitClient;
   const { statuses } = globalThis.jobSearchContracts.cvFitSubmissions;
 
   const setActionLabel = (button, label) => {
@@ -25,8 +26,6 @@
           reject(
             Object.assign(new Error("Couldn’t reach the Job Search Companion service. Check that it is running."), { uncertain: true }),
           );
-        } else if (!response?.ok) {
-          reject(Object.assign(new Error(response?.error || "Task submission failed"), { uncertain: response?.uncertain === true }));
         } else {
           resolve(response);
         }
@@ -35,7 +34,7 @@
 
   let submissionInProgress = false;
 
-  const { waitForSubmissionResult } = globalThis.jobSearchCvFitClient.createClient(sendBridgeRequest);
+  const { waitForSubmissionResult } = client.createClient(sendBridgeRequest);
 
   const submit = async (jobUrl, button) => {
     if (submissionInProgress) {
@@ -58,18 +57,15 @@
 
     let accepted = false;
     try {
-      const { submission } = await sendBridgeRequest({
+      const submission = client.readSubmission(await sendBridgeRequest({
         type: messages.submitCvFitTask,
         jobUrl,
-      });
-      if (!submission?.id) {
-        throw Object.assign(new Error("The local bridge did not return a submission ID"), { uncertain: true });
-      }
+      }), { starting: true });
       accepted = true;
       const status = await waitForSubmissionResult(submission.id);
-      showToast(globalThis.jobSearchCvFitClient.resultMessage(status), status === statuses.unconfirmed ? "warning" : undefined);
+      showToast(client.resultMessage(status), status === statuses.unconfirmed ? "warning" : undefined);
     } catch (error) {
-      const { message, kind } = globalThis.jobSearchCvFitClient.failureMessage(error, accepted);
+      const { message, kind } = client.failureMessage(error, accepted);
       showToast(message, kind);
     } finally {
       submissionInProgress = false;
