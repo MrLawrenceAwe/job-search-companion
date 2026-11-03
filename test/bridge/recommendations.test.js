@@ -35,6 +35,19 @@ test("generic searches, unsafe links and oversized feeds cannot enter the cache"
   ]) await assert.rejects(saveRecommendations(invalid));
 });
 
+test("equivalent URLs are saved once with a canonical job URL", async (t) => {
+  const directory = await makeTemporaryDirectory(t, "jsc-recommendations-");
+  const path = join(directory, "feed.json");
+  const encoded = { ...job, jobUrl: "https://uk.indeed.com/viewjob?jk=%66ixture111" };
+  await saveRecommendations({ ...input, jobs: [encoded, job] }, { path });
+  assert.deepEqual((await readRecommendations({ path })).jobs, [job]);
+});
+
+test("unavailable batches return a check bound to the requested job", async () => {
+  const suggestions = createSuggestionService({ readBatch: async () => ({ status: "unavailable", jobs: [] }) });
+  assert.deepEqual(await suggestions.checkSuggestion("fixture111"), { jobId: "fixture111", status: "unavailable" });
+});
+
 test("cards carry completed blockers, pending checks, failures and incomplete descriptions truthfully", async () => {
   const batch = { status: "ready", collectedAt: new Date().toISOString(), jobs: [job] };
   const result = { checkerVersion: blockerContract.version, jobId: "fixture111", descriptionHash: "hash",
@@ -49,21 +62,23 @@ test("cards carry completed blockers, pending checks, failures and incomplete de
   assert.equal(calls, 0);
   assert.equal(list.jobs[0].description, undefined);
   const checked = await suggestions.checkSuggestion("fixture111");
-  assert.equal(checked.jobs[0].blockerCheck.status, "completed");
-  assert.equal(checked.jobs[0].blockerCheck.findings.length, 1);
-  assert.equal(checked.jobs[0].blockerCheck.findings[0].evidenceFacts, undefined);
+  assert.equal(checked.status, "completed");
+  assert.equal(checked.findings.length, 1);
+  assert.equal(checked.findings[0].evidenceFacts, undefined);
   for (const field of ["jobId", "descriptionHash", "evidenceHash", "model", "reasoningEffort", "checkedAt"])
-    assert.equal(checked.jobs[0].blockerCheck[field], result[field]);
-  assert.equal((await suggestions.checkSuggestion("different111")).jobs.length, 0);
+    assert.equal(checked[field], result[field]);
+  assert.deepEqual(await suggestions.checkSuggestion("different111"), { jobId: "different111", status: "unavailable" });
+  assert.equal(checked.title, undefined);
+  assert.equal(checked.jobs, undefined);
   for (const status of ["queued", "checking", "failed", "cancelled"]) {
     const pending = createSuggestionService({ readBatch: async () => batch, checker: { start: async () => ({ status }) } });
-    assert.equal((await pending.checkSuggestion("fixture111")).jobs[0].blockerCheck.status,
+    assert.equal((await pending.checkSuggestion("fixture111")).status,
       ["queued", "checking"].includes(status) ? "checking" : "unavailable");
   }
   const failed = createSuggestionService({ readBatch: async () => batch, checker: { start: async () => { throw new Error("private error"); } } });
-  assert.equal((await failed.checkSuggestion("fixture111")).jobs[0].blockerCheck.status, "unavailable");
+  assert.equal((await failed.checkSuggestion("fixture111")).status, "unavailable");
   batch.jobs = [{ ...job, descriptionComplete: false, description: "Partial" }];
-  assert.equal((await suggestions.checkSuggestion("fixture111")).jobs[0].blockerCheck.status, "incomplete");
+  assert.equal((await suggestions.checkSuggestion("fixture111")).status, "incomplete");
   assert.equal(calls, 1);
 });
 
@@ -77,10 +92,10 @@ test("a failed background check is surfaced instead of restarted on every poll",
       get: () => ({ id: "check-1", status }),
     },
   });
-  assert.equal((await suggestions.checkSuggestion("fixture111")).jobs[0].blockerCheck.status, "checking");
+  assert.equal((await suggestions.checkSuggestion("fixture111")).status, "checking");
   status = "failed";
-  assert.equal((await suggestions.checkSuggestion("fixture111")).jobs[0].blockerCheck.status, "unavailable");
-  assert.equal((await suggestions.checkSuggestion("fixture111")).jobs[0].blockerCheck.status, "unavailable");
+  assert.equal((await suggestions.checkSuggestion("fixture111")).status, "unavailable");
+  assert.equal((await suggestions.checkSuggestion("fixture111")).status, "unavailable");
   assert.equal(starts, 1);
 });
 
@@ -113,9 +128,9 @@ test("pruned checker IDs recover through start and cached results drop stale ref
       get: () => { gets++; throw new Error("Check no longer available"); },
     },
   });
-  assert.equal((await suggestions.checkSuggestion("fixture111")).jobs[0].blockerCheck.status, "checking");
+  assert.equal((await suggestions.checkSuggestion("fixture111")).status, "checking");
   for (let i = 0; i < 2; i++)
-    assert.equal((await suggestions.checkSuggestion("fixture111")).jobs[0].blockerCheck.status, "completed");
+    assert.equal((await suggestions.checkSuggestion("fixture111")).status, "completed");
   assert.equal(starts, 3);
   assert.equal(gets, 1);
 });

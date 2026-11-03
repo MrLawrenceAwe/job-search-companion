@@ -10,16 +10,16 @@
   const ready = Promise.all([analyses.ready, marks.ready, metadata.ready]);
   let syncState = "checking";
   const render = companion.indeedToApply.createRenderer();
+  const readRecord = (id, kind) =>
+    marks.getRecord(keys.forJob(kind, { platform: "indeed", id })) ?? metadata.getRecord(kind, id);
   const selectCandidates = () => {
     const candidates = [];
     for (const [key, record] of analyses.entries()) {
       const { platform, id } = keys.parse(key);
       if (platform !== "indeed") continue;
       const jobUrl = indeedJobUrl("https://uk.indeed.com", id);
-      if (!eligibility.isEligible({ platform, analysis: record,
-        excluded: marks.isMarked(jobUrl, "applied") || marks.isMarked(jobUrl, "unsuitable")
-          || metadata.isAppliedOrDismissedOnIndeed(id),
-      })) continue;
+      const excluded = eligibility.isExcludedFromRefresh((kind) => readRecord(id, kind));
+      if (!eligibility.isEligible({ platform, analysis: record, excluded })) continue;
       candidates.push({ id, jobUrl, record });
     }
     return candidates;
@@ -30,7 +30,7 @@
     }
   };
   const selectJobs = (candidates) => candidates
-    .filter(({ id }) => !metadata.isExpired(id))
+    .filter(({ id }) => !eligibility.isExcludedFromDisplay((kind) => readRecord(id, kind)))
     .map(({ id, jobUrl, record }) => ({
       url: jobUrl,
       title: metadata.titleFor(id),

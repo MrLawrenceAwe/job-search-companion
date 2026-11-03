@@ -8,12 +8,14 @@
     const timestamp = { indeedApplied: "detectedAt", indeedDismissed: "dismissedAt" }[kind];
     return Boolean(timestamp && typeof record?.[timestamp] === "string");
   };
+  const isExcludedFromRefresh = (readRecord) =>
+    ["applied", "unsuitable", "indeedApplied", "indeedDismissed"].some(
+      (kind) => isExclusionRecord(kind, readRecord(kind)),
+    );
   contracts.indeedToApply = Object.freeze({
-    isExclusionRecord,
-    isExcluded: (identity, readRecord) =>
-      ["applied", "unsuitable", "indeedApplied", "indeedDismissed", "indeedAvailability"].some(
-        (kind) => isExclusionRecord(kind, readRecord(contracts.jobStorageKeys.forJob(kind, identity))),
-      ),
+    isExcludedFromRefresh,
+    isExcludedFromDisplay: (readRecord) => isExcludedFromRefresh(readRecord)
+      || isExclusionRecord("indeedAvailability", readRecord("indeedAvailability")),
     isEligible: ({ platform, analysis, excluded }) => platform === "indeed"
       && contracts.jobAnalyses.isRecord(analysis)
       && contracts.jobAnalyses.isToApplyVerdict(analysis.verdict) && !excluded,

@@ -2,7 +2,7 @@ import { dirname, join } from "node:path";
 import { mkdir } from "node:fs/promises";
 import { dataDirectory } from "../shared/data-directory.js";
 import { atomicWrite, readOptionalFile } from "../shared/filesystem.js";
-import { recommendationContract as contract, blockerContract } from "../shared/contracts.js";
+import { recommendationContract as contract, blockerContract, jobUrlContract } from "../shared/contracts.js";
 
 export const recommendationsPath = join(dataDirectory(), "recommendations.json");
 
@@ -17,9 +17,13 @@ export const saveRecommendations = async (input, { path = recommendationsPath, n
     const seen = new Set();
     for (const job of input.jobs) {
       if (!contract.isFeedJob(job)) throw new Error("Invalid or incomplete Indeed recommendation");
-      if (seen.has(job.jobUrl)) continue;
-      seen.add(job.jobUrl);
-      jobs.push(Object.fromEntries(["jobUrl", "title", "company", "location", "pay", "description", "descriptionComplete"].map((key) => [key, job[key]])));
+      const url = new URL(job.jobUrl);
+      const { id } = jobUrlContract.identityFromUrl(url);
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const { title, company, location, pay, description, descriptionComplete } = job;
+      jobs.push({ jobUrl: jobUrlContract.indeedJobUrl(url.origin, id),
+        title, company, location, pay, description, descriptionComplete });
     }
   }
   const batch = { status: input.status, collectedAt: new Date(now).toISOString(), jobs };
@@ -68,7 +72,7 @@ export const createSuggestionService = ({ checker, readBatch = readRecommendatio
 
       return {
         status: "completed", outcome: result.outcome, checkedAt: result.checkedAt,
-        jobId: result.jobId, descriptionHash: result.descriptionHash,
+        descriptionHash: result.descriptionHash,
         evidenceHash: result.evidenceHash, model: result.model,
         reasoningEffort: result.reasoningEffort,
         findings: blockerContract.getRemainingFindings(result).map(({ requirementQuote, explanation }) => ({ requirementQuote, explanation })),
@@ -86,14 +90,14 @@ export const createSuggestionService = ({ checker, readBatch = readRecommendatio
     },
     async checkSuggestion(jobId) {
       const batch = await readBatch();
-      if (batch.status !== "ready") return unavailableSuggestions();
+      if (batch.status !== "ready") return { jobId, status: "unavailable" };
       if (batch.collectedAt !== batchStamp) {
         checks.clear();
         batchStamp = batch.collectedAt;
       }
       const job = batch.jobs.find(({ jobUrl }) => new URL(jobUrl).searchParams.get("jk") === jobId);
-      const jobs = job ? [{ ...suggestionMetadata(job), blockerCheck: await readBlockerCheck(job, jobId) }] : [];
-      return { status: "ready", collectedAt: batch.collectedAt, jobs };
+      const check = job ? await readBlockerCheck(job, jobId) : { status: "unavailable" };
+      return { ...check, jobId };
     },
   };
 };

@@ -77,9 +77,9 @@ The content-page API in `extension-context.js` connects three boundaries:
   `selectors.ownedDecorations` to ignore extension-generated DOM changes.
   `indeed-job-metadata.js` owns captured titles, availability requests and native
   dismissal persistence. `contracts/indeed-to-apply.js` shares eligibility and
-  exclusion validation between the list and reminder worker. The To apply
-  coordinator selects eligible jobs separately
-  from its metadata store and renderer.
+  exclusion validation between the list and reminder worker. The list refreshes
+  metadata for eligible jobs, including expired listings, before applying the
+  display filter.
 
 The MAIN-world description capture feeds the isolated blocker coordinator; see
 [blocker-checking internals](#blocker-checking-internals). The service worker
@@ -106,7 +106,9 @@ submission responses and monitors accepted submissions for both entry points.
 `cv-fit-submission-store.js` persists their statuses; `cv-fit-submission-service.js`
 owns locking, execution and terminal-submission history pruning.
 The request handler calls `listSuggestions` for feed metadata and `checkSuggestion`
-to start or poll a blocker check for one job. Both read the saved batch through
+to start or poll a blocker check for one job. The check response carries the
+job ID and check status, and the worker attaches it to its candidate. Both
+bridge methods read the saved batch through
 `readRecommendations`.
 `analysis-routes.js` owns completion, listing and chat opening, with scoped completion dispatched before general-token authentication. The native helper publishes
 its result enum in metadata; automated tests compare it with the shared status

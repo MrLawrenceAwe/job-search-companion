@@ -23,6 +23,7 @@
   });
   companion.jobMarkStore = Object.freeze({
     ready,
+    getRecord: (key) => records.get(key),
     isMarked: (jobUrl, kind) => isRecord(kind, records.get(keyFor(jobUrl, kind))),
     isPending: (jobUrl, kind) => pendingWrites.has(keyFor(jobUrl, kind)),
     subscribe,

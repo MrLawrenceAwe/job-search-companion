@@ -8,15 +8,14 @@
     || (/\bremote\b/i.test(job.location) && !/\b(?:hybrid|not\s+remote|no\s+remote|non.remote)\b/i.test(job.location));
   const isFeedJob = (job) => isJob(job) && typeof job.description === "string"
     && job.description.length <= limits.maximumDescriptionCharacters && typeof job.descriptionComplete === "boolean";
-  const isCheckResponseJob = (job) => isJob(job)
-    && ["completed", "checking", "unavailable", "incomplete"].includes(job.blockerCheck?.status)
-    && (job.blockerCheck.status !== "completed" || (
-      Number.isFinite(Date.parse(job.blockerCheck.checkedAt))
-      && job.blockerCheck.jobId === new URL(job.jobUrl).searchParams.get("jk")
-      && ["descriptionHash", "evidenceHash", "model"].every((key) => typeof job.blockerCheck[key] === "string")
-      && ["blocker", "no_blockers_found"].includes(job.blockerCheck.outcome)
-      && Array.isArray(job.blockerCheck.findings) && job.blockerCheck.findings.length <= limits.maximumRequirements
-      && job.blockerCheck.findings.every((finding) => typeof finding.requirementQuote === "string"
+  const isCheckResponse = (check, jobId) => typeof jobId === "string" && check?.jobId === jobId
+    && ["completed", "checking", "unavailable", "incomplete"].includes(check.status)
+    && (check.status !== "completed" || (
+      Number.isFinite(Date.parse(check.checkedAt))
+      && ["descriptionHash", "evidenceHash", "model"].every((key) => typeof check[key] === "string")
+      && ["blocker", "no_blockers_found"].includes(check.outcome)
+      && Array.isArray(check.findings) && check.findings.length <= limits.maximumRequirements
+      && check.findings.every((finding) => typeof finding.requirementQuote === "string"
         && finding.requirementQuote.length <= limits.maximumQuoteCharacters && typeof finding.explanation === "string"
         && finding.explanation.length <= limits.maximumExplanationCharacters)));
   const isJob = (job) => {
@@ -34,5 +33,5 @@
     && now - Date.parse(batch.collectedAt) < maxAgeMs
     && Array.isArray(batch.jobs) && batch.jobs.length <= maxJobs && batch.jobs.every(isJob);
   globalThis.jobSearchContracts ??= {};
-  globalThis.jobSearchContracts.recommendations = Object.freeze({ intervalMs, maxAgeMs, maxJobs, maximumSuggestions, isPriority, isJob, isFeedJob, isCheckResponseJob, isFresh });
+  globalThis.jobSearchContracts.recommendations = Object.freeze({ intervalMs, maxAgeMs, maxJobs, maximumSuggestions, isPriority, isJob, isFeedJob, isCheckResponse, isFresh });
 })();

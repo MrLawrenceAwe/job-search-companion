@@ -88,12 +88,12 @@ test("recommendations use the authenticated bridge and unavailable collections s
       listSuggestions: async () => batch,
       checkSuggestion: async (jobId) => {
         assert.equal(jobId, "fixture111");
-        return { ...batch, jobs: [{ blockerCheck: { status: "checking" } }] };
+        return { jobId, status: "checking" };
       },
     },
   });
   const checked = await invokeHandler(handler, { method: "GET", url: "/suggestions/fixture111/check" });
-  assert.equal(checked.body.jobs[0].blockerCheck.status, "checking");
+  assert.deepEqual(checked.body, { ok: true, blockerCheck: { jobId: "fixture111", status: "checking" } });
   assert.deepEqual(log, []);
 
   const result = await invokeHandler(handler, { method: "GET", url: "/suggestions" });
@@ -104,6 +104,17 @@ test("recommendations use the authenticated bridge and unavailable collections s
     method: "GET", url: "/suggestions",
   });
   assert.deepEqual(failed.body, { ok: true, status: "unavailable", jobs: [] });
+});
+
+test("missing and failing suggestion checks return one unavailable check", async () => {
+  for (const suggestions of [undefined,
+    { checkSuggestion: async () => { throw new Error("private details"); } },
+    { checkSuggestion: () => { throw new Error("private details"); } }]) {
+    const response = await invokeHandler(createHandler({ suggestions }), {
+      method: "GET", url: "/suggestions/fixture111/check",
+    });
+    assert.deepEqual(response.body, { ok: true, blockerCheck: { jobId: "fixture111", status: "unavailable" } });
+  }
 });
 
 test("request handler normalizes and completes a submission", async () => {

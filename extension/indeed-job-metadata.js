@@ -13,8 +13,7 @@
   };
   const analyses = companion.jobAnalysisStore;
   const titles = new Map();
-  const dismissed = new Set();
-  const indeedApplied = new Set();
+  const applicationRecords = new Map();
   const titleRequests = new Map();
   const availability = new Map();
   const availabilityRequests = new Map();
@@ -24,11 +23,8 @@
     if (identity?.platform !== "indeed") return;
     const { kind, id } = identity;
     if (["indeedDismissed", "indeedApplied"].includes(kind)) {
-      const entries = {
-        indeedDismissed: dismissed, indeedApplied,
-      }[kind];
-      if (globalThis.jobSearchContracts.indeedToApply.isExclusionRecord(kind, value)) entries.add(id);
-      else entries.delete(id);
+      if (value === undefined) applicationRecords.delete(key);
+      else applicationRecords.set(key, value);
     } else if (kind === "indeedAvailability") {
       if (availabilityContract.isRecord(value)) availability.set(id, value);
       else availability.delete(id);
@@ -121,10 +117,11 @@
       const key = indeedKey("indeedDismissed", id);
       if (undo) {
         await chrome.storage.local.remove(key);
-        dismissed.delete(id);
+        applicationRecords.delete(key);
       } else {
-        await chrome.storage.local.set({ [key]: { dismissedAt: new Date().toISOString() } });
-        dismissed.add(id);
+        const record = { dismissedAt: new Date().toISOString() };
+        await chrome.storage.local.set({ [key]: record });
+        applicationRecords.set(key, record);
       }
       companion.pageDecorations.schedule();
     }).catch((error) => console.debug("Indeed dismissal could not be saved:", error));
@@ -134,8 +131,8 @@
     subscribe: metadata.subscribe,
     rememberPage: rememberPageMetadata,
     titleFor,
-    isExpired: (id) => availability.get(id)?.status === "expired",
-    isAppliedOrDismissedOnIndeed: (id) => indeedApplied.has(id) || dismissed.has(id),
+    getRecord: (kind, id) => kind === "indeedAvailability"
+      ? availability.get(id) : applicationRecords.get(indeedKey(kind, id)),
     refresh(id) {
       checkAvailability(id);
       if (availability.get(id)?.status !== "expired") refreshJobTitle(id);

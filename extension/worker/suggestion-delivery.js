@@ -15,23 +15,21 @@
       try {
         const key = new URL(job.jobUrl).searchParams.get("jk");
         const { response, body } = await requestBridgeJson(`${bridgeConfig.bridgeOrigin}/suggestions/${key}/check`, { method: "GET" });
-        const checked = body?.jobs?.find((item) => item.jobUrl === job.jobUrl);
-        if (response.ok && body.ok && contract.isCheckResponseJob(checked)) {
-          const check = checked.blockerCheck;
-          if (check.status !== "completed") return checked;
+        const check = body?.blockerCheck;
+        if (response.ok && body?.ok && contract.isCheckResponse(check, key)) {
+          if (check.status !== "completed") return check;
           const blockers = globalThis.jobSearchContracts.blockers;
           const storageKey = blockers.storagePrefix + key;
           const local = (await chrome.storage.local.get(storageKey))[storageKey];
           if (!blockers.isRetainableResult(local) || local.checkedAt !== check.checkedAt ||
-              !blockers.sameCheckInputs(local, check)) return checked;
+              !blockers.sameCheckInputs(local, check)) return check;
           const findings = blockers.getRemainingFindings({ ...check,
             overriddenRequirementQuotes: local.overriddenRequirementQuotes,
           });
-          return { ...checked, blockerCheck: { ...check, findings,
-            overriddenCount: check.findings.length - findings.length } };
+          return { ...check, findings, overriddenCount: check.findings.length - findings.length };
         }
       } catch { /* Surface an unavailable check on the card, not a background error. */ }
-      return { ...job, blockerCheck: { status: "unavailable" } };
+      return { status: "unavailable" };
     };
     const poll = async (sender) => {
       if (!bridgeConfig.bridgeToken) return { ok: true };
@@ -42,7 +40,9 @@
       if (Number.isFinite(state.snoozedUntil) && now < state.snoozedUntil) return { ok: true };
       if (now - (state.lastSuggestedAt || 0) < contract.intervalMs) return { ok: true };
       const stored = await chrome.storage.local.get(null);
-      const excluded = (identity) => eligibility.isExcluded(identity, (key) => stored[key]);
+      const excluded = (identity) => eligibility.isExcludedFromDisplay(
+        (kind) => stored[storageKeys.forJob(kind, identity)],
+      );
       const toApply = Object.entries(stored).flatMap(([key, record]) => {
         const identity = storageKeys.parse(key);
         if (identity?.kind !== "analysis" || identity.platform !== "indeed" || !eligibility.isEligible({
@@ -51,7 +51,7 @@
         const title = stored[storageKeys.forJob("title", identity)];
         return [{ jobUrl: indeedJobUrl("https://uk.indeed.com", identity.id),
           title: typeof title === "string" && title.trim() ? title.trim().slice(0, 300) : "Saved job — open listing",
-          company: "", location: "", pay: "", suggestionKind: "toApply",
+          company: "", location: "", pay: "",
           analysisLabel: analyses.labelFor(record.verdict), analyzedAt: record.analyzedAt }];
       }).sort((a, b) => (state.reminderHistory?.[a.jobUrl] || 0) - (state.reminderHistory?.[b.jobUrl] || 0)
         || Date.parse(b.analyzedAt) - Date.parse(a.analyzedAt) || a.jobUrl.localeCompare(b.jobUrl));
@@ -63,19 +63,18 @@
       const history = Object.fromEntries(Object.entries(state.history || {})
         .filter(([, at]) => Number.isFinite(at) && now - at < 30 * 86400_000));
       const eligible = [];
-      const toApplyUrls = new Set(toApply.map((job) => job.jobUrl));
+      const selectedIds = new Set(toApply.map((job) => identityFromUrl(new URL(job.jobUrl)).id));
       const ordered = [...feed].sort((left, right) => Number(contract.isPriority(right)) - Number(contract.isPriority(left)));
       for (const job of ordered) {
         const identity = identityFromUrl(new URL(job.jobUrl));
-        if (history[identity.id] || excluded(identity) || toApplyUrls.has(job.jobUrl)) continue;
+        if (history[identity.id] || excluded(identity) || selectedIds.has(identity.id)) continue;
+        selectedIds.add(identity.id);
         eligible.push(job);
         if (eligible.length >= contract.maximumSuggestions) break;
       }
       const select = async (source) => (await Promise.all((source === "toApply"
         ? toApply.slice(0, contract.maximumSuggestions) : eligible).map(async (job) => ({
-          ...await readCheck(job),
-          suggestionKind: source,
-          ...(source === "toApply" ? { analysisLabel: job.analysisLabel } : {}),
+          ...job, suggestionKind: source, blockerCheck: await readCheck(job),
         })))).filter((job) => job.blockerCheck.status !== "checking");
       let source = state.nextSource === "toApply" ? "toApply" : "new";
       let jobs = await select(source);

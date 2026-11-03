@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { readFile, readdir } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import vm from "node:vm";
-import { readExtensionScript } from "./extension-scripts.js";
+
+const extensionDirectory = new URL("../extension/", import.meta.url);
 
 export const loadWorker = async (fetch) => {
   const storage = {};
@@ -9,11 +10,6 @@ export const loadWorker = async (fetch) => {
   let messageHandler;
   let timeoutCallback;
   let clearedTimer;
-  const sources = new Map(await Promise.all([
-    ...["blockers", "job-marks", "indeed-to-apply", "recommendations", "suggestion-delivery-preferences", "job-urls", "job-storage-keys", "indeed-availability", "identifiers", "job-analyses", "messages"].map((name) => `contracts/${name}.js`),
-    "bridge-config.js",
-    ...(await readdir(new URL("../extension/worker/", import.meta.url))).map((name) => `worker/${name}`),
-  ].map(async (filename) => [filename, await readExtensionScript(filename)])));
   const context = vm.createContext({
     AbortController,
     AbortSignal,
@@ -45,8 +41,8 @@ export const loadWorker = async (fetch) => {
             bridgeOrigin: "http://127.0.0.1:48973",
           });
         } else {
-          assert.ok(sources.has(filename), `Unexpected worker dependency: ${filename}`);
-          vm.runInContext(sources.get(filename), context, { filename });
+          const source = readFileSync(new URL(filename, extensionDirectory), "utf8");
+          vm.runInContext(source, context, { filename });
         }
       }
     },
@@ -55,7 +51,7 @@ export const loadWorker = async (fetch) => {
       return 17;
     },
   });
-  const source = await readFile(new URL("../extension/service-worker.js", import.meta.url), "utf8");
+  const source = readFileSync(new URL("service-worker.js", extensionDirectory), "utf8");
   vm.runInContext(source, context, { filename: "service-worker.js" });
   const request = (message) => new Promise((resolve) => {
     assert.equal(messageHandler(message, {}, resolve), true);

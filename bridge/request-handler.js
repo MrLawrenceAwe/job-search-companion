@@ -51,12 +51,21 @@ export const createRequestHandler = ({
 
     const isSuggestionList = req.method === "GET" && req.url === "/suggestions";
     const suggestionCheck = req.method === "GET" && req.url?.match(/^\/suggestions\/([A-Za-z0-9_-]{8,64})\/check$/);
-    if (isSuggestionList || suggestionCheck) {
+    if (suggestionCheck) {
+      const [, jobId] = suggestionCheck;
+      const unavailable = { jobId, status: "unavailable" };
       try {
-        const batch = isSuggestionList
-          ? await suggestions?.listSuggestions()
-          : await suggestions?.checkSuggestion(suggestionCheck[1]);
-        if (isSuggestionList && batch?.status === "ready" && batch.collectedAt !== loggedSuggestionBatch) {
+        const blockerCheck = await suggestions?.checkSuggestion(jobId);
+        respond(200, { ok: true, blockerCheck: blockerCheck ?? unavailable });
+      } catch {
+        respond(200, { ok: true, blockerCheck: unavailable });
+      }
+      return;
+    }
+    if (isSuggestionList) {
+      try {
+        const batch = await suggestions?.listSuggestions();
+        if (batch?.status === "ready" && batch.collectedAt !== loggedSuggestionBatch) {
           loggedSuggestionBatch = batch.collectedAt;
           logger.info(`Recommendation feed served to extension: ${batch.jobs.length} jobs`);
         }

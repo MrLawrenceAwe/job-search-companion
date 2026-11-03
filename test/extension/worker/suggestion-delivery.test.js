@@ -5,7 +5,7 @@ import { runScriptsInVm } from "../../../test-support/extension-scripts.js";
 
 const job = (id) => ({ jobUrl: `https://uk.indeed.com/viewjob?jk=${id}`, title: "Support advisor", company: "Example", location: "London", pay: "£30,000" });
 const sender = { id: "test-extension", frameId: 0, tab: { id: 7 }, url: "https://example.org/" };
-const setup = async ({ jobs = [job("fixture111")], status = "ready", age = 0, checkStatus = "completed", findings = [], beforeRequest = async () => {} } = {}) => {
+const setup = async ({ jobs = [job("fixture111")], status = "ready", age = 0, checkStatus = "completed", responseJobId = null, findings = [], beforeRequest = async () => {} } = {}) => {
   const saved = {};
   const opened = [];
   const submissions = [];
@@ -30,9 +30,10 @@ const setup = async ({ jobs = [job("fixture111")], status = "ready", age = 0, ch
     if (url.endsWith("/cv-fit-submissions")) { submissions.push(options.body); return { response: { ok: true }, body: { ok: true, submission: { id: "submission-1", status: "submitting" } } }; }
     if (url.endsWith("/analyses/open")) { reviews.push(options.body); return { response: { ok: true }, body: { ok: true } }; }
     const match = url.match(/\/suggestions\/(.+)\/check$/);
-    const body = match ? { ...batch, jobs: [{ ...jobs.find((j) => j.jobUrl.endsWith(match[1])), blockerCheck: {
-      ...checkIdentity(match[1]), status: currentCheck, outcome: findings.length ? "blocker" : "no_blockers_found", findings,
-    } }] } : batch;
+    const body = match ? { blockerCheck: jobs.some((j) => new URL(j.jobUrl).searchParams.get("jk") === match[1])
+      ? { ...checkIdentity(responseJobId ?? match[1]), status: currentCheck,
+        outcome: findings.length ? "blocker" : "no_blockers_found", findings }
+      : { jobId: match[1], status: "unavailable" } } : batch;
     return { response: { ok: true }, body: { ok: true, ...body } };
   };
   const cvFit = context.jobSearchWorkerModules.createCvFitService({ bridgeConfig, requestBridgeJson });
@@ -67,6 +68,22 @@ test("cards wait for completed or failed checks, never show checking, and includ
     const failed = await setup({ checkStatus });
     assert.equal((await failed.poll()).jobs[0].blockerCheck.status, checkStatus);
   }
+});
+
+test("a check for another job is unavailable and preserves candidate metadata", async () => {
+  const fixture = await setup({ responseJobId: "different111" });
+  const result = (await fixture.poll()).jobs[0];
+  assert.equal(result.jobUrl, job("fixture111").jobUrl);
+  assert.equal(result.title, job("fixture111").title);
+  assert.equal(result.blockerCheck.status, "unavailable");
+});
+
+test("equivalent feed URLs produce a single suggestion", async () => {
+  const encoded = { ...job("fixture111"), jobUrl: "https://uk.indeed.com/viewjob?jk=%66ixture111" };
+  const fixture = await setup({ jobs: [encoded, job("fixture111")] });
+  const result = await fixture.poll();
+  assert.equal(result.jobs.length, 1);
+  assert.equal(result.jobs[0].blockerCheck.status, "completed");
 });
 
 test("cards respect the persistent cooldown and deduplicate across polls", async () => {
@@ -181,6 +198,18 @@ test("deliveries alternate between fresh jobs and saved To apply reminders, reop
   assert.equal(fixture.reviews.length, 1);
   assert.equal(fixture.submissions.length, 0);
   assert.equal(fixture.saved["indeed-suggestion-state"].nextSource, "new");
+});
+
+test("an equivalent feed URL cannot offer a saved reminder as a new suggestion", async () => {
+  const encoded = { ...job("fixture111"), jobUrl: "https://uk.indeed.com/viewjob?jk=%66ixture111" };
+  const fixture = await setup({ jobs: [encoded] });
+  saveToApply(fixture, "fixture111");
+  const result = (await fixture.poll()).jobs[0];
+  assert.equal(result.jobUrl, job("fixture111").jobUrl);
+  assert.equal(result.title, "Saved fixture111");
+  assert.equal(result.suggestionKind, "toApply");
+  assert.equal(result.analysisLabel, "Use as is");
+  assert.equal(result.blockerCheck.status, "completed");
 });
 
 test("To apply reminders work without a live feed and exclude ineligible verdicts, expired and marked jobs", async () => {

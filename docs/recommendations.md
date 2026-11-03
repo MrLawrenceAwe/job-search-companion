@@ -100,7 +100,9 @@ and `jobs`. Each job needs `jobUrl`, `title`, `company`, `location`, `pay`,
 A full description must be verified against the selected job's identity; partial
 or unavailable descriptions use `descriptionComplete: false`. Job keys come from
 rendered cards, never guessed values or advertising URLs. URLs must be canonical
-UK Indeed `/viewjob?jk=...` URLs. At most 30 records and 500 KB of input are accepted.
+UK Indeed `/viewjob?jk=...` URLs. Import normalises equivalent URLs and keeps
+only the first record for each job key. At most 30 records and 500 KB of input
+are accepted.
 
 `{"status":"unavailable"}`, `{"status":"signed_out"}` or `{"status":"blocked"}`
 clears the previous batch. Invalid input also invalidates it.
@@ -108,9 +110,11 @@ The private batch lives in
 `~/Library/Application Support/Job Search Companion/recommendations.json`, expires
 after one hour and contains job metadata/descriptions, not credentials or cookies.
 The authenticated bridge exposes metadata at `GET /suggestions` and one candidate's
-blocker-check status at `GET /suggestions/<job-key>/check`. Full descriptions and CV
-evidence are not passed to the page card. The worker polls from visible pages at
-most once a minute; its cooldown, snooze and history survive restarts.
+blocker check keyed by job ID at `GET /suggestions/<job-key>/check`. The page card
+receives job metadata and check summaries. A visible page can request a poll on
+the one-minute timer, when it becomes visible, or when it is shown or restored.
+The worker applies one shared 30-minute delivery cooldown across tabs and
+persists the cooldown, snooze and history across restarts.
 
 ## Installation and verification
 
