@@ -1,4 +1,4 @@
-import { identifierContract } from "../../shared/contracts.js";
+import { identifierContract, blockerContract } from "../../shared/contracts.js";
 import { readJsonBody } from "../http-helpers.js";
 
 export const createBlockerRoutes =
@@ -6,7 +6,7 @@ export const createBlockerRoutes =
   async (req, respond, res) => {
     if (!req.url?.startsWith("/blockers/")) return false;
     try {
-      const body = req.method === "POST" ? await readJsonBody(req, 100_000) : {};
+      const body = req.method === "POST" ? await readJsonBody(req, blockerContract.maximumRequestBodyCharacters) : {};
       const route = `${req.method} ${req.url}`;
       const checkMatch = req.method === "GET" && req.url.match(/^\/blockers\/checks\/([^/?]+)$/);
       let result;

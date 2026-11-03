@@ -237,3 +237,18 @@ for (const outcome of ["unconfirmed", "polling_disconnected"]) {
     assert.equal(button.disabled, false);
   });
 }
+
+
+test("an initial bridge timeout warns that the task may already be running", async () => {
+  const runtime = {
+    lastError: null,
+    sendMessage(_message, callback) {
+      callback({ ok: false, uncertain: true, error: "The local bridge did not respond within 10 seconds" });
+    },
+  };
+  const { button, toasts } = await createMenuFixture({ runtime });
+  click(button);
+  await drainEventLoopUntil(() => toasts.length > 0);
+  assert.equal(toasts.at(-1).dataset.kind, "warning");
+  assert.match(toasts.at(-1).textContent, /Check Codex before retrying/);
+});

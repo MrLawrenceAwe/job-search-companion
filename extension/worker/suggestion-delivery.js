@@ -1,6 +1,6 @@
 (() => {
   globalThis.jobSearchWorkerModules ??= {};
-  globalThis.jobSearchWorkerModules.createSuggestionDeliveryService = ({ bridgeConfig, requestBridgeJson }) => {
+  globalThis.jobSearchWorkerModules.createSuggestionDeliveryService = ({ bridgeConfig, requestBridgeJson, startCvFitSubmission }) => {
     const contract = globalThis.jobSearchContracts.recommendations;
     const messages = globalThis.jobSearchContracts.messages;
     const stateKey = "indeed-suggestion-state";
@@ -15,7 +15,20 @@
         const key = new URL(job.jobUrl).searchParams.get("jk");
         const { response, body } = await requestBridgeJson(`${bridgeConfig.bridgeOrigin}/suggestions/${key}/check`, { method: "GET" });
         const checked = body?.jobs?.find((item) => item.jobUrl === job.jobUrl);
-        if (response.ok && body.ok && contract.isCheckResponseJob(checked)) return checked;
+        if (response.ok && body.ok && contract.isCheckResponseJob(checked)) {
+          const check = checked.blockerCheck;
+          if (check.status !== "completed") return checked;
+          const blockers = globalThis.jobSearchContracts.blockers;
+          const storageKey = blockers.storagePrefix + key;
+          const local = (await chrome.storage.local.get(storageKey))[storageKey];
+          if (!blockers.isRetainableResult(local) || local.checkedAt !== check.checkedAt ||
+              !blockers.sameCheckInputs(local, check)) return checked;
+          const findings = blockers.getRemainingFindings({ ...check,
+            overriddenRequirementQuotes: local.overriddenRequirementQuotes,
+          });
+          return { ...checked, blockerCheck: { ...check, findings,
+            overriddenCount: check.findings.length - findings.length } };
+        }
       } catch { /* Surface an unavailable check on the card, not a background error. */ }
       return { ...job, blockerCheck: { status: "unavailable" } };
     };
@@ -101,30 +114,26 @@
         pending: message.action === "snooze" || !remaining.length ? null : { ...pending, jobs: remaining },
         ...(message.action === "snooze" ? { snoozedUntil: Date.now() + message.hours * 60 * 60_000 } : {}),
       } });
-      let startingAnalysis = false;
       try {
         if (message.action === "open") await chrome.tabs.create({ url: job.jobUrl });
         if (message.action === "unsuitable") {
           const key = globalThis.jobSearchContracts.jobStorageKeys.forUrl("unsuitable", job.jobUrl);
           await chrome.storage.local.set({ [key]: { jobUrl: job.jobUrl, unsuitableAt: new Date().toISOString() } });
         }
-        if (["analyse", "review"].includes(message.action)) {
-          startingAnalysis = message.action === "analyse";
-          const { response, body } = await requestBridgeJson(`${bridgeConfig.bridgeOrigin}${message.action === "review" ? "/analyses/open" : "/cv-fit-submissions"}`, {
+        if (message.action === "analyse") {
+          const result = await startCvFitSubmission(job.jobUrl);
+          if (result.uncertain) return { ...result, ok: true };
+          if (!result.ok) throw new Error(result.error);
+          return result;
+        }
+        if (message.action === "review") {
+          const { response, body } = await requestBridgeJson(`${bridgeConfig.bridgeOrigin}/analyses/open`, {
             method: "POST", body: { jobUrl: job.jobUrl },
           });
-          if (!response.ok || body?.ok === false) {
-            startingAnalysis = false;
-            throw new Error(body?.error || "Could not start CV Fit Advisor. Try again.");
-          }
-          if (startingAnalysis) {
-            if (!body?.ok || !body.submission?.id) throw new Error("The local bridge did not return a submission ID");
-            return { ok: true, submission: body.submission };
-          }
+          if (!response.ok || !body?.ok) throw new Error("Could not open CV Fit Advisor");
         }
         return { ok: true };
       } catch (error) {
-        if (startingAnalysis) return { ok: true, uncertain: true, error: error.message };
         await chrome.storage.local.set({ [stateKey]: state });
         return { ok: false, error: "Couldn’t complete that action. Please try again." };
       }

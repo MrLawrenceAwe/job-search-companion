@@ -52,6 +52,8 @@ test("cards carry completed blockers, pending checks, failures and incomplete de
   assert.equal(checked.jobs[0].blockerCheck.status, "completed");
   assert.equal(checked.jobs[0].blockerCheck.findings.length, 1);
   assert.equal(checked.jobs[0].blockerCheck.findings[0].evidenceFacts, undefined);
+  for (const field of ["jobId", "descriptionHash", "evidenceHash", "model", "reasoningEffort", "checkedAt"])
+    assert.equal(checked.jobs[0].blockerCheck[field], result[field]);
   assert.equal((await reader({ jobId: "different111" })).jobs.length, 0);
   for (const status of ["queued", "checking", "failed", "cancelled"]) {
     const pending = createSuggestionReader({ readBatch: async () => batch, checker: { start: async () => ({ status }) } });

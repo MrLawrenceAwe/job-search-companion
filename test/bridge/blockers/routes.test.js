@@ -3,7 +3,9 @@ import test from "node:test";
 import { mkdtemp, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { once } from "node:events";
+import { once, EventEmitter } from "node:events";
+import { PassThrough } from "node:stream";
+import { blockerContract } from "../../../shared/contracts.js";
 import { createServer } from "node:http";
 import { createBlockerRoutes } from "../../../bridge/blockers/routes.js";
 import { createRequestHandler } from "../../../bridge/request-handler.js";
@@ -67,4 +69,35 @@ test("check routes reject malformed UUIDs before calling the checker", async () 
   ), true);
   assert.equal(replies[0].status, 400);
   assert.equal(replies[0].body.error, "Invalid check ID");
+});
+
+
+test("check transport accepts maximum escaped fields and rejects oversized envelopes", async () => {
+  const { limits, maximumRequestBodyCharacters } = blockerContract;
+  const input = {
+    jobUrl: "https://uk.indeed.com/viewjob?jk=fixture111",
+    description: "\u0001".repeat(limits.maximumDescriptionCharacters),
+    challenge: {
+      requirementQuote: "\u0001".repeat(limits.maximumQuoteCharacters),
+      reason: "\u0001".repeat(limits.maximumChallengeCharacters),
+    },
+  };
+  let received;
+  const routes = createBlockerRoutes({ checker: { start: async (body) => { received = body; return { status: "queued" }; } } });
+  const request = async (body) => {
+    const req = new PassThrough();
+    req.method = "POST";
+    req.url = "/blockers/checks";
+    const replies = [];
+    const pending = routes(req, (status, payload) => replies.push({ status, payload }), new EventEmitter());
+    req.end(body);
+    await pending;
+    return replies[0];
+  };
+  const encoded = JSON.stringify(input);
+  assert.ok(encoded.length > 100_000);
+  assert.ok(encoded.length <= maximumRequestBodyCharacters);
+  assert.equal((await request(encoded)).status, 200);
+  assert.deepEqual(received, input);
+  assert.equal((await request(" ".repeat(maximumRequestBodyCharacters + 1))).status, 413);
 });

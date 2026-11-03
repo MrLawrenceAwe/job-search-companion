@@ -53,6 +53,7 @@ test("service worker aborts an unresponsive bridge request", async () => {
   assert.equal(signal.aborted, true);
   assert.equal(JSON.stringify(await response), JSON.stringify({
     ok: false,
+    uncertain: true,
     error: "The local bridge did not respond within 10 seconds",
   }));
 });
@@ -96,4 +97,14 @@ test("service worker forwards bridge errors", async () => {
     ok: false,
     error: "A task is already being submitted",
   }));
+});
+
+
+test("a successful but malformed start response preserves uncertainty", async () => {
+  for (const body of [null, { ok: true }, { ok: true, submission: { id: "" } }]) {
+    const worker = await loadWorker(async () => ({ ok: true, status: 202, json: async () => body }));
+    const response = await worker.request({ type: "SUBMIT_CV_FIT_TASK", jobUrl: "https://uk.indeed.com/viewjob?jk=fixture111" });
+    assert.equal(response.ok, false);
+    assert.equal(response.uncertain, true);
+  }
 });

@@ -16,13 +16,14 @@ const bridgeConfig = globalThis.jobSearchBridgeConfig;
 const requestBridgeJson = modules.createBridgeClient({ bridgeConfig });
 const dependencies = { bridgeConfig, requestBridgeJson, isJobSiteSender: modules.isJobSiteSender };
 const analyses = modules.createAnalysisService(dependencies);
-const suggestionDelivery = modules.createSuggestionDeliveryService(dependencies);
+const cvFit = modules.createCvFitService(dependencies);
+const suggestionDelivery = modules.createSuggestionDeliveryService({ ...dependencies, startCvFitSubmission: cvFit.start });
 const handlers = [
   suggestionDelivery.handleMessage,
   modules.createIndeedListingHandler(dependencies),
   modules.createIndeedApplicationHandler(dependencies),
   analyses.handleMessage,
-  modules.createCvFitHandler(dependencies),
+  cvFit.handleMessage,
   modules.createBlockerHandler(dependencies),
 ];
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) =>

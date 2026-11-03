@@ -25,7 +25,9 @@
       const count = check.findings.length;
       if (count) details.className = "has-blockers";
       details.append(element("summary", `${count} potential blocker${count === 1 ? "" : "s"}`));
-      if (!count) details.append(element("p", "No blockers found by the check. Review the job before applying."));
+      if (!count) details.append(element("p", check.overriddenCount
+        ? "All blockers overridden by you for this check. Review the job before applying."
+        : "No blockers found by the check. Review the job before applying."));
       else {
         const list = document.createElement("ul");
         for (const finding of check.findings) {

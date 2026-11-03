@@ -9,6 +9,7 @@
       menuItemClass: "jsc-menu-item",
     },
     selectors: {
+      ownedDecorations: '.jsc-detail-controls, .jsc-job-mark-badge, .jsc-blocker-badge, .jsc-menu-item, .jsc-to-apply',
       jobCard:
         'li, [data-testid="slider_item"], .job_seen_beacon, .cardOutline, [role="button"][componentkey^="job-card-component-ref-"]',
       jobDetailTitle:

@@ -49,7 +49,10 @@ Before offering a candidate, the worker requests a blocker check from the local
 bridge using the captured description, existing checker settings and current
 profile/CV evidence. **Checking** stays in the background. A completed check shows
 an expandable **N potential blockers** count with requirement quotes and
-explanations. Review overrides are respected. A failed/unavailable check or
+explanations. Saved review overrides apply only when the job, description hash,
+evidence hash, model, reasoning level and check timestamp match. A new check
+resets them. If all findings are overridden, the card says so explicitly.
+A failed/unavailable check or
 incomplete description is explicitly labelled; it never becomes a zero-blocker
 count, and the job is still offered. These checks do not claim a full CV fit verdict.
 Reminders also request a check before display. If the current collected feed lacks

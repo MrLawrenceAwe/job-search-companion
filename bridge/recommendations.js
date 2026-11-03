@@ -79,6 +79,9 @@ export const createSuggestionReader = ({ checker, readBatch = readRecommendation
       }
       jobs.push({ ...card, blockerCheck: {
         status: "completed", outcome: check.result.outcome, checkedAt: check.result.checkedAt,
+        jobId: check.result.jobId, descriptionHash: check.result.descriptionHash,
+        evidenceHash: check.result.evidenceHash, model: check.result.model,
+        reasoningEffort: check.result.reasoningEffort,
         findings: blockerContract.getRemainingFindings(check.result).map(({ requirementQuote, explanation }) => ({ requirementQuote, explanation })),
       } });
     } catch { jobs.push({ ...card, blockerCheck: { status: "unavailable" } }); }

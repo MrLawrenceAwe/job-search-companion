@@ -105,3 +105,10 @@ test("disabling during a pending poll prevents its response rendering", async (t
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(document.getElementById("jsc-suggestion-host"), null);
 });
+
+
+test("all overridden blockers are distinguished from a check that found none", async (t) => {
+  const { root } = await render(t, { status: "completed", findings: [], overriddenCount: 1 });
+  assert.match(root.textContent, /All blockers overridden by you for this check/);
+  assert.doesNotMatch(root.textContent, /No blockers found by the check/);
+});

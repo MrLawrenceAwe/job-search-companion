@@ -9,7 +9,6 @@
   let hiddenJobObserver = null;
   let hiddenJobTimer = null;
   const pendingHiddenRoots = new Set();
-  const ownedDecorations = '.jsc-detail-controls, .jsc-job-mark-badge, .jsc-blocker-badge, .jsc-menu-item, .jsc-to-apply';
 
   const uniqueJobs = (jobEntries) => {
     const jobsByUrl = new Map();
@@ -49,7 +48,7 @@
   };
 
   const queueHiddenRoot = (element, includeSubtree = false) => {
-    if (element?.nodeType !== 1 || element.closest(ownedDecorations)) return;
+    if (element?.nodeType !== 1 || element.closest(companion.selectors.ownedDecorations)) return;
     const card = element.closest(companion.selectors.jobCard) || element.closest('.jsc-hidden-job');
     if (card) pendingHiddenRoots.add(card);
     else if (element.matches(companion.selectors.jobUrlCarrier) ||
@@ -59,7 +58,7 @@
   };
 
   const scheduleHiddenJobCards = (mutations) => {
-    const isOwned = (node) => (node.nodeType === 1 ? node : node.parentElement)?.closest(ownedDecorations);
+    const isOwned = (node) => (node.nodeType === 1 ? node : node.parentElement)?.closest(companion.selectors.ownedDecorations);
     for (const mutation of mutations) {
       if (isOwned(mutation.target)) continue;
       if (mutation.type === 'attributes') queueHiddenRoot(mutation.target, true);

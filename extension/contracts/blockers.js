@@ -5,22 +5,26 @@
     no_blockers_found: "No blockers found",
   });
   const suggestedChallengeLimits = Object.freeze({ maximumCharacters: 300, maximumWords: 25 });
+  const limits = Object.freeze({
+    minimumDescriptionCharacters: 40,
+    maximumDescriptionCharacters: 80_000,
+    maximumDescriptionHtmlCharacters: 160_000,
+    maximumQuoteCharacters: 2000,
+    maximumChallengeCharacters: 2000,
+    maximumExplanationCharacters: 2000,
+    maximumExplanationWords: 25,
+    maximumRequirements: 60,
+    maximumChallengeResponseCharacters: 2000,
+    maximumChallengeResponseWords: 80,
+    maximumProfileUpdates: 5,
+    maximumProfileFactCharacters: 1000,
+  });
   const contract = {
     suggestedChallengeLimits,
-    limits: Object.freeze({
-      minimumDescriptionCharacters: 40,
-      maximumDescriptionCharacters: 80_000,
-      maximumDescriptionHtmlCharacters: 160_000,
-      maximumQuoteCharacters: 2000,
-      maximumChallengeCharacters: 2000,
-      maximumExplanationCharacters: 2000,
-      maximumExplanationWords: 25,
-      maximumRequirements: 60,
-      maximumChallengeResponseCharacters: 2000,
-      maximumChallengeResponseWords: 80,
-      maximumProfileUpdates: 5,
-      maximumProfileFactCharacters: 1000,
-    }),
+    limits,
+    // JSON can escape each UTF-16 code unit as six characters; reserve envelope space.
+    maximumRequestBodyCharacters: 6 * (limits.maximumDescriptionCharacters +
+      limits.maximumQuoteCharacters + limits.maximumChallengeCharacters) + 20_000,
     version: 17,
     retentionMs: 30 * 86400_000,
     maximumRecords: 300,

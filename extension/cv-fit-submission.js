@@ -26,7 +26,7 @@
             Object.assign(new Error("Couldn’t reach the Job Search Companion service. Check that it is running."), { uncertain: true }),
           );
         } else if (!response?.ok) {
-          reject(new Error(response?.error || "Task submission failed"));
+          reject(Object.assign(new Error(response?.error || "Task submission failed"), { uncertain: response?.uncertain === true }));
         } else {
           resolve(response);
         }

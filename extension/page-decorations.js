@@ -2,7 +2,6 @@
   const companion = globalThis.jobSearchCompanion;
   const renderers = new Set();
   const pageChangeListeners = new Set();
-  const ownedElements = '.jsc-detail-controls, .jsc-job-mark-badge, .jsc-blocker-badge, .jsc-menu-item, .jsc-to-apply';
   const jobContent = [
     companion.selectors.jobUrlCarrier,
     companion.selectors.jobDetailTitle,
@@ -64,7 +63,7 @@
     }, 100);
   };
   const isOwned = (node) => Boolean(
-    (node.nodeType === 1 ? node : node.parentElement)?.closest?.(ownedElements),
+    (node.nodeType === 1 ? node : node.parentElement)?.closest?.(companion.selectors.ownedDecorations),
   );
   const pageChanged = () => {
     schedule();

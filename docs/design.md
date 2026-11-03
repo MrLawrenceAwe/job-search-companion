@@ -70,6 +70,8 @@ The content-page API in `extension-context.js` connects three boundaries:
   subscribe only to their relevant records.
 - Presentation: `page-decorations.js` shares page observation and a snapshot of
   cards, the selected heading, and stable control containers across renderers.
+  Both page and hidden-job observers use `extension-context.js`'s
+  `selectors.ownedDecorations` to ignore extension-generated DOM changes.
   `indeed-job-metadata.js` owns captured titles, availability requests and native
   dismissal persistence. `contracts/indeed-to-apply.js` shares eligibility and
   exclusion validation between the list and reminder worker. The To apply
@@ -89,6 +91,11 @@ Installer-generated `local-config.js`
 provides private bridge settings. `options.html`, `options.js`, and `options.css`
 implement blocker settings. Saved or draft model choices survive catalogue refresh;
 unavailable choices remain visible and disabled while absent from the catalogue.
+
+`worker/cv-fit.js` creates one CV-fit service shared by menu/shortcut messages
+and suggestion-card actions. It owns submission requests and response validation.
+A lost start response or successful response without a submission ID is uncertain;
+explicit bridge rejections remain failures. Both entry points preserve that distinction.
 
 `cvFitSubmissions` is the content-page API for sending Codex tasks. The bridge's
 `cv-fit-submission-store.js` persists their statuses; `cv-fit-submission-service.js`
@@ -246,7 +253,9 @@ from CV Fit submissions.
 `extension/contracts/blockers.js` defines result labels, version, retention,
 record bounds, input limits, suggested-challenge word and character limits, and retention
 eligibility for both runtimes. Inference prompts, schemas and validation reuse
-those limits, including the 25-word finding explanation limit. Stored findings
+those limits, including the 25-word finding explanation limit. The HTTP request
+budget is derived from the maximum description and challenge fields, allowing
+six-character JSON escapes per UTF-16 code unit plus envelope space. Stored findings
 validate the quote, explanation, prepared challenge and evidence-fact shape before rendering.
 The blocker contract also owns the shared input comparison used for current results
 and overrides; overrides additionally require the same check timestamp. `extension/contracts/inference-settings.js` owns application

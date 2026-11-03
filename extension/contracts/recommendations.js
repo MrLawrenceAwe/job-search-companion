@@ -13,6 +13,8 @@
     && ["completed", "checking", "unavailable", "incomplete"].includes(job.blockerCheck?.status)
     && (job.blockerCheck.status !== "completed" || (
       Number.isFinite(Date.parse(job.blockerCheck.checkedAt))
+      && job.blockerCheck.jobId === new URL(job.jobUrl).searchParams.get("jk")
+      && ["descriptionHash", "evidenceHash", "model"].every((key) => typeof job.blockerCheck[key] === "string")
       && ["blocker", "no_blockers_found"].includes(job.blockerCheck.outcome)
       && Array.isArray(job.blockerCheck.findings) && job.blockerCheck.findings.length <= limits.maximumRequirements
       && job.blockerCheck.findings.every((finding) => typeof finding.requirementQuote === "string"

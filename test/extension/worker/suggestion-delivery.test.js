@@ -20,23 +20,34 @@ const setup = async ({ jobs = [job("fixture111")], status = "ready", age = 0, ch
     tabs: { create: async (options) => opened.push(options) },
     runtime: { id: "test-extension" },
   } });
-  await runScriptsInVm(context, ["contracts/job-urls.js", "contracts/job-storage-keys.js", "contracts/identifiers.js", "contracts/job-analyses.js", "contracts/blockers.js", "contracts/recommendations.js", "contracts/messages.js", "contracts/job-marks.js", "contracts/indeed-availability.js", "contracts/indeed-to-apply.js", "worker/suggestion-delivery.js"]);
+  await runScriptsInVm(context, ["contracts/job-urls.js", "contracts/job-storage-keys.js", "contracts/identifiers.js", "contracts/job-analyses.js", "contracts/blockers.js", "contracts/recommendations.js", "contracts/messages.js", "contracts/job-marks.js", "contracts/indeed-availability.js", "contracts/indeed-to-apply.js", "worker/cv-fit.js", "worker/suggestion-delivery.js"]);
   let currentCheck = checkStatus;
+  const bridgeConfig = { bridgeToken: "test-token", bridgeOrigin: "http://127.0.0.1:48973" };
+  const checkIdentity = (id) => ({ jobId: id, descriptionHash: "description", evidenceHash: "evidence",
+    model: "test-model", reasoningEffort: "medium", checkedAt: new Date(now).toISOString() });
+  const requestBridgeJson = async (url, options) => {
+    await beforeRequest(url);
+    if (url.endsWith("/cv-fit-submissions")) { submissions.push(options.body); return { response: { ok: true }, body: { ok: true, submission: { id: "submission-1", status: "submitting" } } }; }
+    if (url.endsWith("/analyses/open")) { reviews.push(options.body); return { response: { ok: true }, body: { ok: true } }; }
+    const match = url.match(/\/suggestions\/(.+)\/check$/);
+    const body = match ? { ...batch, jobs: [{ ...jobs.find((j) => j.jobUrl.endsWith(match[1])), blockerCheck: {
+      ...checkIdentity(match[1]), status: currentCheck, outcome: findings.length ? "blocker" : "no_blockers_found", findings,
+    } }] } : batch;
+    return { response: { ok: true }, body: { ok: true, ...body } };
+  };
+  const cvFit = context.jobSearchWorkerModules.createCvFitService({ bridgeConfig, requestBridgeJson });
   const service = context.jobSearchWorkerModules.createSuggestionDeliveryService({
-    bridgeConfig: { bridgeToken: "test-token", bridgeOrigin: "http://127.0.0.1:48973" },
-    requestBridgeJson: async (url, options) => {
-      await beforeRequest(url);
-      if (url.endsWith("/cv-fit-submissions")) { submissions.push(options.body); return { response: { ok: true }, body: { ok: true, submission: { id: "submission-1", status: "submitting" } } }; }
-      if (url.endsWith("/analyses/open")) { reviews.push(options.body); return { response: { ok: true }, body: { ok: true } }; }
-      const match = url.match(/\/suggestions\/(.+)\/check$/);
-      const body = match ? { ...batch, jobs: [{ ...jobs.find((j) => j.jobUrl.endsWith(match[1])), blockerCheck: {
-        status: currentCheck, outcome: findings.length ? "blocker" : "no_blockers_found", checkedAt: new Date(now).toISOString(), findings,
-      } }] } : batch;
-      return { response: { ok: true }, body: { ok: true, ...body } };
-    },
+    bridgeConfig, requestBridgeJson, startCvFitSubmission: cvFit.start,
   });
   const send = (message, origin = sender) => new Promise((resolve) => service.handleMessage(message, origin, resolve));
-  return { saved, opened, submissions, reviews, send, poll: () => send({ type: "POLL_JOB_SUGGESTION" }),
+  return { saved, opened, submissions, reviews, send,
+    savedResult: (overrides = {}) => ({ ...checkIdentity("fixture111"),
+      checkerVersion: context.jobSearchContracts.blockers.version,
+      outcome: findings.length ? "blocker" : "no_blockers_found",
+      findings: findings.map((finding) => ({ ...finding, kind: "blocker",
+        suggestedChallenge: "Please reconsider this requirement.", evidenceFacts: [] })),
+      ...overrides }),
+    poll: () => send({ type: "POLL_JOB_SUGGESTION" }),
     act: (action, origin = sender) => send({ type: "ACT_ON_JOB_SUGGESTION", action, jobUrl: jobs[0].jobUrl }, origin),
     check: (value) => { currentCheck = value; },
     advance: (ms) => { now += ms; batch.collectedAt = new Date(now).toISOString(); } };
@@ -268,4 +279,32 @@ test("analysis actions return the accepted submission for status tracking", asyn
   assert.equal(response.submission.id, "submission-1");
   assert.equal(response.submission.status, "submitting");
   assert.equal(fixture.saved["indeed-suggestion-state"].pending, null);
+});
+
+
+test("suggestions respect overrides only for the exact saved check", async () => {
+  const finding = { requirementQuote: "Driving licence required", explanation: "No licence is recorded." };
+  for (const mismatch of [null, "jobId", "descriptionHash", "evidenceHash", "model", "reasoningEffort", "checkedAt", "checkerVersion"]) {
+    const fixture = await setup({ findings: [finding] });
+    const local = fixture.savedResult({ overriddenRequirementQuotes: [finding.requirementQuote] });
+    if (mismatch) local[mismatch] = "different";
+    fixture.saved["blocker-result:fixture111"] = local;
+    const check = (await fixture.poll()).jobs[0].blockerCheck;
+    assert.equal(check.findings.length, mismatch ? 1 : 0, mismatch || "matching check");
+    assert.equal(check.overriddenCount || 0, mismatch ? 0 : 1);
+  }
+});
+
+test("overriding one finding preserves the other suggestion blockers", async () => {
+  const findings = [
+    { requirementQuote: "Driving licence required", explanation: "No licence is recorded." },
+    { requirementQuote: "Degree required", explanation: "No degree is recorded." },
+  ];
+  const fixture = await setup({ findings });
+  fixture.saved["blocker-result:fixture111"] = fixture.savedResult({
+    overriddenRequirementQuotes: [findings[0].requirementQuote],
+  });
+  const check = (await fixture.poll()).jobs[0].blockerCheck;
+  assert.deepEqual(Array.from(check.findings, (finding) => finding.requirementQuote), [findings[1].requirementQuote]);
+  assert.equal(check.overriddenCount, 1);
 });
