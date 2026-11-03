@@ -4,11 +4,11 @@ import { readFile, writeFile } from "node:fs/promises";
 // across execution worlds and content-script declarations.
 const entries = {
   "indeed-description-capture.bundle.js": [
-    "contracts/job-urls.js", "contracts/messages.js", "blockers/indeed-description-capture.js",
+    "contracts/job-urls.js", "contracts/messages.js", "contracts/blockers.js", "blockers/indeed-description-capture.js",
   ],
   "suggestion-card.bundle.js": [
-    "contracts/messages.js", "contracts/recommendations.js", "contracts/cv-fit-submissions.js",
-    "contracts/cv-fit-settings.js", "cv-fit-client.js", "suggestion-card.js",
+    "contracts/messages.js", "contracts/blockers.js", "contracts/recommendations.js", "contracts/cv-fit-submissions.js",
+    "contracts/cv-fit-settings.js", "cv-fit-client.js", "suggestion-card-styles.js", "suggestion-card-renderer.js", "suggestion-card.js",
   ],
 };
 const buildEntry = async (entry, sources) => {

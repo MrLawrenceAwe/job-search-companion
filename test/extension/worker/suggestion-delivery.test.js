@@ -20,9 +20,9 @@ const setup = async ({ jobs = [job("fixture111")], status = "ready", age = 0, ch
     tabs: { create: async (options) => opened.push(options) },
     runtime: { id: "test-extension" },
   } });
-  await runScriptsInVm(context, ["contracts/job-urls.js", "contracts/job-storage-keys.js", "contracts/identifiers.js", "contracts/job-analyses.js", "contracts/recommendations.js", "contracts/messages.js", "contracts/job-marks.js", "contracts/indeed-availability.js", "contracts/indeed-to-apply.js", "worker/recommendations.js"]);
+  await runScriptsInVm(context, ["contracts/job-urls.js", "contracts/job-storage-keys.js", "contracts/identifiers.js", "contracts/job-analyses.js", "contracts/blockers.js", "contracts/recommendations.js", "contracts/messages.js", "contracts/job-marks.js", "contracts/indeed-availability.js", "contracts/indeed-to-apply.js", "worker/suggestion-delivery.js"]);
   let currentCheck = checkStatus;
-  const service = context.jobSearchWorkerModules.createRecommendationService({
+  const service = context.jobSearchWorkerModules.createSuggestionDeliveryService({
     bridgeConfig: { bridgeToken: "test-token", bridgeOrigin: "http://127.0.0.1:48973" },
     requestBridgeJson: async (url, options) => {
       await beforeRequest(url);

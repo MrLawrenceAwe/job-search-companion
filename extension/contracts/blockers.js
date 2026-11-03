@@ -10,6 +10,7 @@
     limits: Object.freeze({
       minimumDescriptionCharacters: 40,
       maximumDescriptionCharacters: 80_000,
+      maximumDescriptionHtmlCharacters: 160_000,
       maximumQuoteCharacters: 2000,
       maximumChallengeCharacters: 2000,
       maximumExplanationCharacters: 2000,

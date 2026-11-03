@@ -1,4 +1,5 @@
 (() => {
+  const { limits } = globalThis.jobSearchContracts.blockers;
   const { indeedJobKeyPattern } = globalThis.jobSearchContracts.jobUrls;
   globalThis.jobSearchCompanion.blockers.observeDescriptions = (onDescription) => {
     const descriptions = new Map();
@@ -14,12 +15,12 @@
       const { jobId, html, text } = event.data;
       if (!indeedJobKeyPattern.test(jobId || "")) return;
       let extracted;
-      if (typeof text === "string" && text.length <= 80_000) {
+      if (typeof text === "string" && text.length <= limits.maximumDescriptionCharacters) {
         // GraphQL descriptions use Markdown: escaped punctuation renders as
         // one literal character, including a doubled backslash in adverts.
         extracted = text.replace(/\\([!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])/g, "$1");
       }
-      else if (typeof html === "string" && html.length <= 160_000) {
+      else if (typeof html === "string" && html.length <= limits.maximumDescriptionHtmlCharacters) {
         // Parse inertly and extract text; never insert job-provided HTML into the UI.
         const parsed = new DOMParser().parseFromString(html, "text/html");
         for (const node of parsed.querySelectorAll("script,style")) node.remove();

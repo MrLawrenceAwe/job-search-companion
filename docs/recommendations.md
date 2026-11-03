@@ -63,7 +63,8 @@ The card provides:
   workflow. The card waits for submission status and displays confirmation,
   an unsent draft notice, or an error before **Continue** advances the stack.
   Uncertain sends warn you to check Codex before retrying. This action may open Codex.
-- **Mark as unsuitable**: save the existing local unsuitable mark and close the card.
+- **Mark as unsuitable**: save the local unsuitable mark, then show the next job,
+  or close the card when none remain.
 - **Dismiss**: remove the current suggestion without marking the job unsuitable,
   then show the next job, or close the card when none remain.
 - **Snooze**: close the card and pause suggestions for 1, 2, 3, 4, or 5 hours.

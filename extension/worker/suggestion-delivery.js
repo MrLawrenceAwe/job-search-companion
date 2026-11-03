@@ -1,6 +1,6 @@
 (() => {
   globalThis.jobSearchWorkerModules ??= {};
-  globalThis.jobSearchWorkerModules.createRecommendationService = ({ bridgeConfig, requestBridgeJson }) => {
+  globalThis.jobSearchWorkerModules.createSuggestionDeliveryService = ({ bridgeConfig, requestBridgeJson }) => {
     const contract = globalThis.jobSearchContracts.recommendations;
     const messages = globalThis.jobSearchContracts.messages;
     const stateKey = "indeed-suggestion-state";
@@ -15,7 +15,7 @@
         const key = new URL(job.jobUrl).searchParams.get("jk");
         const { response, body } = await requestBridgeJson(`${bridgeConfig.bridgeOrigin}/suggestions/${key}/check`, { method: "GET" });
         const checked = body?.jobs?.find((item) => item.jobUrl === job.jobUrl);
-        if (response.ok && body.ok && contract.isCheckedJob(checked)) return checked;
+        if (response.ok && body.ok && contract.isCheckResponseJob(checked)) return checked;
       } catch { /* Surface an unavailable check on the card, not a background error. */ }
       return { ...job, blockerCheck: { status: "unavailable" } };
     };

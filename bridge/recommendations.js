@@ -49,7 +49,7 @@ export const createSuggestionReader = ({ checker, readBatch = readRecommendation
     if (jobId && new URL(job.jobUrl).searchParams.get("jk") !== jobId) continue;
     const { description, descriptionComplete, ...card } = job;
     if (!jobId) { jobs.push(card); continue; }
-    if (!descriptionComplete || description.trim().length < 40) {
+    if (!descriptionComplete || description.trim().length < blockerContract.limits.minimumDescriptionCharacters) {
       jobs.push({ ...card, blockerCheck: { status: "incomplete" } });
       continue;
     }

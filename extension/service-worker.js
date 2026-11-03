@@ -1,8 +1,8 @@
 importScripts(
   "contracts/job-urls.js", "contracts/job-storage-keys.js", "contracts/identifiers.js",
-  "contracts/recommendations.js", "contracts/indeed-availability.js", "contracts/job-analyses.js", "contracts/messages.js", "contracts/job-marks.js", "contracts/indeed-to-apply.js", "bridge-config.js",
+  "contracts/blockers.js", "contracts/recommendations.js", "contracts/indeed-availability.js", "contracts/job-analyses.js", "contracts/messages.js", "contracts/job-marks.js", "contracts/indeed-to-apply.js", "bridge-config.js",
   "worker/bridge-client.js", "worker/senders.js", "worker/cv-fit.js", "worker/blockers.js",
-  "worker/analyses.js", "worker/recommendations.js", "worker/indeed-applications.js",
+  "worker/analyses.js", "worker/suggestion-delivery.js", "worker/indeed-applications.js",
   "worker/indeed-listing-parser.js", "worker/indeed-listings.js",
 );
 try {
@@ -16,9 +16,9 @@ const bridgeConfig = globalThis.jobSearchBridgeConfig;
 const requestBridgeJson = modules.createBridgeClient({ bridgeConfig });
 const dependencies = { bridgeConfig, requestBridgeJson, isJobSiteSender: modules.isJobSiteSender };
 const analyses = modules.createAnalysisService(dependencies);
-const recommendations = modules.createRecommendationService(dependencies);
+const suggestionDelivery = modules.createSuggestionDeliveryService(dependencies);
 const handlers = [
-  recommendations.handleMessage,
+  suggestionDelivery.handleMessage,
   modules.createIndeedListingHandler(dependencies),
   modules.createIndeedApplicationHandler(dependencies),
   analyses.handleMessage,

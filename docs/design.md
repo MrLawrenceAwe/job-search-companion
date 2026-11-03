@@ -6,7 +6,7 @@ The installer records the chosen checkout location. Keep the unpacked extension
 in a stable directory so its identity and local job records remain
 available. See [setup and removal](setup.md) before installing the bridge.
 `job-mark-store.js` exposes one page-wide `jobMarkStore` for mark controls, badges,
-and To apply filtering. It stores each manual applied or unsuitable mark separately in
+and To apply filtering. It stores each applied or unsuitable mark separately in
 `chrome.storage.local`, keyed by platform and job ID, with a normalized source
 URL and ISO recording date. Per-job writes cannot overwrite unrelated marks.
 The `storage` permission is used only for extension-local state. It adds no new
@@ -20,7 +20,9 @@ text and subtree updates before scheduling scans, while retaining changes to job
 cards, detail content and identity sources. The job menu captures
 one resolved URL for all actions, avoiding a different selected pane being
 marked while a card's menu is open. Uncertain job resolution omits the actions.
-Marks are manual and reversible; they are not proof of successful submission.
+Applied marks are manual. New **Do not apply yet** assessments can also create
+Unsuitable marks automatically. All marks are reversible and are not proof of
+successful submission. See [mark preservation and clearing rules](usage.md#track-applications).
 
 ## Flow
 
@@ -76,7 +78,8 @@ The content-page API in `extension-context.js` connects three boundaries:
 
 The MAIN-world description capture feeds the isolated blocker coordinator; see
 [blocker-checking internals](#blocker-checking-internals). The service worker
-registers feature handlers from `worker/`; `worker/bridge-client.js` owns bridge
+registers feature handlers from `worker/`; `worker/suggestion-delivery.js` owns
+feed-suggestion and saved-job reminder delivery; `worker/bridge-client.js` owns bridge
 headers and timeouts, and `worker/senders.js` validates job-site senders.
 Listing title and availability requests read only their job's analysis and requested
 metadata keys from extension storage. They share in-flight fetches and one JSON-LD
@@ -428,3 +431,9 @@ back/forward navigation; restoration also refreshes the enable setting.
 The suggestion reader tracks pending checks and suppresses repeated failed checks
 within a collected batch. Completed checks pass through checker.start again so
 its evidence, model, settings and saved-result validation determine reuse.
+
+Suggestion card presentation lives in `suggestion-card-renderer.js`, with its
+shadow-tree styles in `suggestion-card-styles.js`. `suggestion-card.js` owns page
+lifecycle, polling and actions, including CV-fit submission status. The build
+bundles these dependencies before the controller. Description capture, suggestion
+validation and checking share the limits in `contracts/blockers.js`.
