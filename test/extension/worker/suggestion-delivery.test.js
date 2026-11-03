@@ -20,7 +20,7 @@ const setup = async ({ jobs = [job("fixture111")], status = "ready", age = 0, ch
     tabs: { create: async (options) => opened.push(options) },
     runtime: { id: "test-extension" },
   } });
-  await runScriptsInVm(context, ["contracts/job-urls.js", "contracts/job-storage-keys.js", "contracts/identifiers.js", "contracts/job-analyses.js", "contracts/blockers.js", "contracts/recommendations.js", "contracts/recommendation-preferences.js", "contracts/messages.js", "contracts/job-marks.js", "contracts/indeed-availability.js", "contracts/indeed-to-apply.js", "worker/cv-fit.js", "worker/suggestion-delivery.js"]);
+  await runScriptsInVm(context, ["contracts/job-urls.js", "contracts/job-storage-keys.js", "contracts/identifiers.js", "contracts/job-analyses.js", "contracts/blockers.js", "contracts/recommendations.js", "contracts/suggestion-delivery-preferences.js", "contracts/messages.js", "contracts/job-marks.js", "contracts/indeed-availability.js", "contracts/indeed-to-apply.js", "worker/cv-fit.js", "worker/suggestion-delivery.js"]);
   let currentCheck = checkStatus;
   const bridgeConfig = { bridgeToken: "test-token", bridgeOrigin: "http://127.0.0.1:48973" };
   const checkIdentity = (id) => ({ jobId: id, descriptionHash: "description", evidenceHash: "evidence",

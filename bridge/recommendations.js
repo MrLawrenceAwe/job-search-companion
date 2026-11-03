@@ -35,24 +35,17 @@ export const readRecommendations = async ({ path = recommendationsPath, now = Da
   } catch { return { status: "unavailable", jobs: [] }; }
 };
 
-// The list exposes metadata only; checking one selected card uses current CV evidence.
-// Failed or pending checks remain visible as such, never as a zero-blocker result.
-export const createSuggestionReader = ({ checker, readBatch = readRecommendations, now = Date.now }) => {
+const unavailableSuggestions = () => ({ status: "unavailable", jobs: [] });
+const suggestionMetadata = ({ description, descriptionComplete, ...metadata }) => metadata;
+
+export const createSuggestionService = ({ checker, readBatch = readRecommendations, now = Date.now }) => {
   let batchStamp;
   const checks = new Map();
-  return async ({ jobId } = {}) => {
-  const batch = await readBatch();
-  if (batch.status !== "ready") return { status: "unavailable", jobs: [] };
-  if (batch.collectedAt !== batchStamp) { checks.clear(); batchStamp = batch.collectedAt; }
-  const jobs = [];
-  for (const job of batch.jobs) {
-    if (jobId && new URL(job.jobUrl).searchParams.get("jk") !== jobId) continue;
-    const { description, descriptionComplete, ...card } = job;
-    if (!jobId) { jobs.push(card); continue; }
-    if (!descriptionComplete || description.trim().length < blockerContract.limits.minimumDescriptionCharacters) {
-      jobs.push({ ...card, blockerCheck: { status: "incomplete" } });
-      continue;
-    }
+
+  const readBlockerCheck = async (job, jobId) => {
+    if (!job.descriptionComplete || job.description.trim().length < blockerContract.limits.minimumDescriptionCharacters)
+      return { status: "incomplete" };
+
     try {
       const prior = checks.get(jobId);
       let check;
@@ -68,24 +61,39 @@ export const createSuggestionReader = ({ checker, readBatch = readRecommendation
         if (check.id) checks.set(jobId, { id: check.id, startedAt: now() });
         else checks.delete(jobId);
       }
-      if (["queued", "checking"].includes(check.status)) {
-        jobs.push({ ...card, blockerCheck: { status: "checking" } });
-        continue;
+      if (["queued", "checking"].includes(check.status)) return { status: "checking" };
+      const result = check.result;
+      if (check.status !== "completed" || !blockerContract.isRetainableResult(result) || result.jobId !== jobId)
+        return { status: "unavailable" };
+
+      return {
+        status: "completed", outcome: result.outcome, checkedAt: result.checkedAt,
+        jobId: result.jobId, descriptionHash: result.descriptionHash,
+        evidenceHash: result.evidenceHash, model: result.model,
+        reasoningEffort: result.reasoningEffort,
+        findings: blockerContract.getRemainingFindings(result).map(({ requirementQuote, explanation }) => ({ requirementQuote, explanation })),
+      };
+    } catch {
+      return { status: "unavailable" };
+    }
+  };
+
+  return {
+    async listSuggestions() {
+      const batch = await readBatch();
+      if (batch.status !== "ready") return unavailableSuggestions();
+      return { status: "ready", collectedAt: batch.collectedAt, jobs: batch.jobs.map(suggestionMetadata) };
+    },
+    async checkSuggestion(jobId) {
+      const batch = await readBatch();
+      if (batch.status !== "ready") return unavailableSuggestions();
+      if (batch.collectedAt !== batchStamp) {
+        checks.clear();
+        batchStamp = batch.collectedAt;
       }
-      if (check.status !== "completed" || !blockerContract.isRetainableResult(check.result)
-        || check.result.jobId !== jobId) {
-        jobs.push({ ...card, blockerCheck: { status: "unavailable" } });
-        continue;
-      }
-      jobs.push({ ...card, blockerCheck: {
-        status: "completed", outcome: check.result.outcome, checkedAt: check.result.checkedAt,
-        jobId: check.result.jobId, descriptionHash: check.result.descriptionHash,
-        evidenceHash: check.result.evidenceHash, model: check.result.model,
-        reasoningEffort: check.result.reasoningEffort,
-        findings: blockerContract.getRemainingFindings(check.result).map(({ requirementQuote, explanation }) => ({ requirementQuote, explanation })),
-      } });
-    } catch { jobs.push({ ...card, blockerCheck: { status: "unavailable" } }); }
-  }
-  return { status: "ready", collectedAt: batch.collectedAt, jobs };
+      const job = batch.jobs.find(({ jobUrl }) => new URL(jobUrl).searchParams.get("jk") === jobId);
+      const jobs = job ? [{ ...suggestionMetadata(job), blockerCheck: await readBlockerCheck(job, jobId) }] : [];
+      return { status: "ready", collectedAt: batch.collectedAt, jobs };
+    },
   };
 };

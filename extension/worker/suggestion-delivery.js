@@ -4,7 +4,7 @@
     const contract = globalThis.jobSearchContracts.recommendations;
     const messages = globalThis.jobSearchContracts.messages;
     const stateKey = "indeed-suggestion-state";
-    const { enabledKey } = globalThis.jobSearchContracts.recommendationPreferences;
+    const { enabledKey } = globalThis.jobSearchContracts.suggestionDeliveryPreferences;
     const storageKeys = globalThis.jobSearchContracts.jobStorageKeys;
     const analyses = globalThis.jobSearchContracts.jobAnalyses;
     const eligibility = globalThis.jobSearchContracts.indeedToApply;
@@ -130,7 +130,7 @@
           const { response, body } = await requestBridgeJson(`${bridgeConfig.bridgeOrigin}/analyses/open`, {
             method: "POST", body: { jobUrl: job.jobUrl },
           });
-          if (!response.ok || !body?.ok) throw new Error("Could not open CV Fit Advisor");
+          if (!response.ok || !body?.ok) throw new Error("Could not open the saved analysis");
         }
         return { ok: true };
       } catch (error) {

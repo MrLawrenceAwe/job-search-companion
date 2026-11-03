@@ -60,7 +60,7 @@ and execution worlds. Common isolated scripts load first; a following Indeed-onl
 declaration loads metadata, To apply and blocker features. Shared browser/Node
 contracts live in `extension/contracts/`
 and are imported by Node through `shared/contracts.js`.
-The card and settings toggle load `contracts/recommendation-preferences.js` for
+The card and settings toggle load `contracts/suggestion-delivery-preferences.js` for
 the shared delivery preference; feed and blocker validation remain in
 `contracts/recommendations.js` for the bridge and service worker.
 
@@ -103,8 +103,9 @@ explicit bridge rejections remain failures. Both entry points preserve that dist
 `cvFitSubmissions` is the content-page API for sending Codex tasks. The bridge's
 `cv-fit-submission-store.js` persists their statuses; `cv-fit-submission-service.js`
 owns locking, execution and terminal-submission history pruning.
-The request handler calls `getSuggestionsAndCheck` for suggestion metadata and
-optional blocker-check startup/polling; `readRecommendations` only reads the saved batch.
+The request handler calls `listSuggestions` for feed metadata and `checkSuggestion`
+to start or poll a blocker check for one job. Both read the saved batch through
+`readRecommendations`.
 `analysis-routes.js` owns completion, listing and chat opening, with scoped completion dispatched before general-token authentication. The native helper publishes
 its result enum in metadata; automated tests compare it with the shared status
 contract.

@@ -27,7 +27,7 @@ const render = async (t, blockerCheck, multiple = false, suggestionKind = "new")
     };
   }
   dom.window.document.getElementById("typing").focus();
-  await runScriptsInDom(dom.window, ["contracts/messages.js", "contracts/recommendation-preferences.js", "contracts/cv-fit-submissions.js", "contracts/cv-fit-settings.js", "cv-fit-client.js", "suggestion-card-styles.js", "suggestion-card-renderer.js", "suggestion-card.js"]);
+  await runScriptsInDom(dom.window, ["contracts/messages.js", "contracts/suggestion-delivery-preferences.js", "contracts/cv-fit-submissions.js", "contracts/cv-fit-settings.js", "cv-fit-client.js", "suggestion-card-styles.js", "suggestion-card-renderer.js", "suggestion-card.js"]);
   await drainEventLoopUntil(() => Boolean(root?.querySelector("article")), { message: "Card did not render" });
   return { root, document: dom.window.document, window: dom.window, onStorageChange };
 };
@@ -58,7 +58,7 @@ test("To apply reminders show the existing verdict and offer to view the saved a
   const { root, document } = await render(t, { status: "unavailable" }, false, "toApply");
   assert.match(root.querySelector("small").textContent, /To apply/);
   assert.match(root.textContent, /CV Fit Advisor: Edit CV/);
-  assert.ok([...root.querySelectorAll("button")].some((button) => button.textContent === "View CV Fit Advisor"));
+  assert.ok([...root.querySelectorAll("button")].some((button) => button.textContent === "Open analysis"));
   assert.ok(!root.textContent.includes("Analyse with CV Fit Advisor"));
   assert.match(root.querySelector(".check-error").textContent, /failed or unavailable/);
   assert.equal(document.activeElement.id, "typing");

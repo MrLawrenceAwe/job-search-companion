@@ -39,7 +39,8 @@ See [usage](docs/usage.md) and [blocker checking](docs/blocker-checker.md).
 Requires Node.js 22+. Run `npm ci` and `npm run build`, then load `extension/`
 through Chrome's **Load unpacked** control for marks and shortcuts.
 
-Blocker checks additionally need the local bridge and an eligible ChatGPT
+Blocker checks, CV analysis, and suggestion delivery (including saved **To apply**
+reminders) require the local bridge. Blocker checks also need an eligible ChatGPT
 connection. CV analysis needs macOS, Xcode Command Line Tools, Codex,
 Accessibility permission and a configured `cv-fit-advisor` skill. The skill and
 CV files are not included. Follow [setup and removal](docs/setup.md).

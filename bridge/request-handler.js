@@ -20,13 +20,13 @@ export const createRequestHandler = ({
   openAnalysis,
   createSubmissionId,
   blockerRoutes = null,
-  getSuggestionsAndCheck = async () => ({ status: "unavailable", jobs: [] }),
+  suggestions,
 }) => {
   const submissionService = createCvFitSubmissionService({
     submissionStore, analysisStore, submitTask, logger, createSubmissionId,
   });
   const analysisRoutes = createAnalysisRoutes({ analysisStore, openAnalysis });
-  let deliveredRecommendationBatch = null;
+  let loggedSuggestionBatch = null;
 
   return async (req, res) => {
     const respond = (statusCode, payload) => sendJson(req, res, statusCode, payload, {
@@ -49,17 +49,21 @@ export const createRequestHandler = ({
     }
     if (await analysisRoutes.handleAuthenticated(req, respond)) return;
 
-    const suggestionMatch = req.method === "GET" && req.url?.match(/^\/suggestions(?:\/([A-Za-z0-9_-]{8,64})\/check)?$/);
-    if (suggestionMatch) {
+    const isSuggestionList = req.method === "GET" && req.url === "/suggestions";
+    const suggestionCheck = req.method === "GET" && req.url?.match(/^\/suggestions\/([A-Za-z0-9_-]{8,64})\/check$/);
+    if (isSuggestionList || suggestionCheck) {
       try {
-        const batch = await getSuggestionsAndCheck({ jobId: suggestionMatch[1] });
-        if (batch.status === "ready" && batch.collectedAt !== deliveredRecommendationBatch) {
-          deliveredRecommendationBatch = batch.collectedAt;
-          logger.info(`Recommendations delivered to extension: ${batch.jobs.length} jobs`);
+        const batch = isSuggestionList
+          ? await suggestions?.listSuggestions()
+          : await suggestions?.checkSuggestion(suggestionCheck[1]);
+        if (isSuggestionList && batch?.status === "ready" && batch.collectedAt !== loggedSuggestionBatch) {
+          loggedSuggestionBatch = batch.collectedAt;
+          logger.info(`Recommendation feed served to extension: ${batch.jobs.length} jobs`);
         }
-        respond(200, { ok: true, ...batch });
+        respond(200, { ok: true, ...(batch ?? { status: "unavailable", jobs: [] }) });
+      } catch {
+        respond(200, { ok: true, status: "unavailable", jobs: [] });
       }
-      catch { respond(200, { ok: true, status: "unavailable", jobs: [] }); }
       return;
     }
     if (blockerRoutes && await blockerRoutes(req, respond, res)) return;

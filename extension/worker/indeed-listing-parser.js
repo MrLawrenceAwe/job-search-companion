@@ -36,28 +36,27 @@
       }).replace(/\s+/g, " ").trim();
       if (title && title.length <= 300) return title;
     }
-    throw new Error("Job title unavailable");
+    return null;
   };
-  const availabilityFromIndeedHtml = (html, postings) => {
+  const availabilityFromIndeedHtml = (html, postings, title) => {
     const markup = html.replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, "");
     for (const heading of markup.matchAll(/<h[1-6]\b[^>]*>([\s\S]*?)<\/h[1-6]\s*>/gi)) {
       if (heading[1].replace(/<[^>]*>/g, "").trim() === "This job has expired on Indeed") return "expired";
     }
     for (const node of postings) {
-      const until = Date.parse(node.validThrough);
+      let until;
+      try { until = Date.parse(node.validThrough); }
+      catch { return null; }
       if (Number.isFinite(until)) return until < Date.now() ? "expired" : "active";
     }
     // A retained title alone is not evidence that applications are still open.
-    if (/\bhref\s*=\s*["'][^"']*\/applystart\?/i.test(markup)) {
-      titleFromIndeedHtml(html, postings);
-      return "active";
-    }
-    throw new Error("Job availability could not be confirmed");
+    if (title && /\bhref\s*=\s*["'][^"']*\/applystart\?/i.test(markup)) return "active";
+    return null;
   };
   globalThis.jobSearchWorkerModules.parseIndeedListing = (html) => {
     const postings = [...jobPostingsFromHtml(html)];
     // A listing can provide a title without confirming availability, or vice versa.
-    const read = (extract) => { try { return extract(html, postings); } catch { return null; } };
-    return { title: read(titleFromIndeedHtml), availability: read(availabilityFromIndeedHtml) };
+    const title = titleFromIndeedHtml(html, postings);
+    return { title, availability: availabilityFromIndeedHtml(html, postings, title) };
   };
 })();

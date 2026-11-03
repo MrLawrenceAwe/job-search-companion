@@ -15,11 +15,11 @@
     </header>
 
     <div class="settings-grid">
-      <section class="card" aria-labelledby="recommendationsHeading">
-        <h2 id="recommendationsHeading">Indeed suggestions</h2>
-        <label class="toggle-row" for="recommendationsEnabled">
+      <section class="card" aria-labelledby="suggestionDeliveryHeading">
+        <h2 id="suggestionDeliveryHeading">Indeed suggestions</h2>
+        <label class="toggle-row" for="suggestionDeliveryEnabled">
           <span><span class="setting-title">Show job suggestions and reminders</span><span class="description">Show a card up to every 30 minutes, alternating between new suggestions and saved To apply jobs.</span></span>
-          <input id="recommendationsEnabled" class="switch" type="checkbox" role="switch">
+          <input id="suggestionDeliveryEnabled" class="switch" type="checkbox" role="switch">
         </label>
         <p class="note">New suggestions require a separate scheduled Codex collector; saved To apply reminders work without it. See the <a href="https://github.com/MrLawrenceAwe/job-search-companion/blob/main/docs/recommendations.md" target="_blank" rel="noopener noreferrer">suggestions guide</a> for setup and card actions. This switch saves immediately.</p>
       </section>
@@ -83,7 +83,7 @@
   <script src="storage-observer.js"></script>
   <script src="blockers/result-store.js"></script>
   <script src="options.js"></script>
-  <script src="contracts/recommendation-preferences.js"></script>
-  <script src="recommendation-settings.js"></script>
+  <script src="contracts/suggestion-delivery-preferences.js"></script>
+  <script src="suggestion-delivery-settings.js"></script>
 </body>
 </html>

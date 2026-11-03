@@ -1,11 +1,16 @@
 (() => {
   const companion = globalThis.jobSearchCompanion;
   if (companion.platform !== "indeed") return;
-  const contract = globalThis.jobSearchContracts.jobAnalyses;
-  const keys = globalThis.jobSearchContracts.jobStorageKeys;
+  const { jobStorageKeys: keys, jobUrls } = globalThis.jobSearchContracts;
   const availabilityContract = globalThis.jobSearchContracts.indeedAvailability;
   const AVAILABILITY_RETRY_INTERVAL_MS = 3_600_000;
   const indeedKey = (kind, id) => keys.forJob(kind, { platform: "indeed", id });
+  const indeedIdFromUrl = (jobUrl) => {
+    const url = new URL(jobUrl);
+    const identity = jobUrls.identityFromUrl(url);
+    if (url.protocol !== "https:" || identity?.platform !== "indeed") throw new Error("Couldn’t identify this job.");
+    return identity.id;
+  };
   const analyses = companion.jobAnalysisStore;
   const titles = new Map();
   const dismissed = new Set();
@@ -18,19 +23,18 @@
     const identity = keys.parse(key);
     if (identity?.platform !== "indeed") return;
     const { kind, id } = identity;
-    const analysisKey = indeedKey("analysis", id);
     if (["indeedDismissed", "indeedApplied"].includes(kind)) {
       const entries = {
         indeedDismissed: dismissed, indeedApplied,
       }[kind];
-      if (globalThis.jobSearchContracts.indeedToApply.isExclusionRecord(kind, value)) entries.add(analysisKey);
-      else entries.delete(analysisKey);
+      if (globalThis.jobSearchContracts.indeedToApply.isExclusionRecord(kind, value)) entries.add(id);
+      else entries.delete(id);
     } else if (kind === "indeedAvailability") {
       if (availabilityContract.isRecord(value)) availability.set(id, value);
       else availability.delete(id);
     } else if (kind === "title") {
-      if (typeof value === "string") titles.set(key, value);
-      else titles.delete(key);
+      if (typeof value === "string") titles.set(id, value);
+      else titles.delete(id);
     } else return false;
     return true;
   };
@@ -39,15 +43,14 @@
   });
   const ready = Promise.all([analyses.ready, metadata.ready]);
   const rememberTitle = (jobUrl, title, updates) => {
-    const key = keys.forUrl("title", jobUrl);
+    const id = indeedIdFromUrl(jobUrl);
     const clean = companion.text.normalizeJobTitle(title);
-    if (!clean || titles.get(key) === clean) return;
-    titles.set(key, clean);
-    updates[key] = clean;
+    if (!clean || titles.get(id) === clean) return;
+    titles.set(id, clean);
+    updates[indeedKey("title", id)] = clean;
   };
   const refreshJobTitle = (id) => {
-    const key = indeedKey("title", id);
-    if (titles.has(key)) return;
+    if (titles.has(id)) return;
     let request = titleRequests.get(id);
     if (!request || (!request.pending && Date.now() - request.attemptedAt >= 60_000)) {
       request = { pending: true, attemptedAt: Date.now() };
@@ -55,15 +58,14 @@
       chrome.runtime.sendMessage({ type: globalThis.jobSearchContracts.messages.getIndeedJobTitle, jobId: id }, (response) => {
         request.pending = false;
         if (!chrome.runtime.lastError && response?.ok && typeof response.title === "string" && response.title.trim()) {
-          titles.set(key, response.title.trim());
+          titles.set(id, response.title.trim());
         }
         companion.pageDecorations.schedule();
       });
     }
   };
   const titleFor = (id) => {
-    const key = indeedKey("title", id);
-    if (titles.has(key)) return titles.get(key);
+    if (titles.has(id)) return titles.get(id);
     return titleRequests.get(id)?.pending ? "Loading job title…" : "Job title unavailable — open listing";
   };
   const checkAvailability = (id) => {
@@ -92,7 +94,7 @@
     if (jobUrl && heading && [...document.querySelectorAll('#alert-content h3')].some(
       (element) => element.textContent.trim() === "This job has expired on Indeed",
     )) {
-      const id = keys.parse(contract.keyFor(jobUrl)).id;
+      const id = indeedIdFromUrl(jobUrl);
       if (availability.get(id)?.status !== "expired") {
         const value = { status: "expired", checkedAt: new Date().toISOString() };
         availability.set(id, value);
@@ -114,15 +116,15 @@
     if (!jobUrl) return;
     const undo = button.getAttribute("aria-pressed") === "true";
     void ready.then(async () => {
-      const analysisKey = contract.keyFor(jobUrl);
       if (!analyses.get(jobUrl)) return;
-      const key = keys.forUrl("indeedDismissed", jobUrl);
+      const id = indeedIdFromUrl(jobUrl);
+      const key = indeedKey("indeedDismissed", id);
       if (undo) {
         await chrome.storage.local.remove(key);
-        dismissed.delete(analysisKey);
+        dismissed.delete(id);
       } else {
         await chrome.storage.local.set({ [key]: { dismissedAt: new Date().toISOString() } });
-        dismissed.add(analysisKey);
+        dismissed.add(id);
       }
       companion.pageDecorations.schedule();
     }).catch((error) => console.debug("Indeed dismissal could not be saved:", error));
@@ -133,10 +135,7 @@
     rememberPage: rememberPageMetadata,
     titleFor,
     isExpired: (id) => availability.get(id)?.status === "expired",
-    isExcluded: (jobUrl) => {
-      const key = contract.keyFor(jobUrl);
-      return indeedApplied.has(key) || dismissed.has(key);
-    },
+    isAppliedOrDismissedOnIndeed: (id) => indeedApplied.has(id) || dismissed.has(id),
     refresh(id) {
       checkAvailability(id);
       if (availability.get(id)?.status !== "expired") refreshJobTitle(id);

@@ -12,7 +12,8 @@ For application marks and keyboard navigation:
 - Node.js 22 or newer, with `node` and `npm` available in your terminal, to build
   the extension.
 
-For the local bridge, used by Indeed blocker checks and CV analysis:
+For the local bridge, used by Indeed blocker checks, CV analysis, and suggestion
+delivery:
 
 - macOS and Node.js 22 or newer.
 - Xcode Command Line Tools or Xcode, providing `/usr/bin/swiftc` for the helper
@@ -36,7 +37,8 @@ extension can affect its identity and saved records, so choose the folder before
 loading it in Chrome.
 
 Application marking and navigation only need the unpacked extension. Continue
-with bridge installation when you want CV analysis or Indeed blocker checks.
+with bridge installation for CV analysis, Indeed blocker checks, or suggestion
+cards, including saved To apply reminders.
 
 ### 1. Load the Chrome extension
 

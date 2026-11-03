@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import test from "node:test";
-import { createSuggestionReader, readRecommendations, saveRecommendations } from "../../bridge/recommendations.js";
+import { createSuggestionService, readRecommendations, saveRecommendations } from "../../bridge/recommendations.js";
 import { blockerContract } from "../../shared/contracts.js";
 import { makeTemporaryDirectory } from "../../test-support/temporary-directory.js";
 
@@ -42,45 +42,45 @@ test("cards carry completed blockers, pending checks, failures and incomplete de
     findings: [{ kind: "blocker", requirementQuote: "Driving licence required", explanation: "No driving licence recorded.",
       suggestedChallenge: "Please reconsider this requirement.", evidenceFacts: [] }] };
   let calls = 0;
-  const reader = createSuggestionReader({ readBatch: async () => batch, checker: {
+  const suggestions = createSuggestionService({ readBatch: async () => batch, checker: {
     start: async () => { calls++; return { status: "completed", result }; },
   } });
-  const list = await reader();
+  const list = await suggestions.listSuggestions();
   assert.equal(calls, 0);
   assert.equal(list.jobs[0].description, undefined);
-  const checked = await reader({ jobId: "fixture111" });
+  const checked = await suggestions.checkSuggestion("fixture111");
   assert.equal(checked.jobs[0].blockerCheck.status, "completed");
   assert.equal(checked.jobs[0].blockerCheck.findings.length, 1);
   assert.equal(checked.jobs[0].blockerCheck.findings[0].evidenceFacts, undefined);
   for (const field of ["jobId", "descriptionHash", "evidenceHash", "model", "reasoningEffort", "checkedAt"])
     assert.equal(checked.jobs[0].blockerCheck[field], result[field]);
-  assert.equal((await reader({ jobId: "different111" })).jobs.length, 0);
+  assert.equal((await suggestions.checkSuggestion("different111")).jobs.length, 0);
   for (const status of ["queued", "checking", "failed", "cancelled"]) {
-    const pending = createSuggestionReader({ readBatch: async () => batch, checker: { start: async () => ({ status }) } });
-    assert.equal((await pending({ jobId: "fixture111" })).jobs[0].blockerCheck.status,
+    const pending = createSuggestionService({ readBatch: async () => batch, checker: { start: async () => ({ status }) } });
+    assert.equal((await pending.checkSuggestion("fixture111")).jobs[0].blockerCheck.status,
       ["queued", "checking"].includes(status) ? "checking" : "unavailable");
   }
-  const failed = createSuggestionReader({ readBatch: async () => batch, checker: { start: async () => { throw new Error("private error"); } } });
-  assert.equal((await failed({ jobId: "fixture111" })).jobs[0].blockerCheck.status, "unavailable");
+  const failed = createSuggestionService({ readBatch: async () => batch, checker: { start: async () => { throw new Error("private error"); } } });
+  assert.equal((await failed.checkSuggestion("fixture111")).jobs[0].blockerCheck.status, "unavailable");
   batch.jobs = [{ ...job, descriptionComplete: false, description: "Partial" }];
-  assert.equal((await reader({ jobId: "fixture111" })).jobs[0].blockerCheck.status, "incomplete");
+  assert.equal((await suggestions.checkSuggestion("fixture111")).jobs[0].blockerCheck.status, "incomplete");
   assert.equal(calls, 1);
 });
 
 test("a failed background check is surfaced instead of restarted on every poll", async () => {
   let starts = 0;
   let status = "checking";
-  const reader = createSuggestionReader({
+  const suggestions = createSuggestionService({
     readBatch: async () => ({ status: "ready", collectedAt: "2026-10-29T19:00:00Z", jobs: [job] }),
     checker: {
       start: async () => { starts++; return { id: "check-1", status }; },
       get: () => ({ id: "check-1", status }),
     },
   });
-  assert.equal((await reader({ jobId: "fixture111" })).jobs[0].blockerCheck.status, "checking");
+  assert.equal((await suggestions.checkSuggestion("fixture111")).jobs[0].blockerCheck.status, "checking");
   status = "failed";
-  assert.equal((await reader({ jobId: "fixture111" })).jobs[0].blockerCheck.status, "unavailable");
-  assert.equal((await reader({ jobId: "fixture111" })).jobs[0].blockerCheck.status, "unavailable");
+  assert.equal((await suggestions.checkSuggestion("fixture111")).jobs[0].blockerCheck.status, "unavailable");
+  assert.equal((await suggestions.checkSuggestion("fixture111")).jobs[0].blockerCheck.status, "unavailable");
   assert.equal(starts, 1);
 });
 
@@ -88,14 +88,14 @@ test("completed check IDs are revalidated through current checker inputs", async
   let current = 0;
   let starts = 0;
   const batch = { status: "ready", collectedAt: new Date().toISOString(), jobs: [job] };
-  const reader = createSuggestionReader({ readBatch: async () => batch, checker: {
+  const suggestions = createSuggestionService({ readBatch: async () => batch, checker: {
     start: async () => { starts++; return { id: `check-${current}`, status: "queued" }; },
     get: () => ({ status: "completed" }),
   } });
-  await reader({ jobId: "fixture111" });
+  await suggestions.checkSuggestion("fixture111");
   // A profile correction or model change must reach start(), which owns freshness.
   current++;
-  await reader({ jobId: "fixture111" });
+  await suggestions.checkSuggestion("fixture111");
   assert.equal(starts, 2);
 });
 
@@ -105,7 +105,7 @@ test("pruned checker IDs recover through start and cached results drop stale ref
   const result = { checkerVersion: blockerContract.version, jobId: "fixture111", descriptionHash: "hash",
     evidenceHash: "evidence", model: "test-model", checkedAt: new Date().toISOString(),
     outcome: "no_blockers_found", findings: [] };
-  const reader = createSuggestionReader({
+  const suggestions = createSuggestionService({
     readBatch: async () => ({ status: "ready", collectedAt: "2026-10-29T19:00:00Z", jobs: [job] }),
     checker: {
       start: async () => ++starts === 1 ? { id: "pruned", status: "queued" }
@@ -113,9 +113,9 @@ test("pruned checker IDs recover through start and cached results drop stale ref
       get: () => { gets++; throw new Error("Check no longer available"); },
     },
   });
-  assert.equal((await reader({ jobId: "fixture111" })).jobs[0].blockerCheck.status, "checking");
+  assert.equal((await suggestions.checkSuggestion("fixture111")).jobs[0].blockerCheck.status, "checking");
   for (let i = 0; i < 2; i++)
-    assert.equal((await reader({ jobId: "fixture111" })).jobs[0].blockerCheck.status, "completed");
+    assert.equal((await suggestions.checkSuggestion("fixture111")).jobs[0].blockerCheck.status, "completed");
   assert.equal(starts, 3);
   assert.equal(gets, 1);
 });

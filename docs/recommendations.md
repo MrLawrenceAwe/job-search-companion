@@ -26,8 +26,7 @@ same eligible Indeed analyses as the To apply list: **Use as is** and **Edit CV*
 excluding applied, unsuitable, Indeed-dismissed and known expired jobs. Previously
 reminded jobs rotate behind jobs not yet reminded; the 30-day new-job history does
 not suppress reminders. Saved reminders can appear even when the feed is unavailable.
-The card identifies **To apply**, shows the saved verdict, and offers **View CV Fit
-Advisor** to reopen that assessment instead of starting another one. Snooze pauses
+The card identifies **To apply**, shows the saved verdict, and offers **Open analysis** to reopen that assessment instead of starting another one. Snooze pauses
 both sources. A job in To apply is excluded from new recommendations.
 
 New **Do not apply yet** assessments can automatically mark a job unsuitable.

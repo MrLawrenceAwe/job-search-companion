@@ -17,7 +17,7 @@
       const jobUrl = `https://uk.indeed.com/viewjob?jk=${id}`;
       if (!eligibility.isEligible({ platform, analysis: record,
         excluded: marks.isMarked(jobUrl, "applied") || marks.isMarked(jobUrl, "unsuitable")
-          || metadata.isExcluded(jobUrl),
+          || metadata.isAppliedOrDismissedOnIndeed(id),
       })) continue;
       candidates.push({ id, record });
     }

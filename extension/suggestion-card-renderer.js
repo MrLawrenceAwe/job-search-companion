@@ -59,7 +59,7 @@
     const feedback = element("p", "", "feedback");
     feedback.setAttribute("role", "status");
     const labels = [["open", "Open job"], job.suggestionKind === "toApply"
-      ? ["review", "View CV Fit Advisor"] : ["analyse", "Analyse with CV Fit Advisor"], ["unsuitable", "Mark as unsuitable"], ["dismiss", "Dismiss"]];
+      ? ["review", "Open analysis"] : ["analyse", "Analyse with CV Fit Advisor"], ["unsuitable", "Mark as unsuitable"], ["dismiss", "Dismiss"]];
     labels.push(...[1, 2, 3, 4, 5].map((hours) => ["snooze", `${hours} hour${hours === 1 ? "" : "s"}`, hours]));
     for (const [action, label, hours] of labels) {
       const button = element("button", label, action === "open" ? "primary" : "");
