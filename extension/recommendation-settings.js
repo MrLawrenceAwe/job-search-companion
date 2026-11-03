@@ -1,5 +1,5 @@
 (() => {
-  const { enabledKey: key } = globalThis.jobSearchContracts.recommendations;
+  const { enabledKey: key } = globalThis.jobSearchContracts.recommendationPreferences;
   const toggle = document.getElementById("recommendationsEnabled");
   toggle.disabled = true;
   chrome.storage.local.get(key).then((saved) => {

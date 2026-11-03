@@ -1,7 +1,7 @@
 (() => {
   if (window.top !== window || document.getElementById("jsc-suggestion-host")) return;
   const messages = globalThis.jobSearchContracts.messages;
-  const { enabledKey } = globalThis.jobSearchContracts.recommendations;
+  const { enabledKey } = globalThis.jobSearchContracts.recommendationPreferences;
   let enabled = false;
   let settingGeneration = 0;
   let suspended = false;

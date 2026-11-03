@@ -40,8 +40,9 @@ with bridge installation when you want CV analysis or Indeed blocker checks.
 
 ### 1. Load the Chrome extension
 
-Run `npm run build` from the repository directory to generate the MAIN-world
-description capture bundle. Repeat this after source updates, before reloading
+Run `npm ci` and `npm run build` from the repository directory. The build generates
+the MAIN-world description-capture bundle and the suggestion-card bundle required
+by the extension manifest. Repeat the build after source updates, before reloading
 the extension.
 
 1. Open `chrome://extensions`.
@@ -51,12 +52,6 @@ the extension.
 5. Copy the extension ID shown by Chrome.
 
 ### 2. Install and start the bridge
-
-Install the bridge dependencies first:
-
-```bash
-npm ci
-```
 
 Choose a non-empty local token containing only ASCII letters, numbers, dots,
 underscores and hyphens. Other characters are rejected by the installer. Replace

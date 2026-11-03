@@ -4,7 +4,7 @@
     const contract = globalThis.jobSearchContracts.recommendations;
     const messages = globalThis.jobSearchContracts.messages;
     const stateKey = "indeed-suggestion-state";
-    const { enabledKey } = contract;
+    const { enabledKey } = globalThis.jobSearchContracts.recommendationPreferences;
     const storageKeys = globalThis.jobSearchContracts.jobStorageKeys;
     const analyses = globalThis.jobSearchContracts.jobAnalyses;
     const eligibility = globalThis.jobSearchContracts.indeedToApply;

@@ -60,6 +60,9 @@ and execution worlds. Common isolated scripts load first; a following Indeed-onl
 declaration loads metadata, To apply and blocker features. Shared browser/Node
 contracts live in `extension/contracts/`
 and are imported by Node through `shared/contracts.js`.
+The card and settings toggle load `contracts/recommendation-preferences.js` for
+the shared delivery preference; feed and blocker validation remain in
+`contracts/recommendations.js` for the bridge and service worker.
 
 The content-page API in `extension-context.js` connects three boundaries:
 
