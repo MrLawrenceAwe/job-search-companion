@@ -10,7 +10,9 @@
         const { response, body } = await requestBridgeJson(`${bridgeConfig.bridgeOrigin}/analyses`, { method: "GET" });
         if (!response.ok || !body?.ok || !Array.isArray(body.analyses)) throw new Error("Analysis records unavailable");
         const contract = globalThis.jobSearchContracts.jobAnalyses;
-        const values = {};
+        if (!Array.isArray(body.pending) || !body.pending.every(contract.isPendingRecord))
+          throw new Error("Invalid pending analysis records");
+        const values = { [contract.pendingKey]: body.pending };
         for (const record of body.analyses) {
           if (!contract.isRecord(record)) throw new Error("Invalid analysis record");
           values[contract.keyFor(record.jobUrl)] = record;

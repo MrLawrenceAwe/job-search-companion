@@ -36,6 +36,9 @@ export const createCvFitSubmissionService = ({
       submissions.set(submissionId, terminalSubmission);
       pruneTerminalSubmissions();
       try {
+        if ([statuses.failed, statuses.readyForReview, statuses.interrupted].includes(terminalSubmission.status)) {
+          await analysisStore.cancel(submissionId);
+        }
         await submissionStore.save();
       } catch (error) {
         logger.error("Could not persist completed CV Fit task submission:", error);

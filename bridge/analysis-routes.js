@@ -24,7 +24,7 @@ export const createAnalysisRoutes = ({
   handleCompletion: (req, respond) => handleCompletion(req, respond, analysisStore),
   async handleAuthenticated(req, respond) {
     if (req.method === "GET" && req.url === "/analyses") {
-      respond(200, { ok: true, analyses: analysisStore.list() });
+      respond(200, { ok: true, analyses: analysisStore.list(), pending: analysisStore.listPending() });
       return true;
     }
     if (req.method !== "POST" || req.url !== "/analyses/open") return false;

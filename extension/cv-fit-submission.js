@@ -62,12 +62,14 @@
         jobUrl,
       }), { starting: true });
       accepted = true;
+      void sendBridgeRequest({ type: messages.syncJobAnalyses }).catch(() => {});
       const status = await waitForSubmissionResult(submission.id);
       showToast(client.resultMessage(status), status === statuses.unconfirmed ? "warning" : undefined);
     } catch (error) {
       const { message, kind } = client.failureMessage(error, accepted);
       showToast(message, kind);
     } finally {
+      void sendBridgeRequest({ type: messages.syncJobAnalyses }).catch(() => {});
       submissionInProgress = false;
       if (button) {
         button.disabled = false;

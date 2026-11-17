@@ -9,7 +9,7 @@ test("analysis sync stores only completed records and shares one in-flight fetch
   const worker = await loadWorker(async (url) => {
     captured = url;
     await new Promise((r) => { release = r; });
-    return { ok: true, json: async () => ({ ok: true, analyses: [record] }) };
+    return { ok: true, json: async () => ({ ok: true, pending: [], analyses: [record] }) };
   });
   const sender = { url: "https://uk.indeed.com/jobs" };
   const first = new Promise((r) => worker.messageHandler({ type: "SYNC_JOB_ANALYSES" }, sender, r));
@@ -44,7 +44,7 @@ test("Do not apply yet automatically marks unsuitable once per assessment withou
     { ...base, jobUrl: "https://uk.indeed.com/viewjob?jk=fixture222", verdict: "use as-is" },
     { ...base, jobUrl: "https://www.linkedin.com/jobs/view/12345678/", verdict: "do not apply yet" },
   ];
-  const worker = await loadWorker(async () => ({ ok: true, json: async () => ({ ok: true, analyses: records }) }));
+  const worker = await loadWorker(async () => ({ ok: true, json: async () => ({ ok: true, pending: [], analyses: records }) }));
   const manual = { jobUrl: records[2].jobUrl, unsuitableAt: "2026-10-28T09:00:00.000Z" };
   worker.storage["unsuitable-job:linkedin:12345678"] = manual;
   const sync = () => new Promise((r) => worker.messageHandler({ type: "SYNC_JOB_ANALYSES" }, { url: "https://uk.indeed.com/jobs" }, r));
@@ -62,4 +62,16 @@ test("Do not apply yet automatically marks unsuitable once per assessment withou
   records = [{ ...records[0], verdict: "use as-is", analyzedAt: "2026-10-29T11:00:00.000Z" }];
   await sync();
   assert.ok(worker.storage["unsuitable-job:indeed:fixture111"], "A later assessment does not silently erase a saved mark");
+});
+
+test("sync shares pending requests across tabs and clears them after completion", async () => {
+  const jobUrl = "https://uk.indeed.com/viewjob?jk=fixture111";
+  let pending = [{ jobUrl, requestedAt: new Date().toISOString() }];
+  const worker = await loadWorker(async () => ({ ok: true, json: async () => ({ ok: true, analyses: [], pending }) }));
+  const sync = () => new Promise((r) => worker.messageHandler({ type: "SYNC_JOB_ANALYSES" }, { url: jobUrl }, r));
+  assert.equal((await sync()).ok, true);
+  assert.equal(JSON.stringify(worker.storage["pending-job-analyses"]), JSON.stringify(pending));
+  pending = [];
+  assert.equal((await sync()).ok, true);
+  assert.equal(JSON.stringify(worker.storage["pending-job-analyses"]), "[]");
 });

@@ -232,3 +232,5 @@
 .jsc-blocker-panel .jsc-blocker-results { border-top: 0; padding: 4px 0; }
 .jsc-blocker-results > summary { font-weight: 600; }
 .jsc-blocker-result-body { max-height: 50vh; overflow-y: auto; padding-right: 8px; }
+
+.jsc-analysing-marker { color: #715500; background: #fff5cc; border-color: #dfc363; }

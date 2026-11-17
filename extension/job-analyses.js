@@ -31,6 +31,24 @@
     return button;
   };
   const render = ({ cards, jobUrl, actions }) => {
+    if (companion.platform === "indeed") {
+      for (const marker of document.querySelectorAll(".jsc-analysing-marker")) {
+        const url = cards.get(marker.parentElement) || (marker.parentElement === actions && jobUrl);
+        if (!url || url !== marker.dataset.jobUrl || !store.isAnalysing(url)) marker.remove();
+      }
+      const locations = [...cards];
+      if (actions && jobUrl) locations.push([actions, jobUrl]);
+      for (const [parent, url] of locations) {
+        if (!store.isAnalysing(url) || parent.querySelector(".jsc-analysing-marker")) continue;
+        const marker = document.createElement("span");
+        marker.className = "jsc-job-mark-badge jsc-analysing-marker";
+        marker.dataset.jobUrl = url;
+        marker.textContent = "Analysing…";
+        marker.setAttribute("role", "status");
+        marker.title = "CV-fit analysis requested in Codex; waiting for the result";
+        parent.append(marker);
+      }
+    }
     const targets = new Map();
     for (const [card, cardJobUrl] of cards) {
       const record = recordFor(cardJobUrl);

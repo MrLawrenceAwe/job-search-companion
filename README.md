@@ -23,7 +23,8 @@ results, and checking job requirements and CV fit through a local bridge.
 - Check complete loaded Indeed descriptions for blockers using ChatGPT plan usage.
 - Challenge individual blockers, receive a direct reply, and integrate accepted factual corrections into your profile for future checks.
 - Send a selected job to Codex through **Analyse with CV Fit Advisor** or **N**,
-  then reopen its completed analysis from the job card.
+  see an **Analysing…** marker while waiting on Indeed, then reopen its completed
+  analysis from the job card. Pending markers expire after 24 hours.
 - Open **To apply** on Indeed to revisit eligible analysed jobs you haven't applied
   to. See [the usage guide](docs/usage.md) for exclusions and refresh behaviour.
 

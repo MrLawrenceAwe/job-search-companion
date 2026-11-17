@@ -33,7 +33,7 @@ export const openAnalysisStore = async (path) => {
       const token = randomBytes(32).toString("hex");
       return transaction((next) => {
         if (next.has(id)) throw new Error("Analysis ID already exists");
-        next.set(id, { id, jobUrl, tokenHash: sha256(token) });
+        next.set(id, { id, jobUrl, tokenHash: sha256(token), requestedAt: new Date().toISOString() });
         return { id, token };
       });
     },
@@ -52,6 +52,14 @@ export const openAnalysisStore = async (path) => {
       next.set(id, completed);
       return { jobUrl: completed.jobUrl, threadId: completed.threadId, analyzedAt: completed.analyzedAt, verdict: completed.verdict };
     }),
+    cancel: (id) => transaction((next) => {
+      const record = next.get(id);
+      if (record && !record.threadId) next.set(id, { ...record, cancelled: true });
+    }),
+    listPending: () => [...requests.values()]
+      .filter((record) => !record.threadId && !record.cancelled && record.requestedAt
+        && Date.now() - Date.parse(record.requestedAt) < 24 * 60 * 60_000)
+      .map(({ jobUrl, requestedAt }) => ({ jobUrl, requestedAt })),
     list: () => {
       const latest = new Map();
       for (const record of requests.values()) {

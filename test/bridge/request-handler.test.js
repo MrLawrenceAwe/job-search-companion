@@ -55,7 +55,7 @@ const createHandler = (overrides = {}) => createRequestHandler({
   readHelperHealth: async () => ({ installationVerified: true }),
   submitTask: async () => ({ status: "submitted" }),
   submissionStore: { submissions: new Map(), save: async () => {} },
-  analysisStore: { create: async ({ id }) => ({ id, token: "a".repeat(64) }), list: () => [] },
+  analysisStore: { cancel: async () => {}, listPending: () => [], create: async ({ id }) => ({ id, token: "a".repeat(64) }), list: () => [] },
   createSubmissionId: () => "submission-1",
   ...overrides,
 });
@@ -332,6 +332,7 @@ test("submission hands its own completion context to Codex without exposing it t
   let requested;
   const handler = createHandler({
     analysisStore: {
+      cancel: async () => {}, listPending: () => [],
       create: async (request) => { requested = request; return { id: request.id, token: "scoped-token" }; },
       list: () => [],
     },

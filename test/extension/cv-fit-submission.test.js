@@ -28,7 +28,9 @@ test("menu submits the resolved job and reports success", async () => {
       type: "SUBMIT_CV_FIT_TASK",
       jobUrl: "https://uk.indeed.com/viewjob?jk=fixture111",
     },
+    { type: "SYNC_JOB_ANALYSES" },
     { type: "GET_CV_FIT_SUBMISSION_STATUS", submissionId: "submission-1" },
+    { type: "SYNC_JOB_ANALYSES" },
   ]));
   assert.equal(toasts.at(-1).textContent, "CV Fit Advisor task submitted.");
   assert.equal(toasts.at(-1).role, "status");
@@ -120,18 +122,15 @@ test("menu reports when mismatched settings leave a draft ready for review", asy
     },
   };
   const { button, toasts, context } = await createMenuFixture({ runtime });
-  context.jobSearchContracts.cvFitSettings = [
-    { category: "Model", label: "Test model" },
-    { category: "Effort", label: "High" },
-    { category: "Speed", label: "Standard" },
-  ];
+  const expectedSettings = context.jobSearchContracts.cvFitSettings
+    .map(({ category, label }) => `${category}: ${label}`).join(", ");
 
   click(button);
   await drainEventLoopUntil(() => toasts.length > 0);
 
   assert.equal(
     toasts.at(-1).textContent,
-    "CV Fit Advisor draft is ready—check Model: Test model, Effort: High, Speed: Standard in Codex, then send it.",
+    `CV Fit Advisor draft is ready—check ${expectedSettings} in Codex, then send it.`,
   );
   assert.equal(toasts.at(-1).role, "status");
 });

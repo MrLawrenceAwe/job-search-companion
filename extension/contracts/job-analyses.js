@@ -21,6 +21,13 @@
     && (record.verdict === undefined || verdicts.includes(record.verdict)));
   globalThis.jobSearchContracts ??= {};
   globalThis.jobSearchContracts.jobAnalyses = Object.freeze({
+    pendingKey: "pending-job-analyses",
+    isPendingRecord: (record) => {
+      try {
+        keyFor(record.jobUrl);
+        return typeof record.requestedAt === "string" && Number.isFinite(Date.parse(record.requestedAt));
+      } catch { return false; }
+    },
     keyFor, isRecord, verdicts, colorFor, labelFor, isToApplyVerdict, toApplyVerdicts,
     isVerdict: (verdict) => verdicts.includes(verdict),
     linkFor: (id) => {
