@@ -25,7 +25,7 @@
     isPendingRecord: (record) => {
       try {
         keyFor(record.jobUrl);
-        return typeof record.requestedAt === "string" && Number.isFinite(Date.parse(record.requestedAt));
+        return typeof record.startedAt === "string" && Number.isFinite(Date.parse(record.startedAt));
       } catch { return false; }
     },
     keyFor, isRecord, verdicts, colorFor, labelFor, isToApplyVerdict, toApplyVerdicts,

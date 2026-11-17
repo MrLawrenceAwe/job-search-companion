@@ -84,7 +84,7 @@ for (const [verdict, color, label] of [
 test("Indeed shows pending markers on cards and details, then replaces them when complete", async (t) => {
   const pendingKey = "pending-job-analyses";
   const { window, change } = await fixture(t, {
-    [pendingKey]: [{ jobUrl, requestedAt: new Date().toISOString() }],
+    [pendingKey]: [{ jobUrl, startedAt: new Date().toISOString() }],
   });
   await waitUntil(() => window.document.querySelectorAll(".jsc-analysing-marker").length === 2);
   assert.equal(window.document.querySelector(".jsc-analysing-marker").textContent, "Analysing…");
@@ -94,14 +94,14 @@ test("Indeed shows pending markers on cards and details, then replaces them when
   assert.equal(window.document.querySelector(".jsc-analysing-marker"), null);
 });
 
-test("pending markers clear on cancellation and do not show for expired requests", async (t) => {
+test("pending markers clear when removed and do not show for expired requests", async (t) => {
   const pendingKey = "pending-job-analyses";
   const { window, change } = await fixture(t, {
-    [pendingKey]: [{ jobUrl, requestedAt: new Date().toISOString() }],
+    [pendingKey]: [{ jobUrl, startedAt: new Date().toISOString() }],
   });
   await waitUntil(() => window.document.querySelector(".jsc-analysing-marker"));
   change({ [pendingKey]: { newValue: [] } });
   await waitUntil(() => !window.document.querySelector(".jsc-analysing-marker"));
-  change({ [pendingKey]: { newValue: [{ jobUrl, requestedAt: "2020-01-01T00:00:00.000Z" }] } });
+  change({ [pendingKey]: { newValue: [{ jobUrl, startedAt: "2020-01-01T00:00:00.000Z" }] } });
   assert.equal(window.jobSearchCompanion.jobAnalysisStore.isAnalysing(jobUrl), false);
 });

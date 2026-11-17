@@ -66,7 +66,7 @@ test("Do not apply yet automatically marks unsuitable once per assessment withou
 
 test("sync shares pending requests across tabs and clears them after completion", async () => {
   const jobUrl = "https://uk.indeed.com/viewjob?jk=fixture111";
-  let pending = [{ jobUrl, requestedAt: new Date().toISOString() }];
+  let pending = [{ jobUrl, startedAt: new Date().toISOString() }];
   const worker = await loadWorker(async () => ({ ok: true, json: async () => ({ ok: true, analyses: [], pending }) }));
   const sync = () => new Promise((r) => worker.messageHandler({ type: "SYNC_JOB_ANALYSES" }, { url: jobUrl }, r));
   assert.equal((await sync()).ok, true);

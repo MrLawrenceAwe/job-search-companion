@@ -3,6 +3,16 @@ import { assertNoSymbolicLinkPaths, atomicWrite, readOptionalFile } from "../sha
 import { jobAnalysisContract, identifierContract } from "../shared/contracts.js";
 import { sha256 } from "../shared/sha256.js";
 
+const assertContext = (request, token, threadId) => {
+  if (!request || typeof token !== "string" || token.length > 128
+    || !timingSafeEqual(Buffer.from(request.tokenHash, "hex"), Buffer.from(sha256(token), "hex"))) {
+    throw new Error("Invalid analysis completion token");
+  }
+  if (!identifierContract.isUuid(threadId)) throw new Error("Invalid Codex chat ID");
+  if (request.startedThreadId && request.startedThreadId !== threadId)
+    throw new Error("Analysis already started in another chat");
+};
+
 export const openAnalysisStore = async (path) => {
   await assertNoSymbolicLinkPaths([path]);
   const contents = await readOptionalFile(path);
@@ -33,17 +43,23 @@ export const openAnalysisStore = async (path) => {
       const token = randomBytes(32).toString("hex");
       return transaction((next) => {
         if (next.has(id)) throw new Error("Analysis ID already exists");
-        next.set(id, { id, jobUrl, tokenHash: sha256(token), requestedAt: new Date().toISOString() });
+        next.set(id, { id, jobUrl, tokenHash: sha256(token) });
         return { id, token };
       });
     },
+    start: ({ id, token, threadId }) => transaction((next) => {
+      const request = next.get(id);
+      assertContext(request, token, threadId);
+      if (request.threadId && request.threadId !== threadId)
+        throw new Error("Analysis already completed for another chat");
+      const started = request.startedAt ? request
+        : { ...request, startedAt: new Date().toISOString(), startedThreadId: threadId };
+      next.set(id, started);
+      return { jobUrl: started.jobUrl, startedAt: started.startedAt };
+    }),
     complete: ({ id, token, threadId, verdict }) => transaction((next) => {
       const request = next.get(id);
-      if (!request || typeof token !== "string" || token.length > 128
-        || !timingSafeEqual(Buffer.from(request.tokenHash, "hex"), Buffer.from(sha256(token), "hex"))) {
-        throw new Error("Invalid analysis completion token");
-      }
-      if (!identifierContract.isUuid(threadId)) throw new Error("Invalid Codex chat ID");
+      assertContext(request, token, threadId);
       if (!jobAnalysisContract.isVerdict(verdict)) throw new Error("Invalid CV-fit verdict");
       if (request.threadId && request.threadId !== threadId) throw new Error("Analysis already completed for another chat");
       if (request.verdict && request.verdict !== verdict) throw new Error("Analysis already completed with another verdict");
@@ -52,14 +68,10 @@ export const openAnalysisStore = async (path) => {
       next.set(id, completed);
       return { jobUrl: completed.jobUrl, threadId: completed.threadId, analyzedAt: completed.analyzedAt, verdict: completed.verdict };
     }),
-    cancel: (id) => transaction((next) => {
-      const record = next.get(id);
-      if (record && !record.threadId) next.set(id, { ...record, cancelled: true });
-    }),
     listPending: () => [...requests.values()]
-      .filter((record) => !record.threadId && !record.cancelled && record.requestedAt
-        && Date.now() - Date.parse(record.requestedAt) < 24 * 60 * 60_000)
-      .map(({ jobUrl, requestedAt }) => ({ jobUrl, requestedAt })),
+      .filter((record) => !record.threadId && record.startedAt
+        && Date.now() - Date.parse(record.startedAt) < 24 * 60 * 60_000)
+      .map(({ jobUrl, startedAt }) => ({ jobUrl, startedAt })),
     list: () => {
       const latest = new Map();
       for (const record of requests.values()) {

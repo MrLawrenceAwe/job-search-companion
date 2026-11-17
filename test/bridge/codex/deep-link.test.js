@@ -15,6 +15,8 @@ test("builds the documented new-task deep link with a workspace and unsent promp
   assert.equal(deepLink.searchParams.get("path"), workspacePath);
   assert.equal(deepLink.searchParams.get("prompt"), createTaskPrompt(jobUrl, completion));
   assert.ok(createTaskPrompt(jobUrl, completion).startsWith(`$cv-fit-advisor\n${jobUrl}`));
+  assert.match(createTaskPrompt(jobUrl, completion), /start-analysis\.js/);
+  assert.match(createTaskPrompt(jobUrl, completion), /before assessing the job/);
   assert.match(createTaskPrompt(jobUrl, completion), /complete-analysis\.js/);
   assert.match(createTaskPrompt(jobUrl, completion), /CODEX_THREAD_ID/);
 });

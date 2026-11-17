@@ -52,19 +52,24 @@ test("concurrent jobs are independent and reanalysis keeps the last completed re
   assert.equal(store.list().find((r) => r.jobUrl === jobUrl).threadId, threadId);
 });
 
-test("pending requests survive restart, exclude credentials, and clear on completion or cancellation", async (t) => {
+test("drafts have no marker; started analyses survive restart and clear on completion", async (t) => {
   const { path, store } = await fixture(t);
   const completion = await store.create({ id, jobUrl });
+  assert.deepEqual(store.listPending(), [], "Creating a draft must not mark it as analysing");
+  await assert.rejects(store.start({ ...completion, token: "wrong", threadId }), /token/);
+  const started = await store.start({ ...completion, threadId });
+  assert.deepEqual(await store.start({ ...completion, threadId }), started);
+  await assert.rejects(store.start({ ...completion, threadId: id }), /another chat/);
+  await assert.rejects(store.complete({ ...completion, threadId: id, verdict }), /another chat/);
   const pending = store.listPending();
   assert.equal(pending.length, 1);
   assert.equal(pending[0].jobUrl, jobUrl);
-  assert.ok(Number.isFinite(Date.parse(pending[0].requestedAt)));
-  assert.deepEqual(Object.keys(pending[0]).sort(), ["jobUrl", "requestedAt"]);
+  assert.ok(Number.isFinite(Date.parse(pending[0].startedAt)));
+  assert.deepEqual(Object.keys(pending[0]).sort(), ["jobUrl", "startedAt"]);
   assert.deepEqual((await openAnalysisStore(path)).listPending(), pending);
   await store.complete({ ...completion, threadId, verdict });
   assert.deepEqual(store.listPending(), []);
-  const next = await store.create({ id: threadId, jobUrl });
-  await store.cancel(next.id);
+  await store.create({ id: threadId, jobUrl });
   assert.deepEqual((await openAnalysisStore(path)).listPending(), []);
   assert.equal(store.list().length, 1);
 });

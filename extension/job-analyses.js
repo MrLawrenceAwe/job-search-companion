@@ -45,7 +45,7 @@
         marker.dataset.jobUrl = url;
         marker.textContent = "Analysing…";
         marker.setAttribute("role", "status");
-        marker.title = "CV-fit analysis requested in Codex; waiting for the result";
+        marker.title = "Codex has started the CV-fit analysis; waiting for the result";
         parent.append(marker);
       }
     }

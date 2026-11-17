@@ -41,8 +41,8 @@ export const createRequestHandler = ({
       respond(204, {});
       return;
     }
-    // Scoped completion callbacks do not expose the extension's general bridge credential.
-    if (await analysisRoutes.handleCompletion(req, respond)) return;
+    // Scoped analysis callbacks do not expose the extension's general bridge credential.
+    if (await analysisRoutes.handleCallback(req, respond)) return;
     if (!isRequestTokenValid(req, bridgeConfig.token)) {
       respond(403, { ok: false, error: "Bridge token is invalid" });
       return;

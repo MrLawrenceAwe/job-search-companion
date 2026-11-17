@@ -22,7 +22,7 @@
     get: (jobUrl) => records.get(contract.keyFor(jobUrl)),
     entries: () => records.entries(),
     isAnalysing: (jobUrl) => pending.some((record) => contract.keyFor(record.jobUrl) === contract.keyFor(jobUrl)
-      && Date.now() - Date.parse(record.requestedAt) < 24 * 60 * 60_000),
+      && Date.now() - Date.parse(record.startedAt) < 24 * 60 * 60_000),
     subscribe,
   });
 })();

@@ -33,7 +33,18 @@ test("scoped callbacks work without the bridge credential; list/open retain gene
   assert.equal(malformed.status, 400);
   assert.equal((await malformed.json()).error, "Invalid analysis ID");
   assert.deepEqual(store.list(), []);
+  const start = (headers, startThreadId = threadId) => fetch(`${base}/analyses/${id}/start`, {
+    method: "POST", headers: { "content-type": "application/json", ...headers },
+    body: JSON.stringify({ threadId: startThreadId }),
+  });
+  assert.deepEqual(store.listPending(), []);
+  assert.equal((await start({ "x-jsc-analysis-token": "bad" })).status, 400);
+  assert.equal((await start({ "x-jsc-analysis-token": completion.token }, "invalid")).status, 400);
+  assert.equal((await start({ origin: "https://attacker.test", "x-jsc-analysis-token": completion.token })).status, 403);
+  assert.equal((await start({ "x-jsc-analysis-token": completion.token })).status, 200);
+  assert.equal(store.listPending().length, 1);
   assert.equal((await post({ "x-jsc-analysis-token": completion.token })).status, 200);
+  assert.deepEqual(store.listPending(), []);
   assert.equal((await post({ "x-jsc-analysis-token": completion.token }, threadId)).status, 400);
   assert.equal((await fetch(`${base}/analyses`)).status, 403);
   assert.equal((await fetch(`${base}/analyses/open`, { method: "POST" })).status, 403);
