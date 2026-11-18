@@ -96,7 +96,7 @@
     if (document.visibilityState === "hidden") return;
     sync();
     if (companion.platform === "indeed")
-      foregroundTimer = setInterval(sync, 2_000);
+      foregroundTimer = setInterval(sync, 500);
   };
   document.addEventListener("visibilitychange", syncVisiblePage);
   window.addEventListener("pageshow", syncVisiblePage);
