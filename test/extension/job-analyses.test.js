@@ -83,14 +83,20 @@ for (const [verdict, color, label] of [
 
 test("Indeed shows pending markers on cards and details, then replaces them when complete", async (t) => {
   const pendingKey = "pending-job-analyses";
-  const { window, change } = await fixture(t, {
-    [pendingKey]: [{ jobUrl, startedAt: new Date().toISOString() }],
-  });
-  await waitUntil(() => window.document.querySelectorAll(".jsc-analysing-marker").length === 2);
+  const { window, change } = await fixture(t);
+  let completed = false;
+  window.chrome.runtime.sendMessage = (message, callback) => {
+    assert.equal(message.type, "SYNC_JOB_ANALYSES");
+    change(completed
+      ? { [pendingKey]: { newValue: [] }, [key]: { newValue: record } }
+      : { [pendingKey]: { newValue: [{ jobUrl, startedAt: new Date().toISOString() }] } });
+    callback({ ok: true });
+  };
+  await waitUntil(() => window.document.querySelectorAll(".jsc-analysing-marker").length === 2, { attempts: 200, intervalMs: 20 });
   assert.equal(window.document.querySelector(".jsc-analysing-marker").textContent, "Analysing…");
   assert.equal(window.document.querySelector(".jsc-analyzed-badge"), null);
-  change({ [pendingKey]: { newValue: [] }, [key]: { newValue: record } });
-  await waitUntil(() => window.document.querySelector(".jsc-analyzed-badge"));
+  completed = true;
+  await waitUntil(() => window.document.querySelector(".jsc-analyzed-badge"), { attempts: 200, intervalMs: 20 });
   assert.equal(window.document.querySelector(".jsc-analysing-marker"), null);
 });
 

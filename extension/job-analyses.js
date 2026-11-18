@@ -86,8 +86,21 @@
       void chrome.runtime.lastError;
     });
   };
-  document.addEventListener("visibilitychange", sync);
-  window.addEventListener("pageshow", sync);
+  let foregroundTimer;
+  const stopForegroundSync = () => {
+    clearInterval(foregroundTimer);
+    foregroundTimer = undefined;
+  };
+  const syncVisiblePage = () => {
+    stopForegroundSync();
+    if (document.visibilityState === "hidden") return;
+    sync();
+    if (companion.platform === "indeed")
+      foregroundTimer = setInterval(sync, 2_000);
+  };
+  document.addEventListener("visibilitychange", syncVisiblePage);
+  window.addEventListener("pageshow", syncVisiblePage);
+  window.addEventListener("pagehide", stopForegroundSync);
   companion.pageDecorations.register(render, ready);
-  sync();
+  syncVisiblePage();
 })();
