@@ -48,7 +48,7 @@ const createHandler = (overrides = {}) => createRequestHandler({
     version: "test",
   },
   cvFitConfig: {
-    settings: [{ category: "Model", label: "6.1 Sol" }],
+    settings: [{ category: "Model", label: "6.2 Sol" }],
     workspacePath: "/workspace",
   },
   logger: { info() {}, warn() {}, error() {} },
@@ -76,7 +76,7 @@ test("request handler exposes health", async () => {
   assert.equal(response.headers["Cache-Control"], "no-store");
   assert.equal(response.body.workspace, "/workspace");
   assert.equal(response.body.instanceId, "test-instance-id");
-  assert.deepEqual(response.body.requiredSettings, [{ category: "Model", label: "6.1 Sol" }]);
+  assert.deepEqual(response.body.requiredSettings, [{ category: "Model", label: "6.2 Sol" }]);
 });
 
 test("recommendations use the authenticated bridge and unavailable collections stay quiet", async () => {

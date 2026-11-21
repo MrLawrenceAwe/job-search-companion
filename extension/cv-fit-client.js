@@ -1,5 +1,5 @@
 (() => {
-  const { messages, cvFitSubmissions: { statuses, helperResults }, cvFitSettings } = globalThis.jobSearchContracts;
+  const { messages, cvFitSubmissions: { statuses, helperResults } } = globalThis.jobSearchContracts;
   const delay = (milliseconds) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
   const readSubmission = (response, { starting = false } = {}) => {
     if (!response?.ok) {
@@ -40,7 +40,7 @@
   const resultMessage = (status) => status === statuses.unconfirmed
     ? "Send was attempted, but Codex confirmation timed out. The task may already be running—check Codex before retrying."
     : status === statuses.submitted ? "CV Fit Advisor task submitted."
-      : `CV Fit Advisor draft is ready—check ${cvFitSettings.map(({ category, label }) => `${category}: ${label}`).join(", ")} in Codex, then send it.`;
+      : "CV Fit Advisor draft is ready. Review its settings in Codex, then send it.";
   const failureMessage = (error, accepted = false) => {
     const uncertain = error.uncertain || (accepted && !error.definiteFailure);
     return { message: uncertain

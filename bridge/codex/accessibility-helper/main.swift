@@ -4,27 +4,27 @@ import Foundation
 
 private func contractSelfTestPasses() -> Bool {
     let requiredSettings = [
-        AutoSubmitCommand.Setting(category: "Model", expectedValue: "6.1 Sol", match: .exact),
+        AutoSubmitCommand.Setting(category: "Model", expectedValue: "6.2 Sol", match: .exact),
         AutoSubmitCommand.Setting(category: "Effort", expectedValue: "Medium", match: .exact),
-        AutoSubmitCommand.Setting(category: "Speed", expectedValue: "Fast", match: .prefix),
+        AutoSubmitCommand.Setting(category: "Speed", expectedValue: "Standard", match: .prefix),
     ]
-    return uiContract.isModelPickerTitle("6.1 Sol Max")
-        && !uiContract.isModelPickerTitle("6.1 Sol")
+    return uiContract.isModelPickerTitle("6.2 Sol Max")
+        && !uiContract.isModelPickerTitle("6.2 Sol")
         && uniqueClosestIndex([2, 5, 9]) == 0
         && uniqueClosestIndex([4, 1, 8]) == 1
         && uniqueClosestIndex([3, 3]) == nil
         && settingsMatch(
-            selectedValuesByCategory: ["Model": "6.1 Sol", "Effort": "Medium", "Speed": "Fast"],
+            selectedValuesByCategory: ["Model": "6.2 Sol", "Effort": "Medium", "Speed": "Standard"],
             requiredSettings: requiredSettings
         )
-        && settingsMatch(
+        && !settingsMatch(
             selectedValuesByCategory: [
-                "Model": "6.1 Sol", "Effort": "Medium", "Speed": "Fast (2x credits)",
+                "Model": "6.2 Sol", "Effort": "Medium", "Speed": "Fast",
             ],
             requiredSettings: requiredSettings
         )
         && !settingsMatch(
-            selectedValuesByCategory: ["Model": "6.1 Sol", "Effort": "High", "Speed": "Fast"],
+            selectedValuesByCategory: ["Model": "6.2 Sol", "Effort": "High", "Speed": "Standard"],
             requiredSettings: requiredSettings
         )
         && SubmissionEvidence(preparedPromptGone: true, freshClearedComposerCount: 1).isConfirmed

@@ -6,7 +6,7 @@ import { runScriptsInVm } from "../../test-support/extension-scripts.js";
 test("shared submission client follows terminal states and preserves uncertainty", async () => {
   const context = vm.createContext({ window: { setTimeout: (callback) => callback() } });
   await runScriptsInVm(context, ["contracts/messages.js", "contracts/cv-fit-submissions.js",
-    "contracts/cv-fit-settings.js", "cv-fit-client.js"]);
+    "cv-fit-client.js"]);
   const client = context.jobSearchCvFitClient;
   for (const status of ["submitted", "ready_for_review", "unconfirmed", "failed", "interrupted"]) {
     const monitor = client.createClient(async (message) => {

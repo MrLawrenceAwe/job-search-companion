@@ -62,7 +62,6 @@
         "contracts/job-analyses.js",
         "contracts/messages.js",
         "contracts/cv-fit-submissions.js",
-        "contracts/cv-fit-settings.js",
         "contracts/shortcuts.js",
         "extension-context.js",
         "dom-visibility.js",

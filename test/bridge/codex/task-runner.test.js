@@ -23,9 +23,9 @@ test("requests auto-submit only when Sol, Medium, and Fast are already selected"
     expectedValue,
     match,
   })), [
-    { category: "Model", expectedValue: "6.1 Sol", match: "exact" },
+    { category: "Model", expectedValue: "6.2 Sol", match: "exact" },
     { category: "Effort", expectedValue: "Medium", match: "exact" },
-    { category: "Speed", expectedValue: "Fast", match: "prefix" },
+    { category: "Speed", expectedValue: "Standard", match: "prefix" },
   ]);
 });
 

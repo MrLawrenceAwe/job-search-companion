@@ -8,7 +8,7 @@ const entries = {
   ],
   "suggestion-card.bundle.js": [
     "contracts/messages.js", "contracts/suggestion-delivery-preferences.js", "contracts/cv-fit-submissions.js",
-    "contracts/cv-fit-settings.js", "cv-fit-client.js", "suggestion-card-styles.js", "suggestion-card-renderer.js", "suggestion-card.js",
+    "cv-fit-client.js", "suggestion-card-styles.js", "suggestion-card-renderer.js", "suggestion-card.js",
   ],
 };
 const buildEntry = async (entry, sources) => {

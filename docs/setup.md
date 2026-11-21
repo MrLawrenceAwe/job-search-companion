@@ -199,12 +199,12 @@ Optional environment variables:
   change it later. Supply it again for manual startup if you use a custom log path.
 
 The native helper reads the visible composer's settings and automatically sends
-only when they are already **6.1 Sol**, **Medium**, and **Fast**. Otherwise it
+only when they are already **6.2 Sol**, **Medium**, and **Standard**. Otherwise it
 leaves the prepared prompt unsent for review.
 
 Codex also reads workspace defaults from `CV Fit Advisor/.codex/config.toml`.
-Set that workspace's `model` to `gpt-6.1-sol`, `model_reasoning_effort` to
-`medium`, and `service_tier` to `priority` so new drafts open with the settings
+Set that workspace's `model` to `gpt-6.2-sol`, `model_reasoning_effort` to
+`medium`, and `service_tier` to `default` so new drafts open with the settings
 the bridge requires. Workspace defaults can override the global Codex default.
 
 ### Diagnostic path overrides
